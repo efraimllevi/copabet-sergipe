@@ -1845,6 +1845,23 @@ function parseOdds(raw){
    if(["markets","bookmakers","outcomes","selections","options","values","bets","odds","data","results"].includes(k))walk(x,h,m,depth+1);
   }
  }
+ // Formato oficial SportsAPI: markets[].positions + markets[].quotes[].latest
+ if(Array.isArray(raw)){
+  for(const market of raw){
+   if(!market || typeof market!=="object" || !Array.isArray(market.positions))continue;
+   const marketName=first(market.label,market.key,"Mercado");
+   for(const quote of (Array.isArray(market.quotes)?market.quotes:[])){
+    const values=quote.latest;
+    if(!Array.isArray(values))continue;
+    market.positions.forEach((position,i)=>{
+     // Em mercados com linha, a posição "line" representa handicap/total, não cotação.
+     if(asText(position).toLowerCase()==="line")return;
+     const label=({home:"Casa",draw:"Empate",away:"Visitante",over:"Mais",under:"Menos"})[asText(position).toLowerCase()]||position;
+     add(first(quote.companyName,quote.bookmakerName,"Casa não informada"),marketName,label,values[i]);
+    });
+   }
+  }
+ }
  walk(raw);
  return out.slice(0,36);
 }
