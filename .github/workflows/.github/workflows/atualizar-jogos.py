@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import time
 import firebase_admin
 
 from datetime import datetime, timedelta, timezone
@@ -77,11 +78,25 @@ for dias in range(7):
         for pagina in range(2):
 
             try:
-                resposta = session.get(
-                    API_URL,
-                    params=parametros,
-                    timeout=30
-                )
+                resposta = None
+                for tentativa in range(3):
+                    try:
+                        resposta = session.get(
+                            API_URL, params=parametros, timeout=(10, 20)
+                        )
+                        if resposta.status_code in (429, 500, 502, 503, 504):
+                            raise requests.exceptions.HTTPError(
+                                f"Resposta temporária HTTP {resposta.status_code}"
+                            )
+                        break
+                    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError,
+                            requests.exceptions.HTTPError) as erro_temporario:
+                        print(f"Tentativa {tentativa + 1}/3 falhou em {data}, {consulta}: {erro_temporario}")
+                        if tentativa < 2:
+                            time.sleep(2 ** tentativa)
+                if resposta is None or resposta.status_code in (429, 500, 502, 503, 504):
+                    print(f"Pulando consulta temporariamente indisponível: {data}, {consulta}")
+                    break
 
                 if resposta.status_code == 403:
                     print("Modalidade não liberada no plano")
@@ -112,8 +127,8 @@ for dias in range(7):
                 parametros["offset"] = proximo
 
             except requests.RequestException as erro:
-                print("Erro ao consultar SportsAPI:", erro)
-                raise
+                print(f"Consulta ignorada após erro em {data}, {consulta}: {erro}")
+                break
 
 print("Partidas encontradas:", len(jogos))
 
