@@ -14,10 +14,10 @@ jobs:
 
     steps:
       - name: Baixar arquivos do projeto
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Instalar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -28,4 +28,4 @@ jobs:
         env:
           SPORTSAPI_API_KEY: ${{ secrets.SPORTSAPI_API_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: python scripts/atualizar_jogos.py
+        run: python .github/workflows/atualizar-jogos.py
