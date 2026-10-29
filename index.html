@@ -353,6 +353,11 @@ label{font-size:13px;color:#aaa}
 #findCpfCreditBtn, #applyCpfCreditBtn, #creditCpf, #creditCpfAmount, #creditCpfMatch,
 #cpfSearch, #cpfRegistry, #cpfCount { display:none !important; }
 
+
+/* Painel: mostrar somente partidas importadas, preservando dados manuais no Firestore. */
+#matchesPane > :not(#adminImportedGames){display:none!important}
+#publicView #matches{display:none!important}
+#adminImportedGames{display:block!important}
 </style>
 
 <style id="copabet-live-styles">
