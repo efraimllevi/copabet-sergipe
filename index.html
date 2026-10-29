@@ -374,6 +374,12 @@ label{font-size:13px;color:#aaa}
 .cb-odd.is-picked small,.cb-odd.is-picked strong{color:#111}
 .cb-odd.is-picked button{background:#111;color:#ffd400;border-color:#111}
 #matches .odds button.selected{background:#ffd400!important;color:#111!important;border-color:#ffd400!important;box-shadow:0 0 0 2px rgba(255,212,0,.28)}
+/* As partidas manuais são exibidas somente na aba Society. */
+.site-layout.cb-api-mode{grid-template-columns:minmax(0,1fr)}
+#cbSocietyGames[hidden],#cbSocietySidebar[hidden],#cbLiveGames[hidden],#cbLiveStatus[hidden]{display:none!important}
+#cbSocietyGames{margin:12px 0 22px}
+#cbSocietyGames h3{color:#ffd400}
+@media(max-width:760px){.site-layout.cb-api-mode{grid-template-columns:minmax(0,1fr)}}
 </style>
 
 <style id="copabet-visible-betslip-v1">
@@ -456,10 +462,10 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
  </div>
 </div>
 
-<div class="site-layout">
- <aside class="champ-sidebar" aria-label="Campeonatos disponíveis">
-  <h3>CAMPEONATOS</h3>
-  <p class="small">Escolha uma competição para filtrar os jogos.</p>
+<div class="site-layout cb-api-mode" id="cbGamesLayout">
+ <aside class="champ-sidebar" id="cbSocietySidebar" aria-label="Campeonatos estaduais de society" hidden>
+  <h3>CAMPEONATOS DE SOCIETY</h3>
+  <p class="small">Escolha uma competição para filtrar os jogos manuais de society.</p>
   <div id="championshipTabs" class="champ-list"><button class="champ-tab active" data-cup-filter="__all">Todos os campeonatos</button></div>
  </aside>
  <main class="container champ-main">
@@ -498,11 +504,15 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
+    <button type="button" data-filter="society" aria-pressed="false">Jogos Estaduais de Society</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
-<h3>Jogos cadastrados manualmente</h3>
-<div id="matches"></div>
+<section id="cbSocietyGames" aria-label="Jogos Estaduais de Society" hidden>
+  <h3>Jogos Estaduais de Society</h3>
+  <p class="small">Partidas cadastradas manualmente, organizadas por campeonato.</p>
+  <div id="matches"></div>
+</section>
   <div class="card" id="floatingBetSlip" aria-label="Bilhete de apostas selecionadas">
    <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount" class="cb-slip-count"></span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody">Recolher</button></div>
    <div id="cbSlipBody"><p class="small">Acompanhe seus palpites enquanto seleciona os jogos.</p>
@@ -546,12 +556,13 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 </div><!-- /apiGamesPane -->
 <div id="manualFormPane" class="admin-pane hidden">
  <div class="row" style="margin-top:15px">
-     <h3 id="formTitle" style="margin:0">Adicionar jogo manual</h3>
+     <h3 id="formTitle" style="margin:0">Adicionar jogo manual de society</h3>
      <button class="secondary" id="clearFormBtn" style="font-size:12px;padding:6px 12px">Limpar Formulário</button>
    </div>
 
    <input id="editId" type="hidden">
    <input id="editDocId" type="hidden">
+   <p class="small">Os jogos manuais cadastrados aqui aparecerão na aba <b>Jogos Estaduais de Society</b> do site.</p>
    <label>Liga / Copa</label><select id="cup" required><option value="">Cadastre ou selecione uma liga na aba Ligas / Copas</option></select><p class="small">Cada liga é cadastrada uma única vez; depois, selecione-a ao adicionar os jogos.</p>
    <label>Time da casa</label><input id="teamA" placeholder="Nome do primeiro time">
    <label>Time visitante</label><input id="teamB" placeholder="Nome do segundo time">
@@ -1797,7 +1808,7 @@ const matchesContainer = $("matches");
     $("oddX").value = 3.20; 
     $("oddB").value = 3.80;
     $("maxStake").value = 100;
-    $("formTitle").textContent = "Adicionar jogo manual";
+    $("formTitle").textContent = "Adicionar jogo manual de society";
   };
 
   $("clearFormBtn").addEventListener("click", window.clearForm);
@@ -1892,7 +1903,18 @@ const root = document.getElementById("cbLiveGames");
 const statusEl = document.getElementById("cbLiveStatus");
 if(!root || !statusEl)console.error("Elementos dos jogos da API não encontrados. Confira a publicação do index.html completo.");
 const buttons = [...document.querySelectorAll("#cbSportFilters button")];
+const societyRoot=document.getElementById("cbSocietyGames");
+const societySidebar=document.getElementById("cbSocietySidebar");
+const gamesLayout=document.getElementById("cbGamesLayout");
 let games = [], filter="all";
+function syncGameSections(){
+ const society=filter==="society";
+ if(root)root.hidden=society;
+ if(societyRoot)societyRoot.hidden=!society;
+ if(societySidebar)societySidebar.hidden=!society;
+ if(gamesLayout)gamesLayout.classList.toggle("cb-api-mode",!society);
+ if(statusEl)statusEl.hidden=society;
+}
 const pickedSports=new Map();
 window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;e.detail.side?pickedSports.set(String(e.detail.gameId),String(e.detail.side)):pickedSports.delete(String(e.detail.gameId));render()});
 const asText = x => String(x ?? "").trim();
@@ -1964,6 +1986,7 @@ function relevance(g){
  return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
 }
 function render(){
+ if(filter==="society")return;
  root.replaceChildren();
  const list=games.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
@@ -2022,7 +2045,8 @@ function render(){
  }
  if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
 }
-buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()}));
+buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));syncGameSections();render()}));
+syncGameSections();
 onSnapshot(collection(db,"jogos"),snapshot=>{
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
  statusEl.textContent=games.filter(football).length+" partida(s) de futebol de "+games.length+" jogo(s) recebido(s)";
