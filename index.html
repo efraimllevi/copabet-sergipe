@@ -375,6 +375,20 @@ label{font-size:13px;color:#aaa}
 .cb-odd.is-picked button{background:#111;color:#ffd400;border-color:#111}
 #matches .odds button.selected{background:#ffd400!important;color:#111!important;border-color:#ffd400!important;box-shadow:0 0 0 2px rgba(255,212,0,.28)}
 </style>
+
+<style id="copabet-visible-betslip-v1">
+#floatingBetSlip{z-index:45;border:2px solid #ffd400;box-shadow:0 12px 35px #000a;background:#151515}
+.cb-slip-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cb-slip-title h2{margin:0;font-size:19px;color:#ffd400}
+#cbSlipToggle{background:#292929;color:#ffd400;border:1px solid #665700;border-radius:7px;padding:7px;cursor:pointer}
+#floatingBetSlip #selections{max-height:32vh;overflow-y:auto;overscroll-behavior:contain}
+#floatingBetSlip #selections p{padding:8px;margin:5px 0;border-bottom:1px solid #333}
+#floatingBetSlip.is-collapsed #cbSlipBody{display:none}
+@media(min-width:1100px){#floatingBetSlip{position:fixed;right:16px;top:100px;width:305px;max-height:calc(100vh - 120px);overflow-y:auto}#publicView{padding-right:320px}}
+@media(min-width:700px) and (max-width:1099px){#floatingBetSlip{position:fixed;right:12px;bottom:12px;width:285px;max-height:70vh;overflow-y:auto}#publicView{padding-right:300px}}
+@media(max-width:699px){#floatingBetSlip{position:fixed;bottom:0;left:0;right:0;width:auto;margin:0;border-radius:13px 13px 0 0;max-height:52vh;overflow-y:auto;padding:12px}#publicView{padding-bottom:100px}#floatingBetSlip:not(.is-collapsed){max-height:66vh}#floatingBetSlip #selections{max-height:21vh}}
+body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) #floatingBetSlip{display:none!important}
+</style>
 </head>
 <body>
 
@@ -459,9 +473,9 @@ label{font-size:13px;color:#aaa}
 </section>
 <h3>Jogos cadastrados manualmente</h3>
 <div id="matches"></div>
-  <div class="card">
-   <h2>Seu bilhete (Múltiplas Seleções)</h2>
-   <p class="small">Selecione quantas partidas quiser acima. Quando terminar, desça até aqui para enviar seu bilhete.</p>
+  <div class="card" id="floatingBetSlip" aria-label="Bilhete de apostas selecionadas">
+   <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount">(0)</span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody">Recolher</button></div>
+   <div id="cbSlipBody"><p class="small">Acompanhe seus palpites enquanto seleciona os jogos.</p>
    <div id="selections">Você ainda não selecionou jogos.</div>
    <label for="amount">Valor da aposta única (R$)</label>
    <input id="amount" type="number" min="1" step="0.01" value="10">
@@ -469,6 +483,7 @@ label{font-size:13px;color:#aaa}
    <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="payout" class="orange">R$ 0,00</b></div>
    <button class="btn" id="payBtn" style="width:100%">CONTINUAR PARA PAGAMENTO</button>
    <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
+   </div>
   </div>
  </section>
 
@@ -1406,10 +1421,23 @@ const matchesContainer = $("matches");
     });
   }
 
+  const slipToggle=document.getElementById("cbSlipToggle");
+  if(slipToggle)slipToggle.addEventListener("click",()=>{
+    const slip=document.getElementById("floatingBetSlip");
+    const closed=slip.classList.toggle("is-collapsed");
+    slipToggle.textContent=closed?"Ver bilhete":"Recolher";
+    slipToggle.setAttribute("aria-expanded",String(!closed));
+  });
+  if(window.matchMedia("(max-width:699px)").matches){
+    document.getElementById("floatingBetSlip")?.classList.add("is-collapsed");
+    if(slipToggle){slipToggle.textContent="Ver bilhete";slipToggle.setAttribute("aria-expanded","false");}
+  }
+
   function renderPicks(){
     const sel = $("selections");
     if(!sel) return;
     
+    const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=`(${picks.length})`;
     sel.innerHTML = picks.length ? picks.map(p => `<p>${esc(p.cup)}: <b>${esc(p.a)} x ${esc(p.b)}</b><br><span class="small">Palpite: ${["Vitória da casa","Empate","Vitória visitante"][p.side]} ${String(p.id).startsWith("sportsapi:") ? " · " + esc(p.location) : ""} • Cotação ${p.odd}</span></p>`).join("") : "Você ainda não selecionou jogos.";
     
     const amount = Math.max(0, Number($("amount").value) || 0);
