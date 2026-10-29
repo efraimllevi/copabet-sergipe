@@ -1893,8 +1893,14 @@ const brazilCompetition = g => {
 };
 const fmt = x => {let n=Number(x);return Number.isFinite(n)&&n>1 ? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : null};
 const football = g => {
- const v=asText(first(g.sport,g.sportName,g.sport_type,g.category)).toLowerCase();
- return ["football","soccer","futebol","futbol","association football"].includes(v);
+ const raw=first(g.sport,g.sportName,g.sport_type,g.category,g.sports);
+ const v=name(raw).toLowerCase();
+ if (/(basket|basquet|nba|volley|volei|tennis|tenis|handball|hockey|cricket|baseball|esport)/.test(v)) return false;
+ if (/(football|soccer|futebol|futbol|futebol masculino|foot ball)/.test(v)) return true;
+ // O importador pode omitir o campo de esporte; nesses casos, considere a liga.
+ const league=competitionOf(g).toLowerCase();
+ if (/(basket|basquet|nba|volley|volei|tennis|tenis|hockey|baseball)/.test(league)) return false;
+ return !v || /(brasileir|libertador|sul-americana|copa do brasil|serie [a-d]|premier league|champions league|football|soccer|futebol|estadual|paulista|carioca|pernambucano|sergipano|baiano|mineiro|gaucho|laliga|bundesliga|ligue 1|serie a)/.test(league);
 };
 function parseOdds(raw){
  const entries=[];
@@ -1946,7 +1952,7 @@ function render(){
  root.replaceChildren();
  const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g)))
   .sort((a,b)=> relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b));
- if(!list.length){root.append(node("p","Nenhuma partida disponível para este filtro. Confira a atualização da API e as regras de leitura do Firebase.","small"));return}
+ if(!list.length){root.append(node("p",games.length ? "Existem "+games.length+" jogo(s) no banco, mas nenhum corresponde ao filtro selecionado. Tente Todos os jogos de futebol." : "Nenhuma partida recebida do Firebase. Confira se o importador da API atualizou a coleção jogos.","small"));return}
  for(const g of list.slice(0,150)){
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
@@ -1991,7 +1997,7 @@ function render(){
 buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()}));
 onSnapshot(collection(db,"jogos"),snapshot=>{
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
- statusEl.textContent=games.filter(football).length+" partida(s) de futebol recebida(s)";
+ statusEl.textContent=games.filter(football).length+" partida(s) de futebol de "+games.length+" jogo(s) recebido(s)";
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
  if(adminStatus)adminStatus.textContent=games.length+" jogo(s) importado(s) no Firebase";
  if(adminList){
