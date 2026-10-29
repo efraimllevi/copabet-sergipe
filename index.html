@@ -416,6 +416,11 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 .cb-match-time{font-size:13px;font-weight:650;color:#f4d64c;margin:7px 0 11px}
 @media(max-width:699px){#sportsapiPanel .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}#sportsapiPanel .cb-odd{min-width:0!important;padding:8px 4px!important;text-align:center}#sportsapiPanel .cb-odd button{width:100%;font-size:10px!important;padding:7px 2px!important}#sportsapiPanel .cb-odd strong{font-size:14px}#sportsapiPanel .cb-live-game{padding:10px}}
 </style>
+<style>
+/* Filtro administrativo: mantém os jogos importados e oculta apenas os controles manuais. */
+#matchesPane.api-only > :not(#adminGamesFilterBar):not(#adminImportedGames) { display:none !important; }
+#adminApiOnlyBtn[aria-pressed="true"] { background:#ffd400;color:#161616;border-color:#ffd400;font-weight:700; }
+</style>
 </head>
 <body>
 
@@ -525,6 +530,9 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
    </div>
    <div id="matchesPane" class="admin-pane">
+   <div id="adminGamesFilterBar" class="row" style="margin:10px 0 14px;gap:10px;flex-wrap:wrap">
+    <button type="button" id="adminApiOnlyBtn" class="secondary" aria-pressed="false">Ver somente jogos da API</button>
+   </div>
    <section id="adminImportedGames" class="card">
     <h3>Jogos importados da API</h3>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
@@ -2045,6 +2053,19 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
 document.addEventListener("DOMContentLoaded",()=>{
  const publicView=document.getElementById("publicView"),slip=document.getElementById("floatingBetSlip"),list=document.getElementById("sportsapiPanel");
  if(publicView&&slip&&list && window.matchMedia("(max-width:699px)").matches) publicView.insertBefore(slip,list);
+});
+</script>
+
+<script id="copabet-admin-api-filter">
+document.addEventListener("DOMContentLoaded", function () {
+  const pane = document.getElementById("matchesPane");
+  const button = document.getElementById("adminApiOnlyBtn");
+  if (!pane || !button) return;
+  button.addEventListener("click", function () {
+    const onlyApi = pane.classList.toggle("api-only");
+    button.setAttribute("aria-pressed", String(onlyApi));
+    button.textContent = onlyApi ? "Mostrar também jogos manuais" : "Ver somente jogos da API";
+  });
 });
 </script>
 </body>
