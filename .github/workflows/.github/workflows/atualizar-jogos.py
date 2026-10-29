@@ -118,7 +118,7 @@ for dias in range(7):
 print("Partidas encontradas:", len(jogos))
 
 # Consultar odds disponíveis
-limite_odds = 10  # limite de chamadas por execução para controlar a cota
+limite_odds = 50  # teto conservador por execução; depende da cota da API
 odds_consultadas = 0
 
 for identificador, jogo in jogos.items():
