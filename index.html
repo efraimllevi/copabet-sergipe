@@ -416,10 +416,8 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 .cb-match-time{font-size:13px;font-weight:650;color:#f4d64c;margin:7px 0 11px}
 @media(max-width:699px){#sportsapiPanel .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}#sportsapiPanel .cb-odd{min-width:0!important;padding:8px 4px!important;text-align:center}#sportsapiPanel .cb-odd button{width:100%;font-size:10px!important;padding:7px 2px!important}#sportsapiPanel .cb-odd strong{font-size:14px}#sportsapiPanel .cb-live-game{padding:10px}}
 </style>
-<style>
-/* Filtro administrativo: mantém os jogos importados e oculta apenas os controles manuais. */
-#matchesPane.api-only > :not(#adminGamesFilterBar):not(#adminImportedGames) { display:none !important; }
-#adminApiOnlyBtn[aria-pressed="true"] { background:#ffd400;color:#161616;border-color:#ffd400;font-weight:700; }
+<style id="copabet-admin-split-panels">
+@media(max-width:700px){#adminView .admin-tabbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#adminView .admin-tab{min-width:0;white-space:normal;padding:11px 8px}#openManualFormBtn{width:100%}}
 </style>
 </head>
 <body>
@@ -525,21 +523,30 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
    
 <div class="admin-tabbar">
     <button type="button" class="admin-tab active" data-admin-tab="matchesPane">Jogos</button>
+     <button type="button" class="admin-tab" data-admin-tab="apiGamesPane">Jogos da API</button>
+     <button type="button" class="admin-tab" data-admin-tab="manualFormPane">Adicionar jogo manual</button>
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
    </div>
    <div id="matchesPane" class="admin-pane">
-   <div id="adminGamesFilterBar" class="row" style="margin:10px 0 14px;gap:10px;flex-wrap:wrap">
-    <button type="button" id="adminApiOnlyBtn" class="secondary" aria-pressed="false">Ver somente jogos da API</button>
-   </div>
-   <section id="adminImportedGames" class="card">
+ <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
+  <h3 style="margin:0">Jogos manuais</h3>
+  <button type="button" class="btn" id="openManualFormBtn">+ Adicionar jogo manual</button>
+ </div>
+ <p class="small">Gerencie os jogos cadastrados manualmente: editar, atualizar placar ou excluir.</p>
+ <div id="adminMatches"><p class="small">Carregando jogos manuais...</p></div>
+</div><!-- /matchesPane -->
+<div id="apiGamesPane" class="admin-pane hidden">
+ <section id="adminImportedGames" class="card">
     <h3>Jogos importados da API</h3>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
     <div id="adminImportedList"></div>
    </section>
-   <div class="row" style="margin-top:15px">
-     <h3 id="formTitle" style="margin:0">Adicionar Nova Partida</h3>
+</div><!-- /apiGamesPane -->
+<div id="manualFormPane" class="admin-pane hidden">
+ <div class="row" style="margin-top:15px">
+     <h3 id="formTitle" style="margin:0">Adicionar jogo manual</h3>
      <button class="secondary" id="clearFormBtn" style="font-size:12px;padding:6px 12px">Limpar Formulário</button>
    </div>
 
@@ -579,12 +586,9 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 
    <button class="btn" id="saveMatchBtn" style="width:100%;margin-top:5px">SALVAR / PUBLICAR PARTIDA</button>
    
-   <hr style="border-color:#333;margin:30px 0 20px 0">
-   <h3>Gerenciar jogos cadastrados</h3>
-   <p class="small">Edite placares ou exclua partidas nesta mesma aba.</p>
-   <div id="adminMatches"><p class="small">Carregando jogos...</p></div>
-   </div><!-- /matchesPane -->
-   <div id="settlementPane" class="admin-pane hidden">
+   
+</div><!-- /manualFormPane -->
+    <div id="settlementPane" class="admin-pane hidden">
     <h3>Auditoria de apostas</h3>
     <p class="small">Cada bilhete fica registrado quando o cliente clica para enviá-lo ao WhatsApp. Depois que o administrador salva os placares finais e encerra os jogos, apure aqui para classificar cada bilhete como vencedor ou não vencedor.</p>
     <div id="auditSummary" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:12px 0">
@@ -1765,7 +1769,8 @@ const matchesContainer = $("matches");
     try {
       await setDoc(doc(db, "matches", String(firestoreDocId)), data);
       window.clearForm();
-      alert("Partida salva com sucesso!");
+       document.querySelector('[data-admin-tab="matchesPane"]')?.click();
+       alert("Partida salva com sucesso!");
     } catch(e) {
       console.error("Firestore save match failed:", e);
       const reason = e.code === "permission-denied"
@@ -1792,7 +1797,7 @@ const matchesContainer = $("matches");
     $("oddX").value = 3.20; 
     $("oddB").value = 3.80;
     $("maxStake").value = 100;
-    $("formTitle").textContent = "Adicionar Nova Partida";
+    $("formTitle").textContent = "Adicionar jogo manual";
   };
 
   $("clearFormBtn").addEventListener("click", window.clearForm);
@@ -1823,7 +1828,8 @@ const matchesContainer = $("matches");
     $("scoreB").value = m.scoreB ?? "0";
     $("matchStatus").value = m.status || "pending";
     $("formTitle").textContent = "Editando Jogo: " + (m.a || "Time da casa") + " x " + (m.b || "Time visitante");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector('[data-admin-tab="manualFormPane"]')?.click();
+    document.getElementById("manualFormPane")?.scrollIntoView({behavior:"smooth",block:"start"});
   };
 
   window.deleteMatch = async function(id) {
@@ -2056,16 +2062,9 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 </script>
 
-<script id="copabet-admin-api-filter">
-document.addEventListener("DOMContentLoaded", function () {
-  const pane = document.getElementById("matchesPane");
-  const button = document.getElementById("adminApiOnlyBtn");
-  if (!pane || !button) return;
-  button.addEventListener("click", function () {
-    const onlyApi = pane.classList.toggle("api-only");
-    button.setAttribute("aria-pressed", String(onlyApi));
-    button.textContent = onlyApi ? "Mostrar também jogos manuais" : "Ver somente jogos da API";
-  });
+<script id="copabet-admin-manual-nav">
+document.addEventListener("DOMContentLoaded",()=>{
+ document.getElementById("openManualFormBtn")?.addEventListener("click",()=>document.querySelector('[data-admin-tab="manualFormPane"]')?.click());
 });
 </script>
 </body>
