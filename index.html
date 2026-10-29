@@ -441,13 +441,15 @@ label{font-size:13px;color:#aaa}
   <div class="row">
    <h2>Partidas disponíveis</h2>
   </div>
-  <p class="small">Partidas importadas automaticamente e jogos cadastrados manualmente.</p>
-<section id="sportsapiPanel" aria-label="Jogos e cotações da SportsAPI">
+  <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
+<section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
   <div class="cb-live-head"><h2>Futebol — Casa, Empate ou Fora</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
-  <p class="small">Somente futebol, mercado de resultado final (1X2). Cotações da SportsAPI quando disponíveis, sem valores inventados.</p>
+  <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
     <button type="button" data-filter="all" aria-pressed="true">Todos os jogos de futebol</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
+    <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
+    <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
@@ -455,6 +457,7 @@ label{font-size:13px;color:#aaa}
 <div id="matches"></div>
   <div class="card">
    <h2>Seu bilhete (Múltiplas Seleções)</h2>
+   <p class="small">Selecione quantas partidas quiser acima. Quando terminar, desça até aqui para enviar seu bilhete.</p>
    <div id="selections">Você ainda não selecionou jogos.</div>
    <label for="amount">Valor da aposta única (R$)</label>
    <input id="amount" type="number" min="1" step="0.01" value="10">
@@ -1336,12 +1339,12 @@ label{font-size:13px;color:#aaa}
     if (!Number.isFinite(odd) || odd <= 1) { alert('Cotação inválida.'); return; }
     if (!info.house || info.house === 'Casa não informada') { alert('Casa da cotação não identificada.'); return; }
     const idx = picks.findIndex(p => String(p.id) === id);
-    const item = {id, side: 0, odd, cup: String(info.competition||'SportsAPI') + ' · ' + String(info.house||''),
+    const item = {id, side: ({Casa:0,Empate:1,Fora:2})[String(info.selection)] ?? 0, odd, cup: String(info.competition||'SportsAPI') + ' · ' + String(info.house||''),
       a: String(info.home||'Mandante'), b: String(info.away||'Visitante'),
       location: String(info.market||'') + ' · ' + String(info.selection||'')};
     if (idx >= 0) picks[idx] = item; else picks.push(item);
     renderPicks();
-    document.getElementById('selections')?.scrollIntoView({behavior:'smooth',block:'center'});
+    // Permanece na lista para escolher outras partidas; o bilhete fica ao final.
   };
 
   window.pick = function(id, side){
@@ -1822,6 +1825,12 @@ const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="")
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","playing"].includes(asText(g.status).toLowerCase());
+const competitionOf = g => name(first(g.competition,g.league,g.tournament,g.championship));
+const brazilCompetition = g => {
+ const c=competitionOf(g).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const region=asText(first(g.region,g.country,g.location,g.leagueCountry)).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ return /brasil|brazil|brasileir|serie [a-d]|copa do brasil|paulista|carioca|baiano|pernambucano|sergipano|gaucho|mineiro|paranaense|cearense|catarinense|goiano|alagoano|paraense|amazonense|nordeste|estadual/.test(c) || (region==="brazil" || region==="brasil");
+};
 const fmt = x => {let n=Number(x);return Number.isFinite(n)&&n>1 ? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : null};
 const football = g => {
  const v=asText(first(g.sport,g.sportName,g.sport_type,g.category)).toLowerCase();
@@ -1860,8 +1869,11 @@ function parseOdds(raw){
 
 function render(){
  root.replaceChildren();
- const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)))
-  .sort((a,b)=>Number(isLive(b))-Number(isLive(a)));
+ const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g)))
+  .sort((a,b)=> {
+    const aOdds=parseOdds(a.odds).values.size, bOdds=parseOdds(b.odds).values.size;
+    return Number(bOdds>0)-Number(aOdds>0) || bOdds-aOdds || Number(isLive(b))-Number(isLive(a));
+  });
  if(!list.length){root.append(node("p","Nenhuma partida disponível para este filtro. Confira a atualização da API e as regras de leitura do Firebase.","small"));return}
  for(const g of list.slice(0,150)){
   const card=node("article","","cb-live-game");
@@ -1880,7 +1892,7 @@ function render(){
   for(const [side,label] of [["Casa","1 · Casa"],["Empate","X · Empate"],["Fora","2 · Fora"]]){
     const box=node("div","","cb-odd");
     const value=result.values.get(side);
-    box.append(node("small",label+(result.house?" · "+result.house:"")));
+    box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
       const btn=node("button","Adicionar ao bilhete","secondary");btn.type="button";
@@ -1895,9 +1907,7 @@ function render(){
     grid.append(box);
   }
   card.append(grid);
-  let updated= g.atualizadoEm?.toDate?.();
-  if(updated)card.append(node("div","Dados atualizados em "+updated.toLocaleString("pt-BR")+" · Fonte: SportsAPI","cb-live-foot"));
-  else card.append(node("div","Fonte: SportsAPI · Horário da última atualização indisponível","cb-live-foot"));
+
   root.append(card);
  }
  if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
