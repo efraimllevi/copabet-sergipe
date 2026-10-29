@@ -1,0 +1,31 @@
+name: Atualizar jogos COPABET SERGIPE
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atualizar-jogos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos do projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install requests firebase-admin
+
+      - name: Consultar SportsAPI e atualizar Firestore
+        env:
+          SPORTSAPI_API_KEY: ${{ secrets.SPORTSAPI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: python scripts/atualizar_jogos.py
