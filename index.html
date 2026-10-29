@@ -1957,7 +1957,7 @@ function render(){
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
   top.append(node("span",name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada"));
-  top.append(node("span",isLive(g)?"● AO VIVO":({scheduled:"Agendado",upcoming:"Em breve",not_started:"Agendado",finished:"Encerrado",ended:"Encerrado",postponed:"Adiado",cancelled:"Cancelado"}[asText(g.status).toLowerCase()]||""));
+  top.append(node("span",isLive(g)?"● AO VIVO":({scheduled:"Agendado",upcoming:"Em breve",not_started:"Agendado",finished:"Encerrado",ended:"Encerrado",postponed:"Adiado",cancelled:"Cancelado"}[asText(g.status).toLowerCase()]||"")));
   card.append(top);
   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home));
   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away));
