@@ -370,6 +370,10 @@ label{font-size:13px;color:#aaa}
 .cb-odd small{display:block;color:#ccc;font-size:11px;margin-bottom:4px}
 .cb-odd strong{color:#ffd400}
 .cb-live-foot{font-size:12px;color:#bababa;margin-top:9px}
+.cb-odd.is-picked{background:#ffd400;border-color:#ffd400;color:#111;box-shadow:0 0 0 2px rgba(255,212,0,.28)}
+.cb-odd.is-picked small,.cb-odd.is-picked strong{color:#111}
+.cb-odd.is-picked button{background:#111;color:#ffd400;border-color:#111}
+#matches .odds button.selected{background:#ffd400!important;color:#111!important;border-color:#ffd400!important;box-shadow:0 0 0 2px rgba(255,212,0,.28)}
 </style>
 </head>
 <body>
@@ -1344,6 +1348,7 @@ label{font-size:13px;color:#aaa}
       location: String(info.market||'') + ' · ' + String(info.selection||'')};
     if (idx >= 0) picks[idx] = item; else picks.push(item);
     renderPicks();
+    window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(info.gameId),side:String(info.selection)}}));
     // Permanece na lista para escolher outras partidas; o bilhete fica ao final.
   };
 
@@ -1820,6 +1825,8 @@ const root = document.getElementById("cbLiveGames");
 const statusEl = document.getElementById("cbLiveStatus");
 const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 let games = [], filter="all";
+const pickedSports=new Map();
+window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;pickedSports.set(String(e.detail.gameId),String(e.detail.side));render()});
 const asText = x => String(x ?? "").trim();
 const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="");
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
@@ -1891,11 +1898,15 @@ function render(){
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","1 · Casa"],["Empate","X · Empate"],["Fora","2 · Fora"]]){
     const box=node("div","","cb-odd");
+    const gameKey=String(g.sportsApiId||g.id);
+    const selected=pickedSports.get(gameKey)===side;
+    if(selected)box.classList.add("is-picked");
     const value=result.values.get(side);
     box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
-      const btn=node("button","Adicionar ao bilhete","secondary");btn.type="button";
+      const btn=node("button",selected?"✓ Adicionado":"Adicionar ao bilhete","secondary");btn.type="button";
+      btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
