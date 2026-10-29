@@ -1876,6 +1876,7 @@ const app = getApps().length ? getApp() : initializeApp(config);
 const db = getFirestore(app);
 const root = document.getElementById("cbLiveGames");
 const statusEl = document.getElementById("cbLiveStatus");
+if(!root || !statusEl)console.error("Elementos dos jogos da API não encontrados. Confira a publicação do index.html completo.");
 const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 let games = [], filter="all";
 const pickedSports=new Map();
@@ -1934,7 +1935,7 @@ function parseOdds(raw){
 }
 
 // Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
-const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");
+const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg"];
 const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
 const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
@@ -1945,15 +1946,16 @@ function relevance(g){
  const big=Number(known(a))+Number(known(b));
  const time=startTimestamp(g),now=Date.now();
  const today=new Date(now).toDateString()===new Date(time).toDateString();
- const available=parseOdds(g.odds).values.size;
+ let available=0;try{available=parseOdds(g.odds).values.size}catch(error){console.warn("Odds ignoradas para partida inválida:",error)}
  return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
 }
 function render(){
  root.replaceChildren();
- const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g)))
-  .sort((a,b)=> relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b));
+ const list=games.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
+  .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
  if(!list.length){root.append(node("p",games.length ? "Existem "+games.length+" jogo(s) no banco, mas nenhum corresponde ao filtro selecionado. Tente Todos os jogos de futebol." : "Nenhuma partida recebida do Firebase. Confira se o importador da API atualizou a coleção jogos.","small"));return}
  for(const g of list.slice(0,150)){
+  try{
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
   top.append(node("span",name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada"));
@@ -1964,8 +1966,11 @@ function render(){
   card.append(node("div",(a||"Mandante não informado")+" × "+(b||"Visitante não informado"),"cb-live-match"));
   const date=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);
   const ts=startTimestamp(g);
-  if(ts!==Number.MAX_SAFE_INTEGER)card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"));
-  const result=parseOdds(g.odds);
+  if(ts!==Number.MAX_SAFE_INTEGER && Number.isFinite(ts) && Math.abs(ts)<=8.64e15){
+   try{card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"))}catch(error){console.warn("Horário inválido ignorado:",error)}
+  }
+  let result={house:"",values:new Map()};
+  try{result=parseOdds(g.odds)}catch(error){console.warn("Cotação incompleta nesta partida:",g?.id,error)}
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
     const box=node("div","","cb-odd");
@@ -1991,6 +1996,15 @@ function render(){
   card.append(grid);
 
   root.append(card);
+  }catch(error){
+   console.error("Erro ao exibir uma partida da API:",g?.id,error);
+   const fallback=node("article","","cb-live-game");
+   const home=asText(first(g?.homeTeam?.name,g?.homeTeam,g?.home_team,g?.home,g?.teamA,"Mandante"));
+   const away=asText(first(g?.awayTeam?.name,g?.awayTeam,g?.away_team,g?.away,g?.teamB,"Visitante"));
+   fallback.append(node("strong",home+" × "+away));
+   fallback.append(node("p","Dados desta partida temporariamente incompletos.","small"));
+   root.append(fallback);
+  }
  }
  if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
 }
@@ -2015,7 +2029,11 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
   }
   if(games.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos importados.","small"));
  }
- render();
+ try{render()}catch(error){
+  console.error("Erro geral na lista da API:",error);
+  root.replaceChildren(node("p","Os jogos foram recebidos, mas houve uma falha ao exibi-los. Atualize a página; se continuar, consulte o console.","small"));
+  statusEl.textContent="Falha ao exibir partidas importadas";
+ }
 },error=>{
  statusEl.textContent="Sem acesso aos dados";
  const aStatus=document.getElementById("adminImportedStatus");
