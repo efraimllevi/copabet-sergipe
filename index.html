@@ -411,6 +411,11 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 }
 .cb-slip-count{font-size:13px;font-weight:500;color:#ddd}
 </style>
+
+<style id="copabet-game-time-mobile-v2">
+.cb-match-time{font-size:13px;font-weight:650;color:#f4d64c;margin:7px 0 11px}
+@media(max-width:699px){#sportsapiPanel .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}#sportsapiPanel .cb-odd{min-width:0!important;padding:8px 4px!important;text-align:center}#sportsapiPanel .cb-odd button{width:100%;font-size:10px!important;padding:7px 2px!important}#sportsapiPanel .cb-odd strong{font-size:14px}#sportsapiPanel .cb-live-game{padding:10px}}
+</style>
 </head>
 <body>
 
@@ -1927,7 +1932,7 @@ const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\\u0300-\
 const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg"];
 const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
 const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
-const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);const t=x?.toDate?x.toDate().getTime():new Date(x).getTime();return Number.isFinite(t)?t:Number.MAX_SAFE_INTEGER};
+const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);const t=x?.toDate?x.toDate().getTime():(typeof x==="number"||/^\d{10,13}$/.test(String(x||""))?Number(x)*(Number(x)<1e11?1000:1):new Date(x).getTime());return Number.isFinite(t)?t:Number.MAX_SAFE_INTEGER};
 function relevance(g){
  const [a,b]=teams(g);const known=n=>majorClubs.some(c=>n===c||n.startsWith(c+" "));
  const classics=rivalries.some(([x,y])=>(a.includes(x)&&b.includes(y))||(a.includes(y)&&b.includes(x)));
@@ -1946,14 +1951,14 @@ function render(){
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
   top.append(node("span",name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada"));
-  top.append(node("span",isLive(g)?"● AO VIVO":asText(g.status)||"Status não informado"));
+  top.append(node("span",isLive(g)?"● AO VIVO":({scheduled:"Agendado",upcoming:"Em breve",not_started:"Agendado",finished:"Encerrado",ended:"Encerrado",postponed:"Adiado",cancelled:"Cancelado"}[asText(g.status).toLowerCase()]||""));
   card.append(top);
   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home));
   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away));
   card.append(node("div",(a||"Mandante não informado")+" × "+(b||"Visitante não informado"),"cb-live-match"));
   const date=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);
-  let when=asText(date);if(date?.toDate)when=date.toDate().toLocaleString("pt-BR");else if(typeof date==="string" && date.includes("T")){let d=new Date(date);if(!isNaN(d))when=d.toLocaleString("pt-BR")}
-  if(when)card.append(node("p","Início: "+when,"small"));
+  const ts=startTimestamp(g);
+  if(ts!==Number.MAX_SAFE_INTEGER)card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"));
   const result=parseOdds(g.odds);
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
@@ -1997,7 +2002,9 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
    const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
    const league=name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada";
    article.append(node("strong",a+" × "+b));
-   article.append(node("p",league+" · "+(asText(g.status)||"Status não informado"),"small"));
+   const ts=startTimestamp(g);
+   const when=ts===Number.MAX_SAFE_INTEGER?"":(" · "+new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts)));
+   article.append(node("p",league+when,"small"));
    adminList.append(article);
   }
   if(games.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos importados.","small"));
