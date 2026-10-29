@@ -389,6 +389,28 @@ label{font-size:13px;color:#aaa}
 @media(max-width:699px){#floatingBetSlip{position:fixed;bottom:0;left:0;right:0;width:auto;margin:0;border-radius:13px 13px 0 0;max-height:52vh;overflow-y:auto;padding:12px}#publicView{padding-bottom:100px}#floatingBetSlip:not(.is-collapsed){max-height:66vh}#floatingBetSlip #selections{max-height:21vh}}
 body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) #floatingBetSlip{display:none!important}
 </style>
+<style id="copabet-mobile-betslip-priority">
+/* Bilhete compacto e visível acima da lista no celular. */
+@media(max-width:699px){
+ #publicView{padding-bottom:12px!important}
+ #floatingBetSlip{position:sticky!important;top:0!important;bottom:auto!important;left:auto!important;right:auto!important;z-index:80!important;width:100%!important;box-sizing:border-box!important;max-height:43vh!important;margin:0 0 12px!important;border-radius:12px!important;padding:10px!important;overflow-y:auto!important}
+ #floatingBetSlip:not(.is-collapsed){max-height:43vh!important}
+ #floatingBetSlip #selections{max-height:12vh!important}
+ #floatingBetSlip #selections p{font-size:12px;padding:5px!important}
+ #floatingBetSlip .cb-slip-title h2{font-size:16px}
+ #floatingBetSlip #cbSlipBody>p.small{display:none}
+ #floatingBetSlip #cbSlipBody label{font-size:12px}
+ #floatingBetSlip #amount{max-width:130px}
+ #floatingBetSlip #cbSlipBody>.row{margin:5px 0!important}
+ .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+ .cb-odd{min-width:0!important;padding:8px 4px!important;box-sizing:border-box;text-align:center}
+ .cb-odd button{width:100%;padding:7px 2px!important;font-size:10px!important;white-space:normal}
+ .cb-odd strong{font-size:14px}
+ .cb-live-game{padding:10px!important}
+ .cb-live-tools button{font-size:12px}
+}
+.cb-slip-count{font-size:13px;font-weight:500;color:#ddd}
+</style>
 </head>
 <body>
 
@@ -474,7 +496,7 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 <h3>Jogos cadastrados manualmente</h3>
 <div id="matches"></div>
   <div class="card" id="floatingBetSlip" aria-label="Bilhete de apostas selecionadas">
-   <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount">(0)</span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody">Recolher</button></div>
+   <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount" class="cb-slip-count"></span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody">Recolher</button></div>
    <div id="cbSlipBody"><p class="small">Acompanhe seus palpites enquanto seleciona os jogos.</p>
    <div id="selections">Você ainda não selecionou jogos.</div>
    <label for="amount">Valor da aposta única (R$)</label>
@@ -1358,12 +1380,13 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
     if (!Number.isFinite(odd) || odd <= 1) { alert('Cotação inválida.'); return; }
     if (!info.house || info.house === 'Casa não informada') { alert('Casa da cotação não identificada.'); return; }
     const idx = picks.findIndex(p => String(p.id) === id);
-    const item = {id, side: ({Casa:0,Empate:1,Fora:2})[String(info.selection)] ?? 0, odd, cup: String(info.competition||'SportsAPI') + ' · ' + String(info.house||''),
+    const item = {id, side: ({Casa:0,Empate:1,Fora:2})[String(info.selection)] ?? 0, odd, cup: String(info.competition||'Futebol'),
       a: String(info.home||'Mandante'), b: String(info.away||'Visitante'),
       location: String(info.market||'') + ' · ' + String(info.selection||'')};
-    if (idx >= 0) picks[idx] = item; else picks.push(item);
+    const removing = idx >= 0 && picks[idx].side === item.side;
+    if(removing) picks.splice(idx,1); else if(idx >= 0) picks[idx] = item; else picks.push(item);
     renderPicks();
-    window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(info.gameId),side:String(info.selection)}}));
+    window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(info.gameId),side:removing?"":String(info.selection)}}));
     // Permanece na lista para escolher outras partidas; o bilhete fica ao final.
   };
 
@@ -1428,16 +1451,13 @@ const matchesContainer = $("matches");
     slipToggle.textContent=closed?"Ver bilhete":"Recolher";
     slipToggle.setAttribute("aria-expanded",String(!closed));
   });
-  if(window.matchMedia("(max-width:699px)").matches){
-    document.getElementById("floatingBetSlip")?.classList.add("is-collapsed");
-    if(slipToggle){slipToggle.textContent="Ver bilhete";slipToggle.setAttribute("aria-expanded","false");}
-  }
+  // No celular o bilhete começa aberto e permanece visível no topo.
 
   function renderPicks(){
     const sel = $("selections");
     if(!sel) return;
     
-    const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=`(${picks.length})`;
+    const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=picks.length ? ` · ${picks.length} ${picks.length===1?"jogo":"jogos"}` : "";
     sel.innerHTML = picks.length ? picks.map(p => `<p>${esc(p.cup)}: <b>${esc(p.a)} x ${esc(p.b)}</b><br><span class="small">Palpite: ${["Vitória da casa","Empate","Vitória visitante"][p.side]} ${String(p.id).startsWith("sportsapi:") ? " · " + esc(p.location) : ""} • Cotação ${p.odd}</span></p>`).join("") : "Você ainda não selecionou jogos.";
     
     const amount = Math.max(0, Number($("amount").value) || 0);
@@ -1854,7 +1874,7 @@ const statusEl = document.getElementById("cbLiveStatus");
 const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 let games = [], filter="all";
 const pickedSports=new Map();
-window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;pickedSports.set(String(e.detail.gameId),String(e.detail.side));render()});
+window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;e.detail.side?pickedSports.set(String(e.detail.gameId),String(e.detail.side)):pickedSports.delete(String(e.detail.gameId));render()});
 const asText = x => String(x ?? "").trim();
 const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="");
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
@@ -1902,13 +1922,25 @@ function parseOdds(raw){
  return chosen?{house:chosen[0],values:chosen[1]}:{house:"",values:new Map()};
 }
 
+// Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
+const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"");
+const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg"];
+const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
+const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
+const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);const t=x?.toDate?x.toDate().getTime():new Date(x).getTime();return Number.isFinite(t)?t:Number.MAX_SAFE_INTEGER};
+function relevance(g){
+ const [a,b]=teams(g);const known=n=>majorClubs.some(c=>n===c||n.startsWith(c+" "));
+ const classics=rivalries.some(([x,y])=>(a.includes(x)&&b.includes(y))||(a.includes(y)&&b.includes(x)));
+ const big=Number(known(a))+Number(known(b));
+ const time=startTimestamp(g),now=Date.now();
+ const today=new Date(now).toDateString()===new Date(time).toDateString();
+ const available=parseOdds(g.odds).values.size;
+ return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
+}
 function render(){
  root.replaceChildren();
  const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g)))
-  .sort((a,b)=> {
-    const aOdds=parseOdds(a.odds).values.size, bOdds=parseOdds(b.odds).values.size;
-    return Number(bOdds>0)-Number(aOdds>0) || bOdds-aOdds || Number(isLive(b))-Number(isLive(a));
-  });
+  .sort((a,b)=> relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b));
  if(!list.length){root.append(node("p","Nenhuma partida disponível para este filtro. Confira a atualização da API e as regras de leitura do Firebase.","small"));return}
  for(const g of list.slice(0,150)){
   const card=node("article","","cb-live-game");
@@ -1924,7 +1956,7 @@ function render(){
   if(when)card.append(node("p","Início: "+when,"small"));
   const result=parseOdds(g.odds);
   const grid=node("div","","cb-odds-grid");
-  for(const [side,label] of [["Casa","1 · Casa"],["Empate","X · Empate"],["Fora","2 · Fora"]]){
+  for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
     const box=node("div","","cb-odd");
     const gameKey=String(g.sportsApiId||g.id);
     const selected=pickedSports.get(gameKey)===side;
@@ -1933,7 +1965,7 @@ function render(){
     box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
-      const btn=node("button",selected?"✓ Adicionado":"Adicionar ao bilhete","secondary");btn.type="button";
+      const btn=node("button",selected?"✓ Selecionado":"Selecionar","secondary");btn.type="button";
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
@@ -1976,6 +2008,12 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
  const aStatus=document.getElementById("adminImportedStatus");
  if(aStatus)aStatus.textContent="Erro ao ler jogos importados: "+error.message;
  root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message+". Confira as regras de leitura e se o atualizador está funcionando.","small"));
+});
+</script>
+<script id="copabet-slip-placement">
+document.addEventListener("DOMContentLoaded",()=>{
+ const publicView=document.getElementById("publicView"),slip=document.getElementById("floatingBetSlip"),list=document.getElementById("sportsapiPanel");
+ if(publicView&&slip&&list && window.matchMedia("(max-width:699px)").matches) publicView.insertBefore(slip,list);
 });
 </script>
 </body>
