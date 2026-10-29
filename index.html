@@ -443,13 +443,11 @@ label{font-size:13px;color:#aaa}
   </div>
   <p class="small">Partidas importadas automaticamente e jogos cadastrados manualmente.</p>
 <section id="sportsapiPanel" aria-label="Jogos e cotações da SportsAPI">
-  <div class="cb-live-head"><h2>Jogos e odds das casas</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
-  <p class="small">Dados da SportsAPI via Firebase. Cotações identificadas por casa quando informadas pela fonte. Sujeitas a mudanças e disponibilidade.</p>
+  <div class="cb-live-head"><h2>Futebol — Casa, Empate ou Fora</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
+  <p class="small">Somente futebol, mercado de resultado final (1X2). Cotações da SportsAPI quando disponíveis, sem valores inventados.</p>
   <div class="cb-live-tools" id="cbSportFilters">
-    <button type="button" data-filter="all" aria-pressed="true">Todos</button>
-    <button type="button" data-filter="football" aria-pressed="false">Futebol</button>
-    <button type="button" data-filter="basketball" aria-pressed="false">Basquete</button>
-    <button type="button" data-filter="live" aria-pressed="false">Ao vivo</button>
+    <button type="button" data-filter="all" aria-pressed="true">Todos os jogos de futebol</button>
+    <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
@@ -1825,49 +1823,44 @@ const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortN
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","playing"].includes(asText(g.status).toLowerCase());
 const fmt = x => {let n=Number(x);return Number.isFinite(n)&&n>1 ? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : null};
+const football = g => {
+ const v=asText(first(g.sport,g.sportName,g.sport_type,g.category)).toLowerCase();
+ return ["football","soccer","futebol","futbol","association football"].includes(v);
+};
 function parseOdds(raw){
- const out=[], seen=new Set();
- function add(house,market,selection,value){
-  let odd=fmt(value);
-  if(!odd)return;
-  const item={house:asText(house)||"Casa não informada",market:asText(market)||"Mercado",selection:asText(selection)||"Seleção",odd};
-  let key=JSON.stringify(item);if(!seen.has(key)){seen.add(key);out.push(item)}
+ const entries=[];
+ const num=x=>{const n=Number(typeof x==="string"?x.replace(",","."):x);return Number.isFinite(n)&&n>1?n:null};
+ const position=x=>{const t=asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+   return ({home:"Casa",house:"Casa",casa:"Casa",mandante:"Casa","1":"Casa",draw:"Empate",empate:"Empate","x":"Empate",away:"Fora",fora:"Fora",visitante:"Fora","2":"Fora"})[t]||null};
+ const matchMarket=x=>{const m=asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+   return /^(1x2|h2h|match odds|match result|full time result|fulltime result|resultado final|resultado da partida|resultado do jogo|winner 3 way|three way|3-way|ft result)$/.test(m)};
+ function push(h,sel,val){const odd=num(val),side=position(sel);if(odd&&side)entries.push({house:asText(h)||"Casa não informada",selection:side,odd})}
+ if(Array.isArray(raw))for(const market of raw){
+  if(!market||!Array.isArray(market.positions)||!matchMarket(first(market.key,market.label,market.name)))continue;
+  for(const quote of (market.quotes||[])){
+   if(!Array.isArray(quote.latest))continue;
+   market.positions.forEach((p,i)=>push(first(quote.companyName,quote.bookmakerName,quote.house),p,quote.latest[i]));
+  }
  }
  function walk(v,house="",market="",depth=0){
-  if(depth>5 || !v)return;
+  if(depth>6||!v)return;
   if(Array.isArray(v)){v.forEach(x=>walk(x,house,market,depth+1));return}
   if(typeof v!=="object")return;
-  const h=first(v.bookmaker?.name,v.bookmaker,v.bookmakerName,v.provider?.name,v.provider,v.house,v.site,house);
-  const m=first(v.market?.name,v.market,v.marketName,v.type,v.name,market);
-  const label=first(v.selection?.name,v.selection,v.outcome?.name,v.outcome,v.label,v.team,v.name);
-  add(h,m,label,first(v.odd,v.price,v.decimal,v.value,v.oddsValue));
-  for(const [k,x] of Object.entries(v)){
-   if(["markets","bookmakers","outcomes","selections","options","values","bets","odds","data","results"].includes(k))walk(x,h,m,depth+1);
-  }
- }
- // Formato oficial SportsAPI: markets[].positions + markets[].quotes[].latest
- if(Array.isArray(raw)){
-  for(const market of raw){
-   if(!market || typeof market!=="object" || !Array.isArray(market.positions))continue;
-   const marketName=first(market.label,market.key,"Mercado");
-   for(const quote of (Array.isArray(market.quotes)?market.quotes:[])){
-    const values=quote.latest;
-    if(!Array.isArray(values))continue;
-    market.positions.forEach((position,i)=>{
-     // Em mercados com linha, a posição "line" representa handicap/total, não cotação.
-     if(asText(position).toLowerCase()==="line")return;
-     const label=({home:"Casa",draw:"Empate",away:"Visitante",over:"Mais",under:"Menos"})[asText(position).toLowerCase()]||position;
-     add(first(quote.companyName,quote.bookmakerName,"Casa não informada"),marketName,label,values[i]);
-    });
-   }
-  }
+  const h=first(v.bookmaker?.name,v.bookmakerName,v.companyName,v.house,house);
+  const m=first(v.market?.name,v.marketName,v.marketKey,v.market,v.type,market);
+  if(matchMarket(m))push(h,first(v.selection?.name,v.selection,v.outcome?.name,v.outcome,v.label,v.position),first(v.odd,v.price,v.decimal,v.value));
+  for(const k of ["markets","bookmakers","outcomes","selections","options","values","bets","odds","data","results"])if(v[k])walk(v[k],h,m,depth+1);
  }
  walk(raw);
- return out.slice(0,36);
+ const houses=new Map();
+ for(const e of entries){if(!houses.has(e.house))houses.set(e.house,new Map());if(!houses.get(e.house).has(e.selection))houses.get(e.house).set(e.selection,e.odd)}
+ const chosen=[...houses].sort((a,b)=>b[1].size-a[1].size)[0];
+ return chosen?{house:chosen[0],values:chosen[1]}:{house:"",values:new Map()};
 }
+
 function render(){
  root.replaceChildren();
- const list=games.filter(g=>filter==="all" || (filter==="live" ? isLive(g) : asText(g.sport).toLowerCase()===filter))
+ const list=games.filter(g=>football(g) && (filter!=="live" || isLive(g)))
   .sort((a,b)=>Number(isLive(b))-Number(isLive(a)));
  if(!list.length){root.append(node("p","Nenhuma partida disponível para este filtro. Confira a atualização da API e as regras de leitura do Firebase.","small"));return}
  for(const g of list.slice(0,150)){
@@ -1882,23 +1875,26 @@ function render(){
   const date=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);
   let when=asText(date);if(date?.toDate)when=date.toDate().toLocaleString("pt-BR");else if(typeof date==="string" && date.includes("T")){let d=new Date(date);if(!isNaN(d))when=d.toLocaleString("pt-BR")}
   if(when)card.append(node("p","Início: "+when,"small"));
-  const odds=parseOdds(g.odds);
+  const result=parseOdds(g.odds);
   const grid=node("div","","cb-odds-grid");
-  for(const o of odds){const box=node("div","","cb-odd");box.append(node("small",o.house+" · "+o.market+" · "+o.selection));box.append(node("strong",o.odd));grid.append(box)}
-  if(odds.length){
-    for(let k=0;k<grid.children.length;k++){
-      const o=odds[k],box=grid.children[k];
-      const btn=node('button','Adicionar ao bilhete','secondary');btn.type='button';
-      btn.style.marginTop='6px';btn.style.fontSize='11px';
-      btn.addEventListener('click',()=>{
-        if(typeof window.copabetSelectSportsOdd!=='function'){alert('Bilhete indisponível. Recarregue a página.');return;}
-        window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:parseFloat(o.odd.replace(',','.')),house:o.house,
-          market:o.market,selection:o.selection,competition:name(first(g.competition,g.league,g.tournament,g.championship)),
-          home:a,away:b});
+  for(const [side,label] of [["Casa","1 · Casa"],["Empate","X · Empate"],["Fora","2 · Fora"]]){
+    const box=node("div","","cb-odd");
+    const value=result.values.get(side);
+    box.append(node("small",label+(result.house?" · "+result.house:"")));
+    box.append(node("strong",value?fmt(value):"Indisponível"));
+    if(value){
+      const btn=node("button","Adicionar ao bilhete","secondary");btn.type="button";
+      btn.style.marginTop="6px";btn.style.fontSize="11px";
+      btn.addEventListener("click",()=>{
+        if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
+        window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
+          market:"Resultado final (1X2)",selection:side,
+          competition:name(first(g.competition,g.league,g.tournament,g.championship)),home:a,away:b});
       });box.append(btn);
     }
-    card.append(grid);
-  }else card.append(node("p","Sem odds verificáveis disponíveis para esta partida.","small"));
+    grid.append(box);
+  }
+  card.append(grid);
   let updated= g.atualizadoEm?.toDate?.();
   if(updated)card.append(node("div","Dados atualizados em "+updated.toLocaleString("pt-BR")+" · Fonte: SportsAPI","cb-live-foot"));
   else card.append(node("div","Fonte: SportsAPI · Horário da última atualização indisponível","cb-live-foot"));
@@ -1909,7 +1905,7 @@ function render(){
 buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));render()}));
 onSnapshot(collection(db,"jogos"),snapshot=>{
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
- statusEl.textContent=games.length+" partida(s) recebida(s)";
+ statusEl.textContent=games.filter(football).length+" partida(s) de futebol recebida(s)";
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
  if(adminStatus)adminStatus.textContent=games.length+" jogo(s) importado(s) no Firebase";
  if(adminList){
