@@ -40,10 +40,10 @@ CONSULTAS = [
         "sport": "football",
         "competition": "Libertadores"
     },
-    {
-        "sport": "basketball",
-        "region": "Brazil"
-    }
+    {"sport": "football", "competition": "La Liga"},
+    {"sport": "football", "competition": "Champions League"},
+    {"sport": "football", "competition": "Europa League"},
+    {"sport": "basketball", "region": "Brazil"}
 ]
 
 session = requests.Session()
@@ -59,8 +59,8 @@ jogos = {}
 
 print("Iniciando atualização COPABET SERGIPE")
 
-# Consultar jogos de hoje e amanhã
-for dias in range(2):
+# Consultar jogos dos próximos sete dias (inclusive hoje)
+for dias in range(7):
 
     data = (hoje + timedelta(days=dias)).isoformat()
 
@@ -118,7 +118,7 @@ for dias in range(2):
 print("Partidas encontradas:", len(jogos))
 
 # Consultar odds disponíveis
-limite_odds = 10
+limite_odds = 10  # limite de chamadas por execução para controlar a cota
 odds_consultadas = 0
 
 for identificador, jogo in jogos.items():
