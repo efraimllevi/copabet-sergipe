@@ -28,4 +28,4 @@ jobs:
         env:
           SPORTSAPI_API_KEY: ${{ secrets.SPORTSAPI_API_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: python .github/workflows/atualizar-jogos.py
+        run: python .github/workflows/.github/workflows/atualizar-jogos.py
