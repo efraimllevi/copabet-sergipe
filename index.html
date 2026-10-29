@@ -478,6 +478,11 @@ label{font-size:13px;color:#aaa}
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
    </div>
    <div id="matchesPane" class="admin-pane">
+   <section id="adminImportedGames" class="card">
+    <h3>Jogos importados da API</h3>
+    <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
+    <div id="adminImportedList"></div>
+   </section>
    <div class="row" style="margin-top:15px">
      <h3 id="formTitle" style="margin:0">Adicionar Nova Partida</h3>
      <button class="secondary" id="clearFormBtn" style="font-size:12px;padding:6px 12px">Limpar Formulário</button>
@@ -1888,9 +1893,26 @@ buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;butto
 onSnapshot(collection(db,"jogos"),snapshot=>{
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
  statusEl.textContent=games.length+" partida(s) recebida(s)";
+ const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
+ if(adminStatus)adminStatus.textContent=games.length+" jogo(s) importado(s) no Firebase";
+ if(adminList){
+  adminList.replaceChildren();
+  for(const g of games.slice(0,150)){
+   const article=node("div","","cb-live-game");
+   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
+   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
+   const league=name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada";
+   article.append(node("strong",a+" × "+b));
+   article.append(node("p",league+" · "+(asText(g.status)||"Status não informado"),"small"));
+   adminList.append(article);
+  }
+  if(games.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos importados.","small"));
+ }
  render();
 },error=>{
  statusEl.textContent="Sem acesso aos dados";
+ const aStatus=document.getElementById("adminImportedStatus");
+ if(aStatus)aStatus.textContent="Erro ao ler jogos importados: "+error.message;
  root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message+". Confira as regras de leitura e se o atualizador está funcionando.","small"));
 });
 </script>
