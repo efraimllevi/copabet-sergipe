@@ -1358,13 +1358,7 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
     
     // O painel "Jogos manuais" nao deve listar partidas importadas da API.
     // A colecao "jogos" e exibida exclusivamente em "Jogos da API".
-    const manualMatches = (window.matches || []).filter(m => {
-      const origin = String(m.source ?? m.origin ?? m.provider ?? m.importedFrom ?? "").toLowerCase();
-      const id = String(m.id ?? "").toLowerCase();
-      return !m.isImported && !m.importedFromApi &&
-        !["sportsapi", "api", "sports-api", "sports_api"].includes(origin) &&
-        !id.startsWith("sportsapi:") && !id.startsWith("api:");
-    });
+    const manualMatches = (window.matches || []).filter(m => isManualMatchRecord(m, m.firestoreDocId));
     if(manualMatches.length === 0) {
       adminContainer.innerHTML = `<p class="small" style="color:#aaa">Nenhum jogo manual cadastrado. Clique em <b>Adicionar jogo manual</b> para criar um.</p>`;
       return;
@@ -1506,10 +1500,24 @@ const matchesContainer = $("matches");
 
   $("amount").addEventListener("input", renderPicks);
 
+  // Separacao definitiva do painel: "matches" guarda jogos manuais;
+  // "jogos" guarda partidas importadas e tem sua propria aba.
+  function isManualMatchRecord(data, docId) {
+    const id = String(data?.id ?? docId ?? "").trim().toLowerCase();
+    const sources = [data?.source, data?.origin, data?.provider, data?.importedFrom]
+      .map(v => String(v ?? "").trim().toLowerCase());
+    if (data?.isImported === true || data?.importedFromApi === true) return false;
+    if (data?.sportsApiId != null || data?.apiGameId != null) return false;
+    if (id.startsWith("sportsapi:") || id.startsWith("api:") || id.startsWith("sportsapi_")) return false;
+    if (sources.some(v => ["sportsapi", "sports-api", "sports_api", "api"].includes(v))) return false;
+    return true;
+  }
+
   onSnapshot(collection(db, "matches"), (snapshot) => {
     window.matches = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      if (!isManualMatchRecord(data, docSnap.id)) return;
       // Use the document ID if legacy records do not contain an id field.
       // Preserve the real Firestore document ID separately from the visible match ID.
       data.firestoreDocId = docSnap.id;
