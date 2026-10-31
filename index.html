@@ -1985,6 +1985,17 @@ const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vas
 const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
 const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
 const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);const t=x?.toDate?x.toDate().getTime():(typeof x==="number"||/^\d{10,13}$/.test(String(x||""))?Number(x)*(Number(x)<1e11?1000:1):new Date(x).getTime());return Number.isFinite(t)?t:Number.MAX_SAFE_INTEGER};
+// Apenas jogos da API: nunca alterar ou filtrar os jogos manuais.
+// Jogos antigos/agendados, encerrados ou cancelados nao devem aparecer.
+// Partidas explicitamente AO VIVO permanecem por no maximo 4h apos o inicio.
+function isAvailableApiGame(g){
+ const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
+ if(["finished","ended","completed","final","full_time","ft","cancelled","canceled","postponed","abandoned"].includes(status))return false;
+ const ts=startTimestamp(g);
+ if(ts===Number.MAX_SAFE_INTEGER)return true; // Data ausente: nao ocultar jogos novos por erro na importacao.
+ const now=Date.now();
+ return ts>now || (isLive(g) && now-ts<=4*60*60*1000);
+}
 function relevance(g){
  const [a,b]=teams(g);const known=n=>majorClubs.some(c=>n===c||n.startsWith(c+" "));
  const classics=rivalries.some(([x,y])=>(a.includes(x)&&b.includes(y))||(a.includes(y)&&b.includes(x)));
@@ -1997,9 +2008,10 @@ function relevance(g){
 function render(){
  if(filter==="society")return;
  root.replaceChildren();
- const list=games.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
+ const availableGames=games.filter(isAvailableApiGame);
+ const list=availableGames.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
- if(!list.length){root.append(node("p",games.length ? "Existem "+games.length+" jogo(s) no banco, mas nenhum corresponde ao filtro selecionado. Tente Todos os jogos de futebol." : "Nenhuma partida recebida do Firebase. Confira se o importador da API atualizou a coleção jogos.","small"));return}
+ if(!list.length){root.append(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));return}
  for(const g of list.slice(0,150)){
   try{
   const card=node("article","","cb-live-game");
@@ -2031,6 +2043,7 @@ function render(){
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
+        if(!isAvailableApiGame(g)){render();alert("Esta partida já começou ou foi encerrada.");return}
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
           market:"Resultado final (1X2)",selection:side,
@@ -2054,28 +2067,31 @@ function render(){
  }
  if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
 }
+function renderImportedAdmin(){
+ const currentGames=games.filter(isAvailableApiGame);
+ if(statusEl)statusEl.textContent=currentGames.filter(football).length+" partida(s) de futebol disponível(is)";
+ const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
+ if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) da API disponível(is) — jogos antigos ocultos";
+ if(!adminList)return;
+ adminList.replaceChildren();
+ for(const g of currentGames.slice(0,150)){
+  const article=node("div","","cb-live-game");
+  const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
+  const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
+  const league=name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada";
+  article.append(node("strong",a+" × "+b));
+  const ts=startTimestamp(g);
+  const when=ts===Number.MAX_SAFE_INTEGER?"":(" · "+new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts)));
+  article.append(node("p",league+when,"small"));
+  adminList.append(article);
+ }
+ if(currentGames.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos disponíveis da API.","small"));
+}
 buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));syncGameSections();render()}));
 syncGameSections();
 onSnapshot(collection(db,"jogos"),snapshot=>{
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
- statusEl.textContent=games.filter(football).length+" partida(s) de futebol de "+games.length+" jogo(s) recebido(s)";
- const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
- if(adminStatus)adminStatus.textContent=games.length+" jogo(s) importado(s) no Firebase";
- if(adminList){
-  adminList.replaceChildren();
-  for(const g of games.slice(0,150)){
-   const article=node("div","","cb-live-game");
-   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
-   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
-   const league=name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada";
-   article.append(node("strong",a+" × "+b));
-   const ts=startTimestamp(g);
-   const when=ts===Number.MAX_SAFE_INTEGER?"":(" · "+new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts)));
-   article.append(node("p",league+when,"small"));
-   adminList.append(article);
-  }
-  if(games.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos importados.","small"));
- }
+ renderImportedAdmin();
  try{render()}catch(error){
   console.error("Erro geral na lista da API:",error);
   root.replaceChildren(node("p","Os jogos foram recebidos, mas houve uma falha ao exibi-los. Atualize a página; se continuar, consulte o console.","small"));
@@ -2087,6 +2103,8 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
  if(aStatus)aStatus.textContent="Erro ao ler jogos importados: "+error.message;
  root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message+". Confira as regras de leitura e se o atualizador está funcionando.","small"));
 });
+// Reavaliar jogos antigos sem depender de nova atualizacao do Firebase ou reload.
+setInterval(()=>{try{renderImportedAdmin();render()}catch(error){console.error("Falha ao atualizar jogos da API:",error)}},60000);
 </script>
 <script id="copabet-slip-placement">
 document.addEventListener("DOMContentLoaded",()=>{
