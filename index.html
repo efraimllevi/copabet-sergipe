@@ -453,6 +453,19 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
  #sportsapiPanel .cb-odd button{font-size:11px!important;padding:6px 1px!important;width:100%}
 }
 </style>
+
+<style id="cb-history-admin-styles">
+.cb-historico{margin:12px 0 20px}
+.cb-historico[hidden]{display:none!important}
+.cb-historico h3{margin:0;color:#ffd400}
+.cb-history-row{border:1px solid #3b3b3b;border-radius:9px;background:#171717;padding:12px;margin:10px 0}
+.cb-history-row b{color:#ffd400}
+.cb-admin-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}
+.cb-admin-metric{border:1px solid #3d3d3d;border-radius:9px;padding:12px;background:#191919}
+.cb-admin-metric b{display:block;font-size:22px;color:#ffd400;margin-top:4px}
+.cb-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#cbAdminApiSearch{margin:12px 0;max-width:500px;width:100%}
+</style>
 </head>
 <body>
 
@@ -2241,11 +2254,136 @@ function sync(){
 }
 search.addEventListener("input",()=>{term=norm(search.value);apply()});
 favButton.addEventListener("click",()=>{only=!only;favButton.setAttribute("aria-pressed",String(only));favButton.textContent=only?"★ Exibindo favoritos":"☆ Somente favoritos";apply()});
-centerButton.addEventListener("click",()=>{centralVisible=!centralVisible;if(centralVisible)filters.querySelector('[data-filter="live"]')?.click();sync()});
+centerButton.addEventListener("click",()=>{const open=!centralVisible;if(open)filters.querySelector('[data-filter="live"]')?.click();centralVisible=open;sync()});
 filters.querySelectorAll("button[data-filter]").forEach(b=>b.addEventListener("click",()=>{centralVisible=false;league="__all";sync()}));
 window.copabetAfterApiRender=()=>{sync();decorate();if(centralVisible)renderCenter()};
 window.copabetAfterApiRender();
 })();
+</script>
+
+<script type="module" id="cb-historico-admin-2026">
+import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getFirestore,collection,query,where,onSnapshot,getDocs} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const app=getApps().length?getApp():null;
+const $=id=>document.getElementById(id);
+const make=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el};
+const cash=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const date=v=>{
+ const t=v?.toDate?.()||(Number.isFinite(v?.seconds)?new Date(v.seconds*1000):null);
+ return t&&Number.isFinite(t.getTime())?t.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"}):"Data indisponível";
+};
+if(!app){console.error("COPABET: aguardando inicialização do Firebase no histórico")}else{
+ const auth=getAuth(app),db=getFirestore(app);
+ // Bilhetes: a consulta é restrita ao UID autenticado, nunca contém todos os usuários.
+ const panel=$("sportsapiPanel");
+ let user=null,stop=null,rows=[];
+ let box=null,info=null,entries=null,entryButton=null,signinButton=null;
+ if(panel){
+  box=make("section",undefined,"card cb-historico");box.hidden=true;box.setAttribute("aria-label","Meus bilhetes");
+  const title=make("div",undefined,"row");title.append(make("h3","Histórico de bilhetes"));
+  const close=make("button","Fechar","secondary");close.type="button";title.append(close);box.append(title);
+  box.append(make("p","Exibe somente os bilhetes associados à sua sessão autenticada neste dispositivo. Uma sessão anônima perdida não pode ser recuperada automaticamente.","small"));
+  info=make("p","Carregando...","small");info.setAttribute("role","status");box.append(info);
+  signinButton=make("button","Iniciar sessão para consultar","secondary");signinButton.type="button";signinButton.hidden=true;box.append(signinButton);
+  entries=make("div");box.append(entries);panel.after(box);
+  entryButton=make("button","Meus bilhetes");entryButton.type="button";entryButton.id="cbHistoryButton";
+  entryButton.setAttribute("aria-controls","cbHistoricalPanel");entryButton.setAttribute("aria-expanded","false");
+  box.id="cbHistoricalPanel";
+  const tools=panel.querySelector(".cb-extras");tools?.append(entryButton);
+  entryButton.addEventListener("click",()=>{
+   box.hidden=!box.hidden;entryButton.setAttribute("aria-expanded",String(!box.hidden));
+   if(!box.hidden){renderHistory();box.scrollIntoView({behavior:"smooth",block:"nearest"})}
+  });
+  close.addEventListener("click",()=>{box.hidden=true;entryButton.setAttribute("aria-expanded","false")});
+  signinButton.addEventListener("click",async()=>{
+   signinButton.disabled=true;
+   try{await signInAnonymously(auth)}
+   catch(error){info.textContent="Não foi possível iniciar a sessão: "+error.message;signinButton.disabled=false}
+  });
+ }
+ const statusNames={pending:"Aguardando confirmação",accepted:"Pagamento confirmado",rejected:"Pagamento rejeitado",won:"Vencedor",lost:"Não vencedor",cancelled:"Cancelado",sent:"Enviado"};
+ function renderHistory(){
+  if(!box||box.hidden)return;
+  entries.replaceChildren();
+  if(!user){info.textContent="Inicie uma sessão para consultar seus bilhetes.";signinButton.hidden=false;return}
+  signinButton.hidden=true;
+  info.textContent=rows.length+" bilhete(s) encontrado(s) para sua sessão.";
+  if(!rows.length){entries.append(make("p","Você ainda não tem bilhetes registrados nesta sessão.","small"));return}
+  for(const b of rows.slice(0,50)){
+   const item=make("article",undefined,"cb-history-row");
+   item.append(make("b","Bilhete "+String(b.id).slice(-8).toUpperCase()));
+   item.append(make("p",(statusNames[String(b.status||"pending").toLowerCase()]||"Em análise")+" · "+date(b.sentAt||b.createdAt),"small"));
+   item.append(make("p","Valor: "+cash(b.amount)+" · Retorno potencial: "+cash(b.payout),"small"));
+   for(const pick of (Array.isArray(b.picks)?b.picks:[]).slice(0,40)){
+    const p=(pick.a||"Mandante")+" × "+(pick.b||"Visitante")+" — "+(["Casa","Empate","Fora"][Number(pick.side)]||"Palpite");
+    item.append(make("p",p,"small"));
+   }
+   entries.append(item);
+  }
+  if(rows.length>50)entries.append(make("p","Exibindo os últimos 50 bilhetes.","small"));
+ }
+ onAuthStateChanged(auth,account=>{
+  if(stop){stop();stop=null}
+  user=account;rows=[];
+  if(!account){renderHistory();return}
+  stop=onSnapshot(query(collection(db,"bets"),where("uid","==",account.uid)),snap=>{
+   rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+   renderHistory();
+  },error=>{console.error("COPABET: erro ao ler bilhetes",error);if(info&&!box.hidden)info.textContent="Não foi possível ler seus bilhetes: "+error.message});
+ });
+ // Painel administrativo avançado: indicadores e atalhos; operações permanecem nas abas existentes.
+ const admin=$("adminView"),nav=admin?.querySelector(".admin-tabbar");let metrics=null,overview=null;
+ if(nav){
+  const tab=make("button","Visão geral");tab.type="button";tab.className="admin-tab";tab.dataset.adminTab="cbOverviewPane";nav.prepend(tab);
+  overview=make("section",undefined,"admin-pane hidden");overview.id="cbOverviewPane";
+  overview.append(make("h3","Central administrativa"));
+  overview.append(make("p","Indicadores operacionais, não comprovantes de pagamento. Confirme cada Pix no banco antes de aprovar.","small"));
+  metrics=make("div",undefined,"cb-admin-metrics");overview.append(metrics);
+  const actions=make("div",undefined,"cb-admin-actions");
+  for(const [name,target] of [["Atualizar indicadores","refresh"],["Jogos da API","apiGamesPane"],["Jogos manuais","matchesPane"],["Adicionar jogo manual","manualFormPane"],["Confirmações","paymentsPane"],["Auditoria","settlementPane"]]){
+   const b=make("button",name,"secondary");b.type="button";b.addEventListener("click",()=>{
+    if(target==="refresh"){refreshMetrics();return}
+    nav.querySelector('[data-admin-tab="'+target+'"]')?.click()
+   });actions.append(b);
+  }
+  overview.append(actions);nav.after(overview);
+  tab.addEventListener("click",()=>{
+   nav.querySelectorAll("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===tab));
+   admin.querySelectorAll(".admin-pane").forEach(x=>x.classList.toggle("hidden",x!==overview));
+   refreshMetrics();
+  });
+ }
+ function paint(cards){
+  if(!metrics)return;
+  metrics.replaceChildren();
+  for(const [title,value] of cards){
+   const c=make("div",undefined,"cb-admin-metric");
+   c.append(make("span",title,"small"));c.append(make("b",value));metrics.append(c);
+  }
+ }
+ async function refreshMetrics(){
+  if(!metrics||admin?.classList.contains("hidden"))return;
+  if(auth.currentUser?.uid!=="rjWeKGZpkMVrW8UynAKCwjZXklM2"){metrics.textContent="Faça login como administrador para consultar indicadores.";return}
+  const imported=window.copabetApiState?.games||[];
+  const manual=window.matches||[];
+  const live=imported.filter(g=>["live","playing","inplay","in_play","1h","2h","ht"].includes(String(g.status||"").toLowerCase())).length;
+  paint([["Jogos da API",imported.length],["Jogos manuais",manual.length],["Ao vivo na API",live],["Bilhetes registrados","..."]]);
+  try{
+   const snapshot=await getDocs(collection(db,"bets")),bets=snapshot.docs.map(d=>d.data());
+   paint([["Jogos da API",imported.length],["Jogos manuais",manual.length],["Ao vivo na API",live],["Bilhetes registrados",bets.length],["Pendentes",bets.filter(b=>String(b.status||"pending")==="pending").length],["Confirmados",bets.filter(b=>String(b.status||"")==="accepted").length]]);
+  }catch(error){metrics.append(make("p","Erro na consulta de bilhetes: "+error.message,"small"));console.error("COPABET indicadores:",error)}
+ }
+ // Filtro de busca na aba administrativa dos jogos importados.
+ const apiPane=$("adminImportedGames"),apiList=$("adminImportedList");
+ if(apiPane&&apiList){
+  const input=make("input");input.type="search";input.id="cbAdminApiSearch";input.placeholder="Buscar por time ou campeonato";input.setAttribute("aria-label","Buscar apenas jogos importados da API");
+  apiPane.querySelector("h3")?.after(input);
+  const filter=()=>{const v=String(input.value||"").toLowerCase();apiList.querySelectorAll(".cb-live-game").forEach(card=>card.hidden=!!v&&!card.textContent.toLowerCase().includes(v))};
+  input.addEventListener("input",filter);
+  new MutationObserver(filter).observe(apiList,{childList:true});
+ }
+}
 </script>
 </body>
 </html>
