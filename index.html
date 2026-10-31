@@ -532,7 +532,7 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
    <div class="row"><h2>Administrador Geral</h2><button class="secondary" id="closeAdminBtn">Sair</button></div>
    
 <div class="admin-tabbar">
-    <button type="button" class="admin-tab active" data-admin-tab="matchesPane">Jogos</button>
+    <button type="button" class="admin-tab active" data-admin-tab="matchesPane">Jogos manuais</button>
      <button type="button" class="admin-tab" data-admin-tab="apiGamesPane">Jogos da API</button>
      <button type="button" class="admin-tab" data-admin-tab="manualFormPane">Adicionar jogo manual</button>
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
@@ -549,7 +549,7 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 </div><!-- /matchesPane -->
 <div id="apiGamesPane" class="admin-pane hidden">
  <section id="adminImportedGames" class="card">
-    <h3>Jogos importados da API</h3>
+    <h3>Jogos da API</h3>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
     <div id="adminImportedList"></div>
    </section>
@@ -1356,12 +1356,21 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
     const adminContainer = $("adminMatches");
     if(!adminContainer) return;
     
-    if(!window.matches || window.matches.length === 0) {
-      adminContainer.innerHTML = `<p class="small" style="color:#777">Nenhum jogo cadastrado no momento.</p>`;
+    // O painel "Jogos manuais" nao deve listar partidas importadas da API.
+    // A colecao "jogos" e exibida exclusivamente em "Jogos da API".
+    const manualMatches = (window.matches || []).filter(m => {
+      const origin = String(m.source ?? m.origin ?? m.provider ?? m.importedFrom ?? "").toLowerCase();
+      const id = String(m.id ?? "").toLowerCase();
+      return !m.isImported && !m.importedFromApi &&
+        !["sportsapi", "api", "sports-api", "sports_api"].includes(origin) &&
+        !id.startsWith("sportsapi:") && !id.startsWith("api:");
+    });
+    if(manualMatches.length === 0) {
+      adminContainer.innerHTML = `<p class="small" style="color:#aaa">Nenhum jogo manual cadastrado. Clique em <b>Adicionar jogo manual</b> para criar um.</p>`;
       return;
     }
 
-    adminContainer.innerHTML = window.matches.map(m => `
+    adminContainer.innerHTML = manualMatches.map(m => `
       <div class="match" style="margin:10px 0; background:#161616;">
         <div class="row">
           <b>${esc(m.cup)}: ${esc(m.a)} (${m.scoreA !== "" ? m.scoreA : '0'} x ${m.scoreB !== "" ? m.scoreB : '0'}) ${esc(m.b)}</b>
