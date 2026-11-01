@@ -1947,6 +1947,34 @@ const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortN
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","playing"].includes(asText(g.status).toLowerCase());
 const competitionOf = g => name(first(g.competition,g.league,g.tournament,g.championship));
+
+/*
+ * Somente partidas profissionais da API.
+ * Analisa categorias/competições e, quando indicadas, categorias dos clubes.
+ * Não confundir "Boca Juniors" ou "Junior FC" com partidas juvenis.
+ */
+const youthMarker = /(?:^|[^a-z0-9])(?:sub[\s-]?[0-9]{1,2}|u[\s-]?(?:1[0-9]|2[0-3])|under[\s-]?(?:1[0-9]|2[0-3])|juvenil(?:es)?|juvenile|youth(?:s)?|juniores|junior(?:es)?|academia|academy|base|reservas|reserves|aspirantes)(?=$|[^a-z0-9])/i;
+const isYouthApiGame = g => {
+ const normalize=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const asLabel=x=>normalize(name(x));
+ // Competições e categorias específicas indicam explicitamente idade ou divisão de base.
+ const categories=[
+  g.competition,g.league,g.tournament,g.championship,
+  g.category,g.ageGroup,g.age_group,g.division,g.level,g.group,
+  g.homeTeam?.category,g.awayTeam?.category,
+  g.homeTeam?.ageGroup,g.awayTeam?.ageGroup,
+  g.teams?.home?.category,g.teams?.away?.category
+ ];
+ if(categories.some(x=>youthMarker.test(asLabel(x))))return true;
+ // Nos nomes dos times, exigir faixa etária ou indicação explícita de categoria,
+ // sem excluir equipes profissionais chamadas "Boca Juniors" ou "Junior".
+ const teamYouth=/(?:^|[^a-z0-9])(?:sub[\s-]?[0-9]{1,2}|u[\s-]?(?:1[0-9]|2[0-3])|under[\s-]?(?:1[0-9]|2[0-3])|juvenil(?:es)?|juvenile|youth(?:s)?|juniores|academy|academia|reservas|reserves)(?=$|[^a-z0-9])/i;
+ return [
+  g.homeTeam,g.awayTeam,g.home_team,g.away_team,g.home,g.away,
+  g.teamA,g.teamB,g.teams?.home,g.teams?.away
+ ].some(x=>teamYouth.test(asLabel(x)));
+};
+
 const brazilCompetition = g => {
  const c=competitionOf(g).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
  const region=asText(first(g.region,g.country,g.location,g.leagueCountry)).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -2004,6 +2032,7 @@ const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kicko
 // Jogos antigos/agendados, encerrados ou cancelados nao devem aparecer.
 // Partidas explicitamente AO VIVO permanecem por no maximo 4h apos o inicio.
 function isAvailableApiGame(g){
+ if(isYouthApiGame(g))return false;
  const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
  if(["finished","ended","completed","final","full_time","ft","cancelled","canceled","postponed","abandoned"].includes(status))return false;
  const ts=startTimestamp(g);
@@ -2086,7 +2115,7 @@ function renderImportedAdmin(){
  const currentGames=games.filter(isAvailableApiGame);
  if(statusEl)statusEl.textContent=currentGames.filter(football).length+" partida(s) de futebol disponível(is)";
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
- if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) da API disponível(is) — jogos antigos ocultos";
+ if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) profissional(is) da API disponível(is) — categorias de base e jogos antigos ocultos";
  if(!adminList)return;
  adminList.replaceChildren();
  if(currentGames.length===0){
