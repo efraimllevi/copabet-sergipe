@@ -425,6 +425,47 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 <style id="copabet-admin-split-panels">
 @media(max-width:700px){#adminView .admin-tabbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#adminView .admin-tab{min-width:0;white-space:normal;padding:11px 8px}#openManualFormBtn{width:100%}}
 </style>
+
+<style id="cb-ux-styles">
+.cb-extras{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0}
+.cb-extras label{display:flex;flex-direction:column;gap:5px;flex:1 1 250px;min-width:0;font-size:13px}
+.cb-extras input{margin:0;padding:10px;background:#222;color:white;border:1px solid #555;border-radius:8px;width:100%}
+.cb-extras button,.cb-league-tabs button{background:#202020;border:1px solid #555;color:#fff;border-radius:8px;min-height:40px;padding:9px 12px;cursor:pointer}
+.cb-extras button[aria-pressed=true],.cb-league-tabs button[aria-pressed=true]{background:#ffd400;color:#111;font-weight:700;border-color:#ffd400}
+.cb-league-tabs{display:flex;gap:7px;overflow-x:auto;white-space:nowrap;margin:6px 0 12px;padding-bottom:7px}
+.cb-league-tabs button{flex:0 0 auto;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.cb-featured-game{border-color:#ffd400!important;box-shadow:inset 3px 0 0 #ffd400}
+.cb-featured-tag{display:inline-block;background:#ffd400;color:#111;font-size:11px;font-weight:800;padding:5px 8px;border-radius:6px}
+.cb-fav{margin-left:auto;background:transparent;border:1px solid #796a16;border-radius:8px;color:#ffd400;padding:6px 9px;cursor:pointer}
+.cb-fav[aria-pressed=true]{background:#ffd400;color:#111}
+.cb-central{border:1px solid #5a4c10;border-radius:12px;padding:12px;margin:8px 0;background:#0e0e0e}
+.cb-central h3{color:#ffd400;margin:0 0 12px}
+.cb-central .cb-live-game{border-left:3px solid #ed3434}
+.cb-central-score{font-size:21px;color:#ffd400;font-weight:800}
+@media(max-width:699px){
+ #floatingBetSlip{position:sticky!important;top:0!important;bottom:auto!important;z-index:85!important;max-height:42vh!important}
+ #floatingBetSlip:not(.is-collapsed){max-height:42vh!important}
+ .cb-extras{display:grid;grid-template-columns:1fr 1fr}
+ .cb-extras label{grid-column:1/-1}
+ .cb-extras button{font-size:12px;padding:8px 5px}
+ #sportsapiPanel .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #sportsapiPanel .cb-odd{min-width:0!important;padding:8px 3px!important}
+ #sportsapiPanel .cb-odd button{font-size:11px!important;padding:6px 1px!important;width:100%}
+}
+</style>
+
+<style id="cb-history-admin-styles">
+.cb-historico{margin:12px 0 20px}
+.cb-historico[hidden]{display:none!important}
+.cb-historico h3{margin:0;color:#ffd400}
+.cb-history-row{border:1px solid #3b3b3b;border-radius:9px;background:#171717;padding:12px;margin:10px 0}
+.cb-history-row b{color:#ffd400}
+.cb-admin-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}
+.cb-admin-metric{border:1px solid #3d3d3d;border-radius:9px;padding:12px;background:#191919}
+.cb-admin-metric b{display:block;font-size:22px;color:#ffd400;margin-top:4px}
+.cb-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#cbAdminApiSearch{margin:12px 0;max-width:500px;width:100%}
+</style>
 </head>
 <body>
 
@@ -2050,15 +2091,18 @@ function relevance(g){
  return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
 }
 function render(){
- if(filter==="society")return;
+ window.copabetApiState={games,filter};
+ if(filter==="society"){queueMicrotask(()=>window.copabetAfterApiRender?.());return}
  root.replaceChildren();
  const availableGames=games.filter(isAvailableApiGame);
  const list=availableGames.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
- if(!list.length){root.append(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));return}
+ if(!list.length){root.append(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));queueMicrotask(()=>window.copabetAfterApiRender?.());return}
  for(const g of list.slice(0,150)){
   try{
   const card=node("article","","cb-live-game");
+  card.dataset.cbGameId=String(g.sportsApiId??g.id??"");
+  card.dataset.cbLeague=competitionOf(g)||"Sem campeonato";
   const top=node("div","","cb-live-game-top");
   top.append(node("span",name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada"));
   top.append(node("span",isLive(g)?"● AO VIVO":({scheduled:"Agendado",upcoming:"Em breve",not_started:"Agendado",finished:"Encerrado",ended:"Encerrado",postponed:"Adiado",cancelled:"Cancelado"}[asText(g.status).toLowerCase()]||"")));
@@ -2110,6 +2154,7 @@ function render(){
   }
  }
  if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
+ queueMicrotask(()=>window.copabetAfterApiRender?.());
 }
 function renderImportedAdmin(){
  const currentGames=games.filter(isAvailableApiGame);
@@ -2165,6 +2210,220 @@ document.addEventListener("DOMContentLoaded",()=>{
 document.addEventListener("DOMContentLoaded",()=>{
  document.getElementById("openManualFormBtn")?.addEventListener("click",()=>document.querySelector('[data-admin-tab="manualFormPane"]')?.click());
 });
+</script>
+
+<script id="cb-public-ux-script">
+(()=>{
+"use strict";
+const panel=document.getElementById("sportsapiPanel"),root=document.getElementById("cbLiveGames"),filters=document.getElementById("cbSportFilters");
+if(!panel||!root||!filters)return;
+const create=(t,txt,cls)=>{const el=document.createElement(t);if(txt!=null)el.textContent=String(txt);if(cls)el.className=cls;return el};
+const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const storage="copabet:favorite-games:v2";let favorites=new Set();
+try{const x=JSON.parse(localStorage.getItem(storage)||"[]");if(Array.isArray(x))favorites=new Set(x.filter(y=>typeof y==="string").slice(0,2000))}catch(_){}
+const classics=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["fortaleza","ceara"],["sport","nautico"],["sport","santa cruz"],["athletico paranaense","coritiba"]];
+let term="",only=false,league="__all",centralVisible=false;
+const tools=create("div",null,"cb-extras");
+const label=create("label","Buscar jogos e times");const search=create("input");
+search.type="search";search.placeholder="Ex.: Bahia, Flamengo, Libertadores";search.setAttribute("aria-label","Buscar por time ou campeonato");label.append(search);tools.append(label);
+const favButton=create("button","☆ Somente favoritos");favButton.type="button";favButton.setAttribute("aria-pressed","false");tools.append(favButton);
+const centerButton=create("button","Central ao vivo");centerButton.type="button";centerButton.setAttribute("aria-pressed","false");tools.append(centerButton);
+const tabs=create("div",null,"cb-league-tabs");tabs.setAttribute("aria-label","Campeonatos disponíveis");
+const center=create("section",null,"cb-central");center.hidden=true;center.setAttribute("aria-label","Central de partidas ao vivo");
+filters.after(tools);tools.after(tabs);tabs.after(center);
+const cards=()=>[...root.querySelectorAll(".cb-live-game[data-cb-game-id]")];
+function apply(){
+ for(const card of cards()){
+  const key=card.dataset.cbGameId,cup=card.dataset.cbLeague||"",name=norm(card.querySelector(".cb-live-match")?.textContent+" "+cup);
+  card.hidden=(!!term&&!name.includes(term))||(only&&!favorites.has(key))||(league!=="__all"&&cup!==league);
+ }
+}
+function refreshTabs(){
+ const counts=new Map();
+ for(const card of cards()){const c=card.dataset.cbLeague||"Sem campeonato";counts.set(c,(counts.get(c)||0)+1)}
+ if(league!=="__all"&&!counts.has(league))league="__all";
+ const cups=[...counts].sort((a,b)=>b[1]-a[1]).slice(0,22);
+ tabs.replaceChildren();
+ for(const c of ["__all",...cups.map(x=>x[0])]){
+  const b=create("button",c==="__all"?"Todos os campeonatos":c+" ("+counts.get(c)+")");b.type="button";b.setAttribute("aria-pressed",String(c===league));
+  b.onclick=()=>{league=c;refreshTabs();apply()};tabs.append(b);
+ }
+}
+function decorate(){
+ for(const card of cards()){
+  if(card.dataset.cbDecorated)continue;card.dataset.cbDecorated="1";
+  const match=norm(card.querySelector(".cb-live-match")?.textContent||"");
+  const parts=match.split(/\s*×\s*/);
+  const classic=parts.length===2&&classics.some(([a,b])=>(parts[0].includes(a)&&parts[1].includes(b))||(parts[0].includes(b)&&parts[1].includes(a)));
+  if(classic){card.classList.add("cb-featured-game");card.prepend(create("span","★ CLÁSSICO EM DESTAQUE","cb-featured-tag"))}
+  const top=card.querySelector(".cb-live-game-top");
+  if(top){
+   const key=card.dataset.cbGameId,btn=create("button",favorites.has(key)?"★ Favorito":"☆ Favoritar","cb-fav");btn.type="button";
+   const update=()=>{btn.textContent=favorites.has(key)?"★ Favorito":"☆ Favoritar";btn.setAttribute("aria-pressed",String(favorites.has(key)));btn.setAttribute("aria-label",btn.textContent+": "+match)};
+   update();btn.onclick=()=>{if(favorites.has(key))favorites.delete(key);else favorites.add(key);try{localStorage.setItem(storage,JSON.stringify([...favorites]))}catch(_){}update();apply()};
+   top.append(btn);
+  }
+ }
+ refreshTabs();apply();
+}
+function renderCenter(){
+ center.replaceChildren();
+ const games=window.copabetApiState?.games||[];
+ const live=games.filter(g=>["live","inplay","in_play","playing","1h","2h","ht"].includes(String(g.status||"").toLowerCase())&&!/(basket|basquet|nba|tenis|tennis|volei|volley)/.test(norm(g.sport||g.sportName||""))).slice(0,100);
+ center.append(create("h3","● AO VIVO — "+live.length+" partidas"));
+ center.append(create("p","Placar exibido somente se estiver disponível na fonte de dados.","small"));
+ if(!live.length)center.append(create("p","Nenhum jogo ao vivo identificado.","small"));
+ for(const g of live){
+  const name=x=>typeof x==="object"&&x?String(x.name||x.title||""):String(x||"");
+  const a=name(g.homeTeam||g.home_team||g.home||g.teamA),b=name(g.awayTeam||g.away_team||g.away||g.teamB);
+  const c=name(g.competition||g.league||g.tournament);
+  const item=create("article",null,"cb-live-game");
+  item.append(create("div",c||"Competição","small"),create("div",(a||"Mandante")+" × "+(b||"Visitante"),"cb-live-match"));
+  const score=g.score||g.result||{},home=g.homeScore??g.scoreHome??score.home,away=g.awayScore??g.scoreAway??score.away;
+  if(home!==undefined&&away!==undefined)item.append(create("div",home+" × "+away,"cb-central-score"));
+  item.append(create("p","● AO VIVO","small"));center.append(item);
+ }
+}
+function sync(){
+ const society=window.copabetApiState?.filter==="society";
+ if(society)centralVisible=false;
+ tools.hidden=society||centralVisible;tabs.hidden=society||centralVisible;center.hidden=!centralVisible;
+ root.hidden=centralVisible||society;
+ centerButton.setAttribute("aria-pressed",String(centralVisible));centerButton.textContent=centralVisible?"Fechar central ao vivo":"Central ao vivo";
+ if(centralVisible)renderCenter();
+}
+search.addEventListener("input",()=>{term=norm(search.value);apply()});
+favButton.addEventListener("click",()=>{only=!only;favButton.setAttribute("aria-pressed",String(only));favButton.textContent=only?"★ Exibindo favoritos":"☆ Somente favoritos";apply()});
+centerButton.addEventListener("click",()=>{const open=!centralVisible;if(open)filters.querySelector('[data-filter="live"]')?.click();centralVisible=open;sync()});
+filters.querySelectorAll("button[data-filter]").forEach(b=>b.addEventListener("click",()=>{centralVisible=false;league="__all";sync()}));
+window.copabetAfterApiRender=()=>{sync();decorate();if(centralVisible)renderCenter()};
+window.copabetAfterApiRender();
+})();
+</script>
+
+<script type="module" id="cb-historico-admin-2026">
+import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInAnonymously} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getFirestore,collection,query,where,onSnapshot,getDocs} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const app=getApps().length?getApp():null;
+const $=id=>document.getElementById(id);
+const make=(tag,content,cls)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=String(content);if(cls)el.className=cls;return el};
+const cash=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const date=v=>{
+ const t=v?.toDate?.()||(Number.isFinite(v?.seconds)?new Date(v.seconds*1000):null);
+ return t&&Number.isFinite(t.getTime())?t.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"}):"Data indisponível";
+};
+if(!app){console.error("COPABET: aguardando inicialização do Firebase no histórico")}else{
+ const auth=getAuth(app),db=getFirestore(app);
+ // Bilhetes: a consulta é restrita ao UID autenticado, nunca contém todos os usuários.
+ const panel=$("sportsapiPanel");
+ let user=null,stop=null,rows=[];
+ let box=null,info=null,entries=null,entryButton=null,signinButton=null;
+ if(panel){
+  box=make("section",undefined,"card cb-historico");box.hidden=true;box.setAttribute("aria-label","Meus bilhetes");
+  const title=make("div",undefined,"row");title.append(make("h3","Histórico de bilhetes"));
+  const close=make("button","Fechar","secondary");close.type="button";title.append(close);box.append(title);
+  box.append(make("p","Exibe somente os bilhetes associados à sua sessão autenticada neste dispositivo. Uma sessão anônima perdida não pode ser recuperada automaticamente.","small"));
+  info=make("p","Carregando...","small");info.setAttribute("role","status");box.append(info);
+  signinButton=make("button","Iniciar sessão para consultar","secondary");signinButton.type="button";signinButton.hidden=true;box.append(signinButton);
+  entries=make("div");box.append(entries);panel.after(box);
+  entryButton=make("button","Meus bilhetes");entryButton.type="button";entryButton.id="cbHistoryButton";
+  entryButton.setAttribute("aria-controls","cbHistoricalPanel");entryButton.setAttribute("aria-expanded","false");
+  box.id="cbHistoricalPanel";
+  const tools=panel.querySelector(".cb-extras");tools?.append(entryButton);
+  entryButton.addEventListener("click",()=>{
+   box.hidden=!box.hidden;entryButton.setAttribute("aria-expanded",String(!box.hidden));
+   if(!box.hidden){renderHistory();box.scrollIntoView({behavior:"smooth",block:"nearest"})}
+  });
+  close.addEventListener("click",()=>{box.hidden=true;entryButton.setAttribute("aria-expanded","false")});
+  signinButton.addEventListener("click",async()=>{
+   signinButton.disabled=true;
+   try{await signInAnonymously(auth)}
+   catch(error){info.textContent="Não foi possível iniciar a sessão: "+error.message;signinButton.disabled=false}
+  });
+ }
+ const statusNames={pending:"Aguardando confirmação",accepted:"Pagamento confirmado",rejected:"Pagamento rejeitado",won:"Vencedor",lost:"Não vencedor",cancelled:"Cancelado",sent:"Enviado"};
+ function renderHistory(){
+  if(!box||box.hidden)return;
+  entries.replaceChildren();
+  if(!user){info.textContent="Inicie uma sessão para consultar seus bilhetes.";signinButton.hidden=false;return}
+  signinButton.hidden=true;
+  info.textContent=rows.length+" bilhete(s) encontrado(s) para sua sessão.";
+  if(!rows.length){entries.append(make("p","Você ainda não tem bilhetes registrados nesta sessão.","small"));return}
+  for(const b of rows.slice(0,50)){
+   const item=make("article",undefined,"cb-history-row");
+   item.append(make("b","Bilhete "+String(b.id).slice(-8).toUpperCase()));
+   item.append(make("p",(statusNames[String(b.status||"pending").toLowerCase()]||"Em análise")+" · "+date(b.sentAt||b.createdAt),"small"));
+   item.append(make("p","Valor: "+cash(b.amount)+" · Retorno potencial: "+cash(b.payout),"small"));
+   for(const pick of (Array.isArray(b.picks)?b.picks:[]).slice(0,40)){
+    const p=(pick.a||"Mandante")+" × "+(pick.b||"Visitante")+" — "+(["Casa","Empate","Fora"][Number(pick.side)]||"Palpite");
+    item.append(make("p",p,"small"));
+   }
+   entries.append(item);
+  }
+  if(rows.length>50)entries.append(make("p","Exibindo os últimos 50 bilhetes.","small"));
+ }
+ onAuthStateChanged(auth,account=>{
+  if(stop){stop();stop=null}
+  user=account;rows=[];
+  if(!account){renderHistory();return}
+  stop=onSnapshot(query(collection(db,"bets"),where("uid","==",account.uid)),snap=>{
+   rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+   renderHistory();
+  },error=>{console.error("COPABET: erro ao ler bilhetes",error);if(info&&!box.hidden)info.textContent="Não foi possível ler seus bilhetes: "+error.message});
+ });
+ // Painel administrativo avançado: indicadores e atalhos; operações permanecem nas abas existentes.
+ const admin=$("adminView"),nav=admin?.querySelector(".admin-tabbar");let metrics=null,overview=null;
+ if(nav){
+  const tab=make("button","Visão geral");tab.type="button";tab.className="admin-tab";tab.dataset.adminTab="cbOverviewPane";nav.prepend(tab);
+  overview=make("section",undefined,"admin-pane hidden");overview.id="cbOverviewPane";
+  overview.append(make("h3","Central administrativa"));
+  overview.append(make("p","Indicadores operacionais, não comprovantes de pagamento. Confirme cada Pix no banco antes de aprovar.","small"));
+  metrics=make("div",undefined,"cb-admin-metrics");overview.append(metrics);
+  const actions=make("div",undefined,"cb-admin-actions");
+  for(const [name,target] of [["Atualizar indicadores","refresh"],["Jogos da API","apiGamesPane"],["Jogos manuais","matchesPane"],["Adicionar jogo manual","manualFormPane"],["Confirmações","paymentsPane"],["Auditoria","settlementPane"]]){
+   const b=make("button",name,"secondary");b.type="button";b.addEventListener("click",()=>{
+    if(target==="refresh"){refreshMetrics();return}
+    nav.querySelector('[data-admin-tab="'+target+'"]')?.click()
+   });actions.append(b);
+  }
+  overview.append(actions);nav.after(overview);
+  tab.addEventListener("click",()=>{
+   nav.querySelectorAll("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===tab));
+   admin.querySelectorAll(".admin-pane").forEach(x=>x.classList.toggle("hidden",x!==overview));
+   refreshMetrics();
+  });
+ }
+ function paint(cards){
+  if(!metrics)return;
+  metrics.replaceChildren();
+  for(const [title,value] of cards){
+   const c=make("div",undefined,"cb-admin-metric");
+   c.append(make("span",title,"small"));c.append(make("b",value));metrics.append(c);
+  }
+ }
+ async function refreshMetrics(){
+  if(!metrics||admin?.classList.contains("hidden"))return;
+  if(auth.currentUser?.uid!=="rjWeKGZpkMVrW8UynAKCwjZXklM2"){metrics.textContent="Faça login como administrador para consultar indicadores.";return}
+  const imported=window.copabetApiState?.games||[];
+  const manual=window.matches||[];
+  const live=imported.filter(g=>["live","playing","inplay","in_play","1h","2h","ht"].includes(String(g.status||"").toLowerCase())).length;
+  paint([["Jogos da API",imported.length],["Jogos manuais",manual.length],["Ao vivo na API",live],["Bilhetes registrados","..."]]);
+  try{
+   const snapshot=await getDocs(collection(db,"bets")),bets=snapshot.docs.map(d=>d.data());
+   paint([["Jogos da API",imported.length],["Jogos manuais",manual.length],["Ao vivo na API",live],["Bilhetes registrados",bets.length],["Pendentes",bets.filter(b=>String(b.status||"pending")==="pending").length],["Confirmados",bets.filter(b=>String(b.status||"")==="accepted").length]]);
+  }catch(error){metrics.append(make("p","Erro na consulta de bilhetes: "+error.message,"small"));console.error("COPABET indicadores:",error)}
+ }
+ // Filtro de busca na aba administrativa dos jogos importados.
+ const apiPane=$("adminImportedGames"),apiList=$("adminImportedList");
+ if(apiPane&&apiList){
+  const input=make("input");input.type="search";input.id="cbAdminApiSearch";input.placeholder="Buscar por time ou campeonato";input.setAttribute("aria-label","Buscar apenas jogos importados da API");
+  apiPane.querySelector("h3")?.after(input);
+  const filter=()=>{const v=String(input.value||"").toLowerCase();apiList.querySelectorAll(".cb-live-game").forEach(card=>card.hidden=!!v&&!card.textContent.toLowerCase().includes(v))};
+  input.addEventListener("input",filter);
+  new MutationObserver(filter).observe(apiList,{childList:true});
+ }
+}
 </script>
 </body>
 </html>
