@@ -590,7 +590,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
   <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
-    <button type="button" data-filter="all" aria-pressed="true">Jogos da API</button>
+    <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
@@ -623,7 +623,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    
 <div class="admin-tabbar">
     <button type="button" class="admin-tab active" data-admin-tab="matchesPane" aria-controls="matchesPane" aria-pressed="true">Jogos</button>
-     <button type="button" class="admin-tab" data-admin-tab="apiGamesPane" aria-controls="apiGamesPane" aria-pressed="false">Jogos da API</button>
+     <button type="button" class="admin-tab" data-admin-tab="apiGamesPane" aria-controls="apiGamesPane" aria-pressed="false">Jogos automáticos</button>
      <button type="button" class="admin-tab" data-admin-tab="manualFormPane" aria-controls="manualFormPane" aria-pressed="false">Criar jogo manual</button>
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
@@ -639,7 +639,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 </div><!-- /matchesPane -->
 <div id="apiGamesPane" class="admin-pane hidden">
  <section id="adminImportedGames" class="card">
-    <h3>Jogos da API</h3>
+    <h3>Jogos automáticos</h3>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
     <div id="adminImportedList"></div>
    </section>
@@ -2002,7 +2002,7 @@ const matchesContainer = $("matches");
 
 <script type="module" id="copabet-sportsapi-reader">
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, getDocsFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 const config = {
  apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",
  authDomain:"indexxx-94ed1.firebaseapp.com",
@@ -2020,7 +2020,7 @@ const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 const societyRoot=document.getElementById("cbSocietyGames");
 const societySidebar=document.getElementById("cbSocietySidebar");
 const gamesLayout=document.getElementById("cbGamesLayout");
-let games = [], filter="all", renderLimit=36, apiDataConfirmed=false;
+let games = [], filter="all", renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
 const oddsCache=new WeakMap();
 function cachedOdds(g){
  if(oddsCache.has(g))return oddsCache.get(g);
@@ -2148,8 +2148,7 @@ function relevance(g){
  const big=Number(known(a))+Number(known(b));
  const time=startTimestamp(g),now=Date.now();
  const today=new Date(now).toDateString()===new Date(time).toDateString();
- const available=cachedOdds(g).values.size;
- return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
+ return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(isLive(g)?30:0);
 }
 function render(){
  if(filter==="society"||!root)return;
@@ -2214,7 +2213,7 @@ function render(){
  if(list.length>renderLimit){
   const more=node("button","Mostrar mais jogos ("+(list.length-renderLimit)+")","secondary");
   more.type="button";more.style.width="100%";more.style.marginTop="10px";
-  more.addEventListener("click",()=>{renderLimit+=36;render()});
+  more.addEventListener("click",()=>{renderLimit+=24;render()});
   fragment.append(more);
  }
  root.replaceChildren(fragment);
@@ -2230,7 +2229,7 @@ function renderImportedAdmin(){
   adminList.append(node("p","Nenhum jogo da API disponivel no momento. Os jogos manuais continuam na aba Jogos.","small"));
   return;
  }
- for(const g of currentGames.slice(0,40)){
+ for(const g of currentGames.slice(0,30)){
   const article=node("div","","cb-live-game");
   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
@@ -2243,11 +2242,11 @@ function renderImportedAdmin(){
  }
  if(currentGames.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos disponíveis da API.","small"));
 }
-const previewKey="copabet-fast-preview-v1";
+const previewKey="copabet-fast-preview-v2";
 function loadPreview(){
  try{
-  const saved=JSON.parse(sessionStorage.getItem(previewKey)||"null");
-  if(!saved || !Array.isArray(saved.games) || Date.now()-saved.at>5*60*1000)return;
+  const saved=JSON.parse(localStorage.getItem(previewKey)||"null");
+  if(!saved || !Array.isArray(saved.games) || Date.now()-saved.at>20*60*1000)return;
   games=saved.games;
   if(games.length && statusEl)statusEl.textContent="Mostrando partidas recentes — atualizando cotações";
   if(games.length)render();
@@ -2268,7 +2267,7 @@ function savePreview(){
      __previewHouse:odds.house,__previewOdds:Object.fromEntries(odds.values)
     };
    });
-  sessionStorage.setItem(previewKey,JSON.stringify({at:Date.now(),games:recent}));
+  localStorage.setItem(previewKey,JSON.stringify({at:Date.now(),games:recent}));
  }catch(error){console.info("Cache local não disponível:",error)}
 }
 buttons.forEach(b=>b.addEventListener("click",()=>{
@@ -2278,26 +2277,65 @@ buttons.forEach(b=>b.addEventListener("click",()=>{
 }));
 syncGameSections();
 loadPreview();
-onSnapshot(collection(db,"jogos"),{includeMetadataChanges:true},snapshot=>{
- // Uma resposta vazia do cache não deve ocultar a prévia durante a conexão.
- if(snapshot.metadata.fromCache && snapshot.empty && games.length)return;
+function displayGamesFromSnapshot(snapshot,source){
+ if(!snapshot)return;
+ // Não esconder jogos já visíveis durante uma resposta vazia apenas do cache local.
+ if(snapshot.metadata?.fromCache && snapshot.empty && games.length && !serverReadConfirmed)return;
+ if(serverReadConfirmed && snapshot.metadata?.fromCache)return;
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
- apiDataConfirmed=!snapshot.metadata.fromCache;
- if(apiDataConfirmed)savePreview();
- renderImportedAdmin();
- try{render()}catch(error){
-  console.error("Erro geral na lista da API:",error);
-  root.replaceChildren(node("p","Os jogos foram recebidos, mas houve uma falha ao exibi-los. Atualize a página; se continuar, consulte o console.","small"));
-  statusEl.textContent="Falha ao exibir partidas importadas";
+ const fromServer=source==="server" || !snapshot.metadata?.fromCache;
+ if(fromServer)serverReadConfirmed=true;
+ apiDataConfirmed=serverReadConfirmed;
+ try{
+  render(); // Prioridade absoluta: exibir os jogos antes de salvar cache ou montar o painel.
+  if(statusEl && filter!=="society"){
+   const total=games.length;
+   const visible=games.filter(g=>isAvailableApiGame(g)&&football(g)).length;
+   statusEl.textContent=apiDataConfirmed
+    ? visible+" partida(s) disponível(is) · "+total+" registro(s) recebidos"
+    : "Prévia recente · aguardando atualização";
+  }
+ }catch(error){
+  console.error("Falha ao exibir partidas:",error);
+  statusEl.textContent="Falha ao mostrar partidas";
+  root.replaceChildren(node("p","Os dados chegaram, mas houve falha ao exibir os jogos. Recarregue a página.","small"));
  }
-},error=>{
- apiDataConfirmed=false;
- statusEl.textContent="Conexão indisponível — cotações não confirmadas";
- const aStatus=document.getElementById("adminImportedStatus");
- if(aStatus)aStatus.textContent="Erro ao ler jogos importados: "+error.message;
- if(!games.length)root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message,"small"));
- else render();
-});
+ if(apiDataConfirmed){
+  const reference=games;
+  setTimeout(()=>{
+   if(games!==reference)return;
+   savePreview();
+   // O painel administrativo é secundário: não atrasar a vitrine de partidas.
+   renderImportedAdmin();
+  },0);
+ }
+}
+onSnapshot(collection(db,"jogos"),{includeMetadataChanges:true},
+ snapshot=>displayGamesFromSnapshot(snapshot,"listener"),
+ error=>{
+  console.error("Falha na conexão das partidas:",error);
+  if(!serverReadConfirmed){
+   apiDataConfirmed=false;
+   statusEl.textContent="Sem conexão com os jogos";
+   if(!games.length)root.replaceChildren(node("p","Os jogos não puderam ser carregados: "+error.message,"small"));
+   else render();
+  }
+ });
+// Se a conexão em tempo real demorar, tentar leitura direta do Firestore pelo servidor.
+setTimeout(async()=>{
+ if(serverReadConfirmed)return;
+ if(statusEl)statusEl.textContent="Conexão lenta · tentando atualização direta";
+ try{
+  const snapshot=await getDocsFromServer(collection(db,"jogos"));
+  if(!serverReadConfirmed)displayGamesFromSnapshot(snapshot,"server");
+ }catch(error){
+  console.warn("Leitura direta indisponível:",error);
+  if(!serverReadConfirmed && statusEl){
+   statusEl.textContent="Não foi possível atualizar os jogos";
+   if(!games.length)root.replaceChildren(node("p","A conexão com as partidas falhou. Confira o acesso ao Firebase e tente atualizar a página.","small"));
+  }
+ }
+},6000);
 // Reavaliar jogos antigos sem depender de nova atualizacao do Firebase ou reload.
 setInterval(()=>{try{renderImportedAdmin();render()}catch(error){console.error("Falha ao atualizar jogos da API:",error)}},60000);
 </script>
