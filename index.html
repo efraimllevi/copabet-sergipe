@@ -2598,5 +2598,140 @@ document.addEventListener("DOMContentLoaded",()=>{
  document.getElementById("openManualFormBtn")?.addEventListener("click",()=>document.querySelector('[data-admin-tab="manualFormPane"]')?.click());
 });
 </script>
+
+<script type="module" id="cb-admin-ticket-module">
+import {getApps,getApp,initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getFirestore,addDoc,collection,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const options={apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",authDomain:"indexxx-94ed1.firebaseapp.com",projectId:"indexxx-94ed1",storageBucket:"indexxx-94ed1.firebasestorage.app",messagingSenderId:"134461084839",appId:"1:134461084839:web:a8bfd4ba58edad3f043782",measurementId:"G-707XM6F268"};
+const app=getApps().length?getApp():initializeApp(options);
+const auth=getAuth(app),db=getFirestore(app),ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
+const $=id=>document.getElementById(id),selected=new Map();
+let latest=null,busy=false;
+const formatOdd=n=>Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n)||0);
+const admin=()=>auth.currentUser?.uid===ADMIN_UID&&!auth.currentUser?.isAnonymous;
+const active=()=>admin()&&!$("adminView").classList.contains("hidden")&&!$("adminTicketPane").classList.contains("hidden");
+const validOdd=n=>Number.isFinite(Number(n))&&Number(n)>1;
+const element=(tag,text,cls,parent)=>{
+ const el=document.createElement(tag);if(cls)el.className=cls;
+ if(text!==null&&text!==undefined)el.textContent=String(text);
+ if(parent)parent.append(el);return el;
+};
+function games(){
+ const manual=(window.matches||[]).filter(m=>String(m.status||"pending")==="pending"&&m.datetime&&new Date(m.datetime).getTime()>Date.now())
+ .map(m=>({id:String(m.id),source:"manual",cup:String(m.cup||"Campeonato"),a:String(m.a||""),b:String(m.b||""),
+   startTime:new Date(m.datetime).getTime(),odds:[0,1,2].map(i=>validOdd(m.odds?.[i])?Number(m.odds[i]):null),maxStake:Number(m.maxStake??100)}));
+ const api=typeof window.copabetAdminApiGames==="function"?window.copabetAdminApiGames():[];
+ return manual.concat(api);
+}
+const picks=()=>[...selected.values()];
+const totals=()=>{const list=picks(),amount=Number($("adminTicketAmount").value),combined=list.reduce((t,p)=>t*p.odd,1);return {amount,combined,payout:amount*combined};};
+function summary(){
+ const root=$("adminTicketSelections");root.replaceChildren();
+ if(!selected.size)element("p","Nenhum palpite selecionado.","small",root);
+ for(const p of picks()){
+  const row=element("div",null,"cb-t-pick",root),info=element("div",null,"",row);
+  element("strong",p.a+" × "+p.b,"",info);
+  element("p",["Casa","Empate","Fora"][p.side]+" · "+formatOdd(p.odd),"small",info);
+  const remove=element("button","Remover","secondary",row);
+  remove.type="button";remove.addEventListener("click",()=>{selected.delete(p.id);render();});
+ }
+ const t=totals();
+ $("adminTicketCombined").textContent=selected.size?formatOdd(t.combined):"0,00";
+ $("adminTicketPayout").textContent=selected.size&&t.amount>0&&Number.isFinite(t.payout)?money(t.payout):money(0);
+}
+function render(){
+ if(!active())return;
+ const source=$("adminTicketSource").value,term=$("adminTicketSearch").value.toLocaleLowerCase("pt-BR").trim();
+ const all=games(),filtered=all.filter(g=>(source==="all"||g.source===source)&&(!term||(g.cup+" "+g.a+" "+g.b).toLocaleLowerCase("pt-BR").includes(term)));
+ const root=$("adminTicketGames");root.replaceChildren();
+ $("adminTicketStatus").textContent=all.length+" jogo(s) disponíveis · exibindo "+Math.min(120,filtered.length)+(filtered.length>120?" de "+filtered.length:"");
+ if(!filtered.length)element("p","Não há jogos disponíveis neste filtro.","small",root);
+ for(const g of filtered.slice(0,120)){
+  const card=element("article",null,"cb-t-game",root);
+  element("span",(g.source==="api"?"API · ":"Manual · ")+g.cup,"small",card);
+  element("strong",g.a+" × "+g.b,"",card);
+  element("div",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(g.startTime))+" (Brasília)","small",card);
+  const grid=element("div",null,"cb-t-odds",card);
+  ["Casa","Empate","Fora"].forEach((label,side)=>{
+   const odd=g.odds[side],enabled=validOdd(odd),chosen=selected.get(g.id)?.side===side;
+   const btn=element("button",label+" · "+(enabled?formatOdd(odd):"Indisponível"),chosen?"is-picked":"",grid);
+   btn.type="button";btn.disabled=!enabled;btn.setAttribute("aria-pressed",String(chosen));
+   btn.addEventListener("click",()=>{
+    if(!active())return;
+    if(selected.get(g.id)?.side===side)selected.delete(g.id);
+    else selected.set(g.id,{id:g.id,cup:g.cup,a:g.a,b:g.b,side,odd:Number(odd),source:g.source,maxStake:g.maxStake});
+    render();
+   });
+  });
+ }
+ summary();
+}
+function receipt(t){
+ let root=$("cbPrintReceipt");if(!root){root=element("section",null,"",document.body);root.id="cbPrintReceipt";}
+ root.replaceChildren();
+ const add=(tag,label,cls="",parent=root)=>element(tag,label,cls,parent);
+ add("h1","COPA BET SERGIPE");
+ add("p","BILHETE EMITIDO PELO ADMINISTRADOR","cb-print-center");
+ add("p","PAGAMENTO PENDENTE DE CONFIRMAÇÃO","cb-print-center cb-print-small");
+ add("p","Nº "+t.id,"cb-print-divider");
+ add("p","Data: "+t.date);
+ add("p","Cliente: "+t.name);
+ if(t.phone)add("p","Telefone: "+t.phone);
+ t.picks.forEach((p,i)=>{
+  const row=add("div",null,"cb-print-game");
+  add("p",(i+1)+". "+p.cup,"",row);
+  add("p",p.a+" × "+p.b,"",row);
+  add("p","Palpite: "+["Casa","Empate","Fora"][p.side]+" · Odd "+formatOdd(p.odd),"",row);
+ });
+ add("p","Valor: "+money(t.amount),"cb-print-divider");
+ add("p","Cotação total: "+formatOdd(t.combined));
+ add("p","Retorno potencial: "+money(t.payout));
+ add("p","PENDENTE — não comprova pagamento ou validação.","cb-print-divider cb-print-small");
+}
+async function issue(){
+ if(busy||!active()){alert("Somente administradores autenticados podem emitir bilhetes.");return;}
+ const user=auth.currentUser,name=$("adminTicketName").value.trim(),phone=$("adminTicketPhone").value.trim(),list=picks(),t=totals();
+ if(name.length<2){alert("Informe o nome do cliente.");$("adminTicketName").focus();return;}
+ if(!list.length){alert("Selecione pelo menos um jogo.");return;}
+ if(!Number.isFinite(t.amount)||t.amount<=0){alert("Informe um valor válido.");return;}
+ if(!Number.isFinite(t.combined)||t.combined<=1||!Number.isFinite(t.payout)){alert("As cotações são inválidas.");return;}
+ const fresh=new Map(games().map(g=>[g.id,g]));
+ for(const p of list){
+  const g=fresh.get(p.id);
+  if(!g||!validOdd(g.odds[p.side])){alert("Jogo indisponível: "+p.a+" × "+p.b);render();return;}
+  if(Math.abs(Number(g.odds[p.side])-p.odd)>0.0001){selected.delete(p.id);render();alert("Cotação alterada. Selecione novamente: "+p.a+" × "+p.b);return;}
+  if(p.source==="manual"&&Number.isFinite(g.maxStake)&&t.amount>g.maxStake){alert("Limite para "+g.a+" × "+g.b+": "+money(g.maxStake));return;}
+ }
+ if(!confirm("Registrar o bilhete de "+name+" no valor de "+money(t.amount)+" como PENDENTE e imprimir?"))return;
+ busy=true;const btn=$("adminTicketIssue");btn.disabled=true;btn.textContent="REGISTRANDO...";
+ try{
+  if(!active()||auth.currentUser?.uid!==user.uid)throw Error("Sessão administrativa indisponível.");
+  const snap=await addDoc(collection(db,"bets"),{
+   uid:user.uid,bettorName:name,bettorPhone:phone,cpfNormalized:"",
+   adminIssued:true,source:"admin_print",issuedByUid:user.uid,sentToWhatsApp:false,
+   amount:t.amount,combined:t.combined,payout:t.payout,
+   picks:list.map(p=>({id:p.id,cup:p.cup,a:p.a,b:p.b,side:p.side,odd:p.odd})),
+   status:"pending",paymentStatus:"pending_confirmation",createdAt:serverTimestamp()
+  });
+  latest={id:snap.id,name,phone,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})};
+  $("adminTicketReprint").disabled=false;
+  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. Você pode reimprimi-lo.";
+  selected.clear();render();receipt(latest);
+  window.print();
+ }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete no Firebase: "+(error.message||error));}
+ finally{busy=false;btn.disabled=false;btn.textContent="GERAR E IMPRIMIR BILHETE";}
+}
+$("adminTicketSource").addEventListener("change",render);
+$("adminTicketSearch").addEventListener("input",render);
+$("adminTicketAmount").addEventListener("input",summary);
+$("adminTicketRefresh").addEventListener("click",render);
+$("adminTicketIssue").addEventListener("click",issue);
+$("adminTicketReprint").addEventListener("click",()=>{if(!active()||!latest)return;receipt(latest);window.print();});
+document.querySelector('[data-admin-tab="adminTicketPane"]')?.addEventListener("click",render);
+window.addEventListener("copabet:api-games-updated",()=>{if(active())render();});
+onAuthStateChanged(auth,user=>{if(!user||user.uid!==ADMIN_UID){selected.clear();latest=null;$("adminTicketReprint").disabled=true;}});
+</script>
 </body>
 </html>
