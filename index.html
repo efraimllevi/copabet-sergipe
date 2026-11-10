@@ -1983,9 +1983,20 @@ const matchesContainer = $("matches");
           throw Object.assign(new Error(message),{code: denied ? "copabet/cambista-rules" : "copabet/cambista-connection",cause:error});
         }
         const record=cambistaDoc.exists()?cambistaDoc.data():null;
-        if(!record||record.active!==true||record.role!=="cambista"||typeof record.name!=="string"||record.name.trim().length<2){
+        // Diagnóstico específico: sem alterar permissões, apenas informa qual campo impede o acesso.
+        let cambistaProblem="";
+        if(!record){
+          cambistaProblem="Cadastro não encontrado na coleção cambistas. ID do documento esperado: "+credential.user.uid+". Confira se está no mesmo projeto Firebase deste site.";
+        }else if(record.active!==true){
+          cambistaProblem="Cadastro de cambista desativado ou com tipo incorreto: o campo active deve ser booleano true (não o texto \"true\").";
+        }else if(record.role!=="cambista"){
+          cambistaProblem="O campo role do cadastro deve ser exatamente cambista (string, letras minúsculas).";
+        }else if(typeof record.name!=="string"||record.name.trim().length<2){
+          cambistaProblem="O campo name (em inglês) precisa ser string e conter o nome do cambista com ao menos 2 caracteres.";
+        }
+        if(cambistaProblem){
           await signOut(auth);
-          throw Object.assign(new Error("Cambista não cadastrado ou desativado. Peça ao administrador para liberar sua conta."),{code:"copabet/cambista-inactive"});
+          throw Object.assign(new Error(cambistaProblem),{code:"copabet/cambista-inactive"});
         }
         openCambista({uid:credential.user.uid,name:record.name.trim()});
       } else {
