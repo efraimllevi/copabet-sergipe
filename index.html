@@ -536,6 +536,22 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 }
 </style>
 
+
+<style id="cb-admin-ticket-css">
+#adminTicketPane .cb-ticket-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
+#adminTicketGames{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:10px;max-height:52vh;overflow:auto;margin:12px 0}
+.cb-t-game{background:#151515;border:1px solid #444;border-radius:10px;padding:12px;min-width:0}
+.cb-t-game strong{display:block;margin:6px 0;overflow-wrap:anywhere}
+.cb-t-odds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:9px}
+.cb-t-odds button{padding:9px 3px;border-radius:7px;border:1px solid #69610f;background:#282828;color:#fff;font-size:12px;min-width:0;cursor:pointer}
+.cb-t-odds button.is-picked{background:#ffd400;color:#171717;border-color:#ffd400;font-weight:800}
+.cb-t-odds button:disabled{opacity:.4;cursor:not-allowed}
+#adminTicketSummary{border:1px solid #555;background:#101010;border-radius:10px;padding:13px;margin-top:12px}
+#adminTicketSelections{max-height:210px;overflow:auto}
+.cb-t-pick{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #333}
+#adminTicketPane input,#adminTicketPane select{width:100%;min-width:0}
+@media(max-width:699px){#adminTicketGames{grid-template-columns:minmax(0,1fr);max-height:45vh}#adminTicketPane .cb-ticket-fields{grid-template-columns:minmax(0,1fr)}}
+</style>
 </head>
 <body>
 
@@ -633,7 +649,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <div class="row"><span>Cotação total</span><b id="combined" class="orange">0,00</b></div>
    <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="payout" class="orange">R$ 0,00</b></div>
    <button class="btn" id="payBtn" style="width:100%">CONTINUAR PARA PAGAMENTO</button>
-    <button class="secondary" type="button" id="cbPrintTicketBtn" style="width:100%;margin-top:8px">🖨️ IMPRIMIR BILHETE</button>
+    
    <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
    </div>
   </div>
@@ -650,7 +666,35 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
+    <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
+
+   <div id="adminTicketPane" class="admin-pane hidden">
+    <h3>Gerar e imprimir bilhetes — somente administradores</h3>
+    <p class="small">Escolha as partidas e as cotações de Casa, Empate ou Fora. O bilhete é registrado com identificação e fica pendente até a confirmação do pagamento.</p>
+    <div class="cb-ticket-fields">
+      <div><label for="adminTicketSource">Jogos</label><select id="adminTicketSource"><option value="all">Manuais e API</option><option value="manual">Somente manuais</option><option value="api">Somente API</option></select></div>
+      <div><label for="adminTicketSearch">Buscar time ou campeonato</label><input type="search" id="adminTicketSearch" placeholder="Pesquisar jogo"></div>
+      <div><button id="adminTicketRefresh" type="button" class="secondary" style="width:100%">Atualizar jogos</button></div>
+    </div>
+    <p id="adminTicketStatus" class="small" role="status">Aguardando abertura da aba.</p>
+    <div id="adminTicketGames"></div>
+    <section id="adminTicketSummary">
+      <h4>Bilhete selecionado</h4>
+      <div id="adminTicketSelections">Nenhum palpite selecionado.</div>
+      <div class="cb-ticket-fields">
+        <div><label for="adminTicketName">Nome do cliente</label><input id="adminTicketName" type="text" maxlength="100" placeholder="Nome do apostador"></div>
+        <div><label for="adminTicketPhone">Telefone (opcional)</label><input id="adminTicketPhone" type="tel" maxlength="30" placeholder="(79) 99999-9999"></div>
+        <div><label for="adminTicketAmount">Valor da aposta (R$)</label><input id="adminTicketAmount" type="number" min="1" step="0.01" value="10"></div>
+      </div>
+      <div class="row"><span>Cotação total</span><b id="adminTicketCombined">0,00</b></div>
+      <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="adminTicketPayout">R$ 0,00</b></div>
+      <button type="button" class="btn" id="adminTicketIssue" style="width:100%">GERAR E IMPRIMIR BILHETE</button>
+      <button type="button" class="secondary" id="adminTicketReprint" style="width:100%;margin-top:8px" disabled>REIMPRIMIR ÚLTIMO BILHETE</button>
+      <p class="small" id="adminTicketResult" role="status"></p>
+      <p class="small">O recibo não confirma pagamento ou validação da aposta. Consulte Confirmação de Bilhetes para verificar o registro.</p>
+    </section>
+   </div><!-- /adminTicketPane -->
    <div id="matchesPane" class="admin-pane">
  <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
   <h3 style="margin:0">Jogos manuais cadastrados</h3>
@@ -819,7 +863,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     <label style="display:flex;gap:8px;align-items:flex-start;margin:15px 0"><input id="paidConfirm" type="checkbox" style="width:auto;margin:0"> Já realizei o Pix e conferi o valor e o destinatário.</label>
     
     <button class="btn" id="sendWhatsAppBtn" style="width:100%">ENVIAR BILHETE PELO WHATSAPP</button>
-     <button class="secondary" type="button" id="cbPrintTicketPixBtn" style="width:100%;margin-top:8px">🖨️ IMPRIMIR BILHETE</button>
+     
    </div>
   </div>
 </div>
@@ -2295,6 +2339,20 @@ function relevance(g){
  const today=new Date(now).toDateString()===new Date(time).toDateString();
  return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(isLive(g)?30:0);
 }
+
+window.copabetAdminApiGames=function(){
+ if(!apiDataConfirmed)return [];
+ return games.filter(g=>football(g)&&isAvailableApiGame(g)&&!isLive(g)&&startTimestamp(g)>Date.now())
+ .sort((a,b)=>relevance(b)-relevance(a)||startTimestamp(a)-startTimestamp(b))
+ .map(g=>{
+  const odds=cachedOdds(g).values;
+  const val=k=>{const n=Number(odds.get(k));return Number.isFinite(n)&&n>1?n:null};
+  return {id:"sportsapi:"+String(g.sportsApiId||g.id),source:"api",cup:competitionOf(g)||"Futebol",
+   a:name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante",
+   b:name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante",
+   startTime:startTimestamp(g),odds:[val("Casa"),val("Empate"),val("Fora")],maxStake:null};
+ });
+};
 function render(){
  if(filter==="society"||!root)return;
  const availableGames=games.filter(isAvailableApiGame);
@@ -2444,6 +2502,7 @@ function displayGamesFromSnapshot(snapshot,source){
  const fromServer=source==="server" || !snapshot.metadata?.fromCache;
  if(fromServer)serverReadConfirmed=true;
  apiDataConfirmed=serverReadConfirmed;
+ window.dispatchEvent(new Event("copabet:api-games-updated"));
  try{
   render(); // Prioridade absoluta: exibir os jogos antes de salvar cache ou montar o painel.
   if(statusEl && filter!=="society"){
