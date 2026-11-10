@@ -1976,7 +1976,11 @@ const matchesContainer = $("matches");
         try{cambistaDoc=await getDoc(doc(db,"cambistas",credential.user.uid));}
         catch(error){
           await signOut(auth);
-          throw Object.assign(new Error("Não foi possível conferir o cadastro de cambista no Firebase. Verifique as regras da coleção cambistas."),{code:"copabet/cambista-rules",cause:error});
+          const denied = error?.code === "permission-denied";
+          const message = denied
+            ? "Permissão negada pelo Firestore para consultar seu cadastro em cambistas. Publique a regra que permite ao cambista ler somente o documento do próprio UID."
+            : "Falha ao consultar seu cadastro de cambista no Firebase (" + String(error?.code || "sem código") + "). Verifique a conexão e a configuração do projeto.";
+          throw Object.assign(new Error(message),{code: denied ? "copabet/cambista-rules" : "copabet/cambista-connection",cause:error});
         }
         const record=cambistaDoc.exists()?cambistaDoc.data():null;
         if(!record||record.active!==true||record.role!=="cambista"||typeof record.name!=="string"||record.name.trim().length<2){
@@ -2002,6 +2006,7 @@ const matchesContainer = $("matches");
         "copabet/admin-uid-mismatch": e.message,
         "copabet/role-mismatch": e.message,
         "copabet/cambista-rules": e.message,
+        "copabet/cambista-connection": e.message,
         "copabet/cambista-inactive": e.message
       };
       alert("Não foi possível entrar: " + (messages[e.code] || e.message || e.code || "erro de autenticação"));
