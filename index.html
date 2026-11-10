@@ -587,7 +587,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   </div>
   <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
 <section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
-  <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span></div>
+  <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span><button id="cbRefreshGames" class="secondary" type="button" style="padding:8px 11px">Atualizar partidas</button></div>
   <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
     <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
@@ -2163,7 +2163,44 @@ const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u
 const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg"];
 const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
 const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
-const startTimestamp=g=>{const x=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);const t=x?.toDate?x.toDate().getTime():(typeof x==="number"||/^\d{10,13}$/.test(String(x||""))?Number(x)*(Number(x)<1e11?1000:1):new Date(x).getTime());return Number.isFinite(t)?t:Number.MAX_SAFE_INTEGER};
+// Datas podem chegar como Timestamp do Firestore, segundos/milissegundos, ISO ou data brasileira.
+function parseGameDate(value) {
+ try {
+  if(value==null || value==="")return NaN;
+  if(typeof value.toMillis==="function")return value.toMillis();
+  if(typeof value.toDate==="function")return value.toDate().getTime();
+  if(typeof value==="object"){
+   const seconds=Number(value.seconds??value._seconds);
+   if(Number.isFinite(seconds))return seconds*1000+Number(value.nanoseconds??value._nanoseconds??0)/1e6;
+   if(value.date!=null)return parseGameDate(value.date);
+   return NaN;
+  }
+  if(typeof value==="number"){
+   if(value>1e12)return value;
+   if(value>1e9)return value*1000;
+   return NaN;
+  }
+  const v=String(value).trim();
+  if(/^\d{13}$/.test(v))return Number(v);
+  if(/^\d{10}$/.test(v))return Number(v)*1000;
+  let m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1]),Number(m[4]||0),Number(m[5]||0)).getTime();
+  const normalized=v.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/,"$1T$2");
+  return new Date(normalized).getTime();
+ }catch(error){return NaN}
+}
+const startTimestamp=g=>{
+ const values=[
+  g.startTime,g.start_time,g.startAt,g.start_at,g.dateTime,g.datetime,g.kickoff,
+  g.kickoff_at,g.fixture?.date,g.fixture?.timestamp,g.event?.startTime,
+  g.scheduled_at,g.scheduledAt,g.match_date,g.matchDate,g.timestamp,g.date,g.time
+ ];
+ for(const value of values){
+  const result=parseGameDate(value);
+  if(Number.isFinite(result)&&result>946684800000&&result<4102444800000)return result;
+ }
+ return Number.MAX_SAFE_INTEGER;
+};
 // Apenas jogos da API: nunca alterar ou filtrar os jogos manuais.
 // Jogos antigos/agendados, encerrados ou cancelados nao devem aparecer.
 // Partidas explicitamente AO VIVO permanecem por no maximo 4h apos o inicio.
@@ -2172,7 +2209,7 @@ function isAvailableApiGame(g){
  const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
  if(["finished","ended","completed","final","full_time","ft","cancelled","canceled","postponed","abandoned"].includes(status))return false;
  const ts=startTimestamp(g);
- if(ts===Number.MAX_SAFE_INTEGER)return true; // Data ausente: nao ocultar jogos novos por erro na importacao.
+ if(ts===Number.MAX_SAFE_INTEGER)return false; // Data desconhecida: não tratar jogo sem horário como futuro.
  const now=Date.now();
  return ts>now || (isLive(g) && now-ts<=4*60*60*1000);
 }
@@ -2189,7 +2226,19 @@ function render(){
  const availableGames=games.filter(isAvailableApiGame);
  const list=availableGames.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
- if(!list.length){root.replaceChildren(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));return}
+ if(!list.length){
+  const message=!apiDataConfirmed
+   ? "Conectando ao calendário de partidas. Os dados ainda não foram confirmados."
+   : !games.length
+    ? "O Firebase respondeu, mas não enviou nenhuma partida. Verifique o importador de jogos."
+    : !games.some(g=>football(g))
+     ? "O Firebase enviou partidas, mas nenhuma foi identificada como futebol."
+     : !availableGames.length
+      ? "O banco enviou partidas, porém nenhuma tem data futura válida. Verifique se o importador está atualizando o calendário."
+      : "Nenhuma partida disponível para este filtro. Experimente Futebol em Destaque.";
+  root.replaceChildren(node("p",message,"small"));
+  return;
+ }
  const fragment=document.createDocumentFragment();
  for(const g of list.slice(0,renderLimit)){
   try{
@@ -2254,7 +2303,7 @@ function render(){
 }
 function renderImportedAdmin(){
  const currentGames=games.filter(isAvailableApiGame);
- if(statusEl)statusEl.textContent=apiDataConfirmed?currentGames.filter(football).length+" partida(s) de futebol disponível(is)":"Prévia dos jogos — atualizando cotações";
+ // O diagnóstico do banco é exibido pelo listener; não substituí-lo durante a montagem do painel.
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
  if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) profissional(is) da API disponível(is) — categorias de base e jogos antigos ocultos";
  if(!adminList)return;
@@ -2325,10 +2374,21 @@ function displayGamesFromSnapshot(snapshot,source){
   render(); // Prioridade absoluta: exibir os jogos antes de salvar cache ou montar o painel.
   if(statusEl && filter!=="society"){
    const total=games.length;
-   const visible=games.filter(g=>isAvailableApiGame(g)&&football(g)).length;
+   const footballGames=games.filter(football);
+   const visible=footballGames.filter(isAvailableApiGame).length;
+   const knownDates=footballGames.map(startTimestamp).filter(t=>t!==Number.MAX_SAFE_INTEGER);
+   const latest=knownDates.length?Math.max(...knownDates):null;
+   const last=latest?new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(latest)):"sem data identificável";
    statusEl.textContent=apiDataConfirmed
-    ? (visible ? visible+" partida(s) disponível(is)" : (total ? "Banco atualizado, mas sem partidas futuras elegíveis" : "Banco conectado, sem partidas recebidas"))+" · "+total+" registro(s) · "+((Date.now()-dataLoadStarted)/1000).toFixed(1)+"s"
-    : "Prévia recente · aguardando atualização";
+    ? (visible
+      ? visible+" jogo(s) de futebol futuro(s) carregado(s)"
+      : total===0
+       ? "Banco conectado, mas vazio — verifique o importador"
+       : footballGames.length===0
+        ? total+" registro(s) recebidos, nenhum identificado como futebol"
+        : "Calendário desatualizado: último jogo registrado "+last)
+     +" · "+total+" registro(s)"
+    : "Aguardando atualização do servidor";
   }
  }catch(error){
   console.error("Falha ao exibir partidas:",error);
@@ -2371,6 +2431,25 @@ setTimeout(async()=>{
   }
  }
 },6000);
+const refreshButton=document.getElementById("cbRefreshGames");
+refreshButton?.addEventListener("click",async()=>{
+ if(refreshButton.disabled)return;
+ refreshButton.disabled=true;
+ refreshButton.textContent="Atualizando...";
+ statusEl.textContent="Consultando o Firebase...";
+ try{
+  const fresh=await getDocsFromServer(collection(db,"jogos"));
+  // Forçar a leitura mais recente, mesmo se a primeira consulta já tiver confirmado outra versão.
+  serverReadConfirmed=false;
+  displayGamesFromSnapshot(fresh,"server");
+ }catch(error){
+  console.error("Não foi possível atualizar as partidas:",error);
+  statusEl.textContent="Falha na atualização: "+error.message;
+ }finally{
+  refreshButton.disabled=false;
+  refreshButton.textContent="Atualizar partidas";
+ }
+});
 // Reavaliar jogos antigos sem depender de nova atualizacao do Firebase ou reload.
 setInterval(()=>{try{renderImportedAdmin();render()}catch(error){console.error("Falha ao atualizar jogos da API:",error)}},60000);
 </script>
