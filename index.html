@@ -587,20 +587,20 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   </div>
   <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
 <section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
-  <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
+  <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span></div>
   <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
     <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
-    <button type="button" data-filter="society" aria-pressed="false">Jogos manuais</button>
+    <button type="button" data-filter="society" aria-pressed="false">Jogos Estaduais</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
-<section id="cbSocietyGames" aria-label="Jogos Estaduais de Society" hidden>
-  <h3>Jogos Estaduais de Society</h3>
-  <p class="small">Partidas cadastradas manualmente, organizadas por campeonato.</p>
+<section id="cbSocietyGames" aria-label="Jogos Estaduais" hidden>
+  <h3>Jogos Estaduais</h3>
+  <p class="small">Partidas estaduais organizadas por campeonato.</p>
   <div id="matches"></div>
 </section>
   <div class="card" id="floatingBetSlip" aria-label="Bilhete de apostas selecionadas">
@@ -812,6 +812,40 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
  </div>
 </div>
 
+<script id="copabet-instant-sports-preview">
+(function(){
+ try {
+  const raw=localStorage.getItem("copabet-fast-preview-v2");
+  if(!raw)return;
+  const stored=JSON.parse(raw);
+  if(!stored||!Array.isArray(stored.games)||Date.now()-stored.at>20*60*1000)return;
+  const root=document.getElementById("cbLiveGames"),status=document.getElementById("cbLiveStatus");
+  if(!root||!status)return;
+  const games=stored.games.filter(g=>{
+   if(!g||typeof g!=="object")return false;
+   const t=Number(g.startTime);
+   return !Number.isFinite(t)||t>Date.now() || ["live","inplay"].includes(String(g.status||"").toLowerCase());
+  }).slice(0,24);
+  if(!games.length)return;
+  const frag=document.createDocumentFragment();
+  for(const g of games){
+   const card=document.createElement("article");
+   card.className="cb-live-game";
+   const title=document.createElement("div");
+   title.className="cb-live-match";
+   title.textContent=String(g.homeTeam||"Mandante")+" × "+String(g.awayTeam||"Visitante");
+   const league=document.createElement("div");
+   league.className="cb-live-game-top";
+   league.textContent=String(g.competition||"Competição");
+   const note=document.createElement("p");
+   note.className="small";note.textContent="Atualizando as cotações...";
+   card.append(league,title,note);frag.append(card);
+  }
+  root.replaceChildren(frag);
+  status.textContent="Partidas recentes · aguardando atualização";
+ }catch(e){console.warn("Prévia inicial indisponível:",e)}
+})();
+</script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithEmailAndPassword as signInUser, signInAnonymously, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -2243,6 +2277,7 @@ function renderImportedAdmin(){
  if(currentGames.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos disponíveis da API.","small"));
 }
 const previewKey="copabet-fast-preview-v2";
+const dataLoadStarted=Date.now();
 function loadPreview(){
  try{
   const saved=JSON.parse(localStorage.getItem(previewKey)||"null");
@@ -2292,7 +2327,7 @@ function displayGamesFromSnapshot(snapshot,source){
    const total=games.length;
    const visible=games.filter(g=>isAvailableApiGame(g)&&football(g)).length;
    statusEl.textContent=apiDataConfirmed
-    ? visible+" partida(s) disponível(is) · "+total+" registro(s) recebidos"
+    ? (visible ? visible+" partida(s) disponível(is)" : (total ? "Banco atualizado, mas sem partidas futuras elegíveis" : "Banco conectado, sem partidas recebidas"))+" · "+total+" registro(s) · "+((Date.now()-dataLoadStarted)/1000).toFixed(1)+"s"
     : "Prévia recente · aguardando atualização";
   }
  }catch(error){
