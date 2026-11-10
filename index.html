@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Copa Bet Sergipe</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <style>
 :root{
   --orange:#ffd400;
@@ -2018,7 +2020,19 @@ const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 const societyRoot=document.getElementById("cbSocietyGames");
 const societySidebar=document.getElementById("cbSocietySidebar");
 const gamesLayout=document.getElementById("cbGamesLayout");
-let games = [], filter="all";
+let games = [], filter="all", renderLimit=36, apiDataConfirmed=false;
+const oddsCache=new WeakMap();
+function cachedOdds(g){
+ if(oddsCache.has(g))return oddsCache.get(g);
+ let result={house:"",values:new Map()};
+ try{
+  if(g.__previewOdds && typeof g.__previewOdds==="object"){
+   result={house:asText(g.__previewHouse),values:new Map(Object.entries(g.__previewOdds))};
+  }else result=parseOdds(g.odds);
+ }catch(error){console.warn("Cotação incompleta:",error)}
+ oddsCache.set(g,result);
+ return result;
+}
 function syncGameSections(){
  const society=filter==="society";
  if(root)root.hidden=society;
@@ -2134,17 +2148,17 @@ function relevance(g){
  const big=Number(known(a))+Number(known(b));
  const time=startTimestamp(g),now=Date.now();
  const today=new Date(now).toDateString()===new Date(time).toDateString();
- let available=0;try{available=parseOdds(g.odds).values.size}catch(error){console.warn("Odds ignoradas para partida inválida:",error)}
+ const available=cachedOdds(g).values.size;
  return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(available?100:0)+available*10+(isLive(g)?30:0);
 }
 function render(){
- if(filter==="society")return;
- root.replaceChildren();
+ if(filter==="society"||!root)return;
  const availableGames=games.filter(isAvailableApiGame);
  const list=availableGames.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
- if(!list.length){root.append(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));return}
- for(const g of list.slice(0,150)){
+ if(!list.length){root.replaceChildren(node("p",availableGames.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida futura disponível no momento.","small"));return}
+ const fragment=document.createDocumentFragment();
+ for(const g of list.slice(0,renderLimit)){
   try{
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
@@ -2159,8 +2173,7 @@ function render(){
   if(ts!==Number.MAX_SAFE_INTEGER && Number.isFinite(ts) && Math.abs(ts)<=8.64e15){
    try{card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"))}catch(error){console.warn("Horário inválido ignorado:",error)}
   }
-  let result={house:"",values:new Map()};
-  try{result=parseOdds(g.odds)}catch(error){console.warn("Cotação incompleta nesta partida:",g?.id,error)}
+  const result=cachedOdds(g);
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
     const box=node("div","","cb-odd");
@@ -2171,7 +2184,8 @@ function render(){
     box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
-      const btn=node("button",selected?"✓ Selecionado":"Selecionar","secondary");btn.type="button";
+      const btn=node("button",apiDataConfirmed?(selected?"✓ Selecionado":"Selecionar"):"Atualizando","secondary");
+      btn.type="button";btn.disabled=!apiDataConfirmed;
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
@@ -2186,7 +2200,7 @@ function render(){
   }
   card.append(grid);
 
-  root.append(card);
+  fragment.append(card);
   }catch(error){
    console.error("Erro ao exibir uma partida da API:",g?.id,error);
    const fallback=node("article","","cb-live-game");
@@ -2194,14 +2208,20 @@ function render(){
    const away=asText(first(g?.awayTeam?.name,g?.awayTeam,g?.away_team,g?.away,g?.teamB,"Visitante"));
    fallback.append(node("strong",home+" × "+away));
    fallback.append(node("p","Dados desta partida temporariamente incompletos.","small"));
-   root.append(fallback);
+   fragment.append(fallback);
   }
  }
- if(list.length>150)root.append(node("p","Exibindo as primeiras 150 partidas.","small"));
+ if(list.length>renderLimit){
+  const more=node("button","Mostrar mais jogos ("+(list.length-renderLimit)+")","secondary");
+  more.type="button";more.style.width="100%";more.style.marginTop="10px";
+  more.addEventListener("click",()=>{renderLimit+=36;render()});
+  fragment.append(more);
+ }
+ root.replaceChildren(fragment);
 }
 function renderImportedAdmin(){
  const currentGames=games.filter(isAvailableApiGame);
- if(statusEl)statusEl.textContent=currentGames.filter(football).length+" partida(s) de futebol disponível(is)";
+ if(statusEl)statusEl.textContent=apiDataConfirmed?currentGames.filter(football).length+" partida(s) de futebol disponível(is)":"Prévia dos jogos — atualizando cotações";
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
  if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) profissional(is) da API disponível(is) — categorias de base e jogos antigos ocultos";
  if(!adminList)return;
@@ -2210,7 +2230,7 @@ function renderImportedAdmin(){
   adminList.append(node("p","Nenhum jogo da API disponivel no momento. Os jogos manuais continuam na aba Jogos.","small"));
   return;
  }
- for(const g of currentGames.slice(0,150)){
+ for(const g of currentGames.slice(0,40)){
   const article=node("div","","cb-live-game");
   const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
   const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
@@ -2223,10 +2243,47 @@ function renderImportedAdmin(){
  }
  if(currentGames.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos disponíveis da API.","small"));
 }
-buttons.forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));syncGameSections();render()}));
+const previewKey="copabet-fast-preview-v1";
+function loadPreview(){
+ try{
+  const saved=JSON.parse(sessionStorage.getItem(previewKey)||"null");
+  if(!saved || !Array.isArray(saved.games) || Date.now()-saved.at>5*60*1000)return;
+  games=saved.games;
+  if(games.length && statusEl)statusEl.textContent="Mostrando partidas recentes — atualizando cotações";
+  if(games.length)render();
+ }catch(error){console.info("Prévia local ignorada:",error)}
+}
+function savePreview(){
+ try{
+  const recent=games.filter(isAvailableApiGame).filter(football)
+   .slice(0,80).map(g=>{
+    const odds=cachedOdds(g),start=startTimestamp(g);
+    return {
+     id:asText(g.id),sportsApiId:asText(first(g.sportsApiId,g.id)),
+     homeTeam:name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home)),
+     awayTeam:name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)),
+     competition:competitionOf(g),sport:"football",status:asText(g.status),
+     country:asText(first(g.country,g.region,g.leagueCountry)),
+     startTime:start===Number.MAX_SAFE_INTEGER?null:start,
+     __previewHouse:odds.house,__previewOdds:Object.fromEntries(odds.values)
+    };
+   });
+  sessionStorage.setItem(previewKey,JSON.stringify({at:Date.now(),games:recent}));
+ }catch(error){console.info("Cache local não disponível:",error)}
+}
+buttons.forEach(b=>b.addEventListener("click",()=>{
+ filter=b.dataset.filter;renderLimit=36;
+ buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+ syncGameSections();render();
+}));
 syncGameSections();
-onSnapshot(collection(db,"jogos"),snapshot=>{
+loadPreview();
+onSnapshot(collection(db,"jogos"),{includeMetadataChanges:true},snapshot=>{
+ // Uma resposta vazia do cache não deve ocultar a prévia durante a conexão.
+ if(snapshot.metadata.fromCache && snapshot.empty && games.length)return;
  games=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+ apiDataConfirmed=!snapshot.metadata.fromCache;
+ if(apiDataConfirmed)savePreview();
  renderImportedAdmin();
  try{render()}catch(error){
   console.error("Erro geral na lista da API:",error);
@@ -2234,10 +2291,12 @@ onSnapshot(collection(db,"jogos"),snapshot=>{
   statusEl.textContent="Falha ao exibir partidas importadas";
  }
 },error=>{
- statusEl.textContent="Sem acesso aos dados";
+ apiDataConfirmed=false;
+ statusEl.textContent="Conexão indisponível — cotações não confirmadas";
  const aStatus=document.getElementById("adminImportedStatus");
  if(aStatus)aStatus.textContent="Erro ao ler jogos importados: "+error.message;
- root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message+". Confira as regras de leitura e se o atualizador está funcionando.","small"));
+ if(!games.length)root.replaceChildren(node("p","Não foi possível ler a coleção 'jogos' do Firebase: "+error.message,"small"));
+ else render();
 });
 // Reavaliar jogos antigos sem depender de nova atualizacao do Firebase ou reload.
 setInterval(()=>{try{renderImportedAdmin();render()}catch(error){console.error("Falha ao atualizar jogos da API:",error)}},60000);
