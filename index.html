@@ -515,6 +515,27 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   #floatingBetSlip {border-radius:12px!important}
 }
 </style>
+
+<style id="cb-thermal-ticket-print">
+/* Impressão pelo serviço do sistema: 58/80 mm conforme a configuração da impressora. */
+#cbPrintReceipt{display:none}
+@media print {
+  @page { margin:3mm; }
+  html,body{margin:0!important;padding:0!important;min-height:0!important;height:auto!important;background:#fff!important;color:#000!important;overflow:visible!important}
+  body>*:not(#cbPrintReceipt){display:none!important}
+  #cbPrintReceipt{display:block!important;position:static!important;box-sizing:border-box!important;width:100%!important;max-width:72mm!important;margin:0 auto!important;padding:0!important;color:#000!important;background:#fff!important;font:11px/1.35 Arial,sans-serif!important;overflow:visible!important}
+  #cbPrintReceipt *{color:#000!important;background:transparent!important;box-shadow:none!important;text-shadow:none!important;box-sizing:border-box!important}
+  #cbPrintReceipt h1{font-size:16px!important;text-align:center!important;margin:0 0 4px!important;letter-spacing:.5px!important}
+  #cbPrintReceipt .cb-print-center{text-align:center!important}
+  #cbPrintReceipt .cb-print-small{font-size:10px!important}
+  #cbPrintReceipt p{margin:3px 0!important;overflow-wrap:anywhere!important}
+  #cbPrintReceipt .cb-print-divider{border-top:1px dashed #222!important;padding-top:7px!important;margin-top:7px!important}
+  #cbPrintReceipt .cb-print-game{border-bottom:1px dashed #444!important;padding:5px 0!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  #cbPrintReceipt .cb-print-row{display:flex!important;justify-content:space-between!important;gap:5px!important}
+  #cbPrintReceipt .cb-print-row strong{text-align:right!important}
+}
+</style>
+
 </head>
 <body>
 
@@ -612,6 +633,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <div class="row"><span>Cotação total</span><b id="combined" class="orange">0,00</b></div>
    <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="payout" class="orange">R$ 0,00</b></div>
    <button class="btn" id="payBtn" style="width:100%">CONTINUAR PARA PAGAMENTO</button>
+    <button class="secondary" type="button" id="cbPrintTicketBtn" style="width:100%;margin-top:8px">🖨️ IMPRIMIR BILHETE</button>
    <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
    </div>
   </div>
@@ -797,6 +819,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     <label style="display:flex;gap:8px;align-items:flex-start;margin:15px 0"><input id="paidConfirm" type="checkbox" style="width:auto;margin:0"> Já realizei o Pix e conferi o valor e o destinatário.</label>
     
     <button class="btn" id="sendWhatsAppBtn" style="width:100%">ENVIAR BILHETE PELO WHATSAPP</button>
+     <button class="secondary" type="button" id="cbPrintTicketPixBtn" style="width:100%;margin-top:8px">🖨️ IMPRIMIR BILHETE</button>
    </div>
   </div>
 </div>
@@ -1630,6 +1653,57 @@ const matchesContainer = $("matches");
   }
 
   $("amount").addEventListener("input", renderPicks);
+
+  // Recibo térmico: imprime pelo diálogo do sistema operacional (inclusive serviço de impressora Bluetooth).
+  // Não indica aposta paga/validada: o pagamento precisa de conferência pelo administrador.
+  function cbPrintTicket(){
+    if(picks.length < 2){alert("Selecione pelo menos dois jogos para imprimir o bilhete.");return;}
+    const stake=Number($("amount").value);
+    if(!Number.isFinite(stake)||stake<=0){alert("Informe um valor válido antes de imprimir.");$("amount").focus();return;}
+    const oddTotal=picks.reduce((acc,p)=>acc*Number(p.odd),1);
+    if(!Number.isFinite(oddTotal)||oddTotal<=0){alert("As cotações do bilhete são inválidas.");return;}
+    let receipt=document.getElementById("cbPrintReceipt");
+    if(!receipt){receipt=document.createElement("section");receipt.id="cbPrintReceipt";receipt.setAttribute("aria-label","Bilhete para impressão");document.body.appendChild(receipt);}
+    receipt.replaceChildren();
+    const add=(tag,value,classes,parent)=>{
+      const e=document.createElement(tag);
+      if(classes)e.className=classes;
+      e.textContent=String(value);
+      (parent||receipt).appendChild(e);
+      return e;
+    };
+    const row=(label,value)=>{
+      const line=document.createElement("p");line.className="cb-print-row";
+      add("span",label,"",line);add("strong",value,"",line);
+      receipt.appendChild(line);
+    };
+    add("h1","COPA BET SERGIPE");
+    add("p","BILHETE DE APOSTA — PRÉVIA","cb-print-center");
+    add("p","AGUARDANDO CONFIRMAÇÃO DE PAGAMENTO","cb-print-center cb-print-small");
+    const issuedAt=new Date().toLocaleString("pt-BR",{timeZone:"America/Maceio",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    add("p","Emitido em: "+issuedAt,"cb-print-divider");
+    const name=String(document.getElementById("bettorName")?.value||bettor.name||"").trim();
+    if(name)add("p","Cliente: "+name);
+    add("p",picks.length+" jogos selecionados","cb-print-divider");
+    picks.forEach((pick,i)=>{
+      const section=document.createElement("div");section.className="cb-print-game";receipt.appendChild(section);
+      add("p",(i+1)+". "+String(pick.cup||"Futebol"),"",section);
+      add("p",String(pick.a||"Casa")+" x "+String(pick.b||"Fora"),"",section);
+      add("p","Palpite: "+(["Casa","Empate","Fora"][Number(pick.side)]||"Não informado")+" | Odd: "+Number(pick.odd).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}),"",section);
+    });
+    const divider=document.createElement("div");divider.className="cb-print-divider";receipt.appendChild(divider);
+    row("Valor da aposta",money(stake));
+    row("Cotação total",formatOdds(oddTotal));
+    row("Retorno potencial",money(stake*oddTotal));
+    add("p","PRÉVIA — NÃO É COMPROVANTE DE PAGAMENTO.","cb-print-divider cb-print-small");
+    add("p","Aposta sujeita a confirmação de pagamento e validação pela COPA BET SERGIPE.","cb-print-small");
+    if(typeof window.print!=="function"){alert("Seu navegador não oferece impressão. Tente no Chrome com o serviço de impressão da impressora.");return;}
+    window.print();
+  }
+  $("cbPrintTicketBtn")?.addEventListener("click",cbPrintTicket);
+  $("cbPrintTicketPixBtn")?.addEventListener("click",cbPrintTicket);
+
+
 
   // Separacao definitiva do painel: "matches" guarda jogos manuais;
   // "jogos" guarda partidas importadas e tem sua propria aba.
