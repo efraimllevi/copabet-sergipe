@@ -425,6 +425,94 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
 <style id="copabet-admin-split-panels">
 @media(max-width:700px){#adminView .admin-tabbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#adminView .admin-tab{min-width:0;white-space:normal;padding:11px 8px}#openManualFormBtn{width:100%}}
 </style>
+<style id="copabet-blue-layout-2026">
+/* COPABET — identidade visual azul, inspirada na prévia, sem alterar a lógica do Firebase. */
+:root {
+  --orange:#2591ff;
+  --orange-light:#65baff;
+  --orange-glow:rgba(37,145,255,.22);
+  --bg:#071222;
+  --card:#10243e;
+  --card-hover:#173252;
+  --border:#25415d;
+  --cb-blue:#258cff;
+  --cb-yellow:#ffd43b;
+}
+html {scroll-behavior:smooth}
+body {background:radial-gradient(ellipse 90% 42% at 50% -20%,#164e85 0%,transparent 80%),#071222;color:#eff7ff}
+header {background:linear-gradient(120deg,#102f53,#07172d)!important;border-bottom:2px solid #258cff!important;box-shadow:0 12px 35px #02081280!important}
+.header-content,.site-layout {max-width:1420px}
+#siteLogo {max-width:min(75vw,300px)}
+.banner-carousel {max-width:1350px;border-color:#285985;background:#10243e;box-shadow:0 12px 40px #02091499}
+.banner-slide {background:linear-gradient(125deg,#102c4a 0%,#184a82 60%,#09213c 100%)}
+.banner-slide::after {background:radial-gradient(circle,rgba(75,171,255,.22),transparent 72%)}
+.banner-slide h2 span,.orange,.cb-match-time {color:#68b9ff!important}
+.banner-dots .dot.active,.dot.active {background:#329bff}
+.promo-card,.card,.champ-sidebar,.modalbox,.account-modal {
+  background:#10243e!important;border-color:#284f73!important;
+  box-shadow:0 9px 26px #020b1980
+}
+.card:hover,.promo-card:hover {border-color:#388fda!important;box-shadow:0 12px 30px #020b1980}
+.promo-card b,.champ-sidebar h3 {color:#69bcff}
+.site-layout {grid-template-columns:220px minmax(0,1fr);gap:16px}
+.champ-sidebar {position:sticky;top:12px}
+.champ-tab,.admin-tab,.secondary {background:#173450!important;border:1px solid #2c5b85!important;color:#e8f4ff!important}
+.champ-tab:hover,.champ-tab.active,.admin-tab.active,.admin-tab:hover {
+  color:#fff!important;border-color:#3699ff!important;background:#194a75!important
+}
+.btn {background:linear-gradient(115deg,#258cff,#1260ba)!important;color:#fff!important;box-shadow:0 6px 20px #0d54a65c!important}
+.btn:hover {filter:brightness(1.12)}
+input,select,textarea {background:#071b33!important;border-color:#326089!important;color:#fff!important}
+input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shadow:0 0 0 3px #258cff36!important}
+.match,.cb-live-game {background:linear-gradient(145deg,#132b49,#0c1e36)!important;border:1px solid #2a4d6d!important;box-shadow:0 4px 15px #01071266}
+.match:hover,.cb-live-game:hover {border-color:#4a9fee!important;box-shadow:0 8px 26px #061426b3}
+#sportsapiPanel {background:#0e233d!important;border:1px solid #315b85!important;border-radius:16px!important}
+.cb-live-head h2,#cbSocietyGames h3 {color:#f1f7ff!important;letter-spacing:.35px}
+.cb-live-tools {display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
+.cb-live-tools button {background:#173554!important;color:#edf7ff!important;border:1px solid #2d5680!important;border-radius:9px!important}
+.cb-live-tools button:hover {background:#205082!important}
+.cb-live-tools button[aria-pressed="true"] {background:#2076cd!important;border-color:#60b4ff!important;color:#fff!important}
+.cb-live-game-top {color:#b6d0e9!important}
+.cb-live-match {font-size:17px;color:#f5f9ff}
+.cb-odds-grid {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important}
+.cb-odd {min-width:0!important;background:#193654!important;border:1px solid #37628b!important;border-radius:10px!important;padding:11px!important;display:flex;flex-direction:column;align-items:stretch;text-align:center}
+.cb-odd small {color:#b7d5f0!important}
+.cb-odd strong {color:#eff8ff!important;font-size:17px}
+.cb-odd button {margin-top:7px!important;background:#22517e!important;color:#fff!important;border:1px solid #3475ae!important;width:100%}
+.cb-odd:hover {border-color:#61acfc!important}
+.cb-odd.is-picked {background:var(--cb-yellow)!important;border-color:#ffe573!important;color:#101c2d!important;box-shadow:0 0 0 2px #ffdc4d44}
+.cb-odd.is-picked small,.cb-odd.is-picked strong {color:#101c2d!important}
+.cb-odd.is-picked button {background:#142b48!important;color:#ffe57b!important;border-color:#142b48!important}
+#matches .odds button {background:#173b5c!important;border-color:#315f88!important;color:#f5faff!important}
+#matches .odds button.selected {background:var(--cb-yellow)!important;color:#13243e!important;border-color:#ffe573!important;box-shadow:0 0 0 2px #ffdc4d44!important}
+#floatingBetSlip {
+  background:linear-gradient(160deg,#133454,#091e36)!important;
+  border:1px solid #4a9fe4!important;border-top:3px solid #329dff!important;
+  box-shadow:0 12px 35px #030a15b5!important;border-radius:15px
+}
+.cb-slip-title h2 {color:#f7fbff!important}
+#cbSlipToggle {background:#19466e!important;border-color:#2e83c8!important;color:#fff!important}
+#floatingBetSlip #selections p {border-bottom-color:#315277!important}
+#floatingBetSlip #combined,#floatingBetSlip #payout {color:#ffe06e!important}
+#cbSlipCount {color:#b9defa!important}
+.badge-timer {background:#123b5d;border-color:#2e8bdf;color:#8ac7ff}
+.alert-box {background:#113a59;border-color:#318bd4;color:#e5f5ff}
+@media (min-width:1100px) {
+  #floatingBetSlip {right:18px;top:92px;width:315px}
+  #publicView {padding-right:330px}
+}
+@media (max-width:760px) {
+  .site-layout {grid-template-columns:1fr!important;padding:0 9px}
+  .champ-sidebar {position:static}
+  .cb-odds-grid {grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .cb-odd {padding:7px 3px!important}
+  .cb-odd strong {font-size:14px}
+  .cb-odd button {padding:8px 2px!important;font-size:10px!important}
+  #sportsapiPanel {padding:12px!important}
+  .cb-live-tools button {flex:1 1 auto}
+  #floatingBetSlip {border-radius:12px!important}
+}
+</style>
 </head>
 <body>
 
@@ -500,11 +588,11 @@ body:has(#adminView:not(.hidden)) #floatingBetSlip,body:has(#publicView.hidden) 
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Conectando ao banco de jogos...</span></div>
   <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
-    <button type="button" data-filter="all" aria-pressed="true">Todos os jogos de futebol</button>
+    <button type="button" data-filter="all" aria-pressed="true">Jogos da API</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
-    <button type="button" data-filter="society" aria-pressed="false">Jogos Estaduais de Society</button>
+    <button type="button" data-filter="society" aria-pressed="false">Jogos manuais</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
