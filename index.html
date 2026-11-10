@@ -552,6 +552,90 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 #adminTicketPane input,#adminTicketPane select{width:100%;min-width:0}
 @media(max-width:699px){#adminTicketGames{grid-template-columns:minmax(0,1fr);max-height:45vh}#adminTicketPane .cb-ticket-fields{grid-template-columns:minmax(0,1fr)}}
 </style>
+
+<script id="cb-pdf-export">
+/* PDF nativo para celular, sem bibliotecas externas ou janelas de impressão. */
+(function(){
+  function printable(s){
+    return String(s ?? '').replace(/[\u2013\u2014\u2212]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/[\u2022\u2027]/g,'-').replace(/\u00a0/g,' ').replace(/[^\x20-\xff]/g,c=>{
+      const fallback=c.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return /^[\x20-\xff]+$/.test(fallback)?fallback:'?';
+    });
+  }
+  function wrapLine(value,max=74){
+    const words=printable(value).trim().split(/\s+/).filter(Boolean),lines=[];
+    let line='';
+    for(let word of words){
+      while(word.length>max){
+        if(line){lines.push(line);line='';}
+        lines.push(word.slice(0,max));word=word.slice(max);
+      }
+      if(!line)line=word;
+      else if((line+' '+word).length<=max)line+=' '+word;
+      else {lines.push(line);line=word;}
+    }
+    if(line)lines.push(line);
+    return lines.length?lines:[''];
+  }
+  function buildPdf(inputLines){
+    const lines=[];
+    for(const line of inputLines)lines.push(...wrapLine(line));
+    const pageLines=44,pages=[];
+    for(let i=0;i<lines.length;i+=pageLines)pages.push(lines.slice(i,i+pageLines));
+    if(!pages.length)pages.push(['COPA BET SERGIPE']);
+    const quote=value=>printable(value).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+    const objects=[];
+    objects[1]='<< /Type /Catalog /Pages 2 0 R >>';
+    objects[2]='<< /Type /Pages /Kids ['+pages.map((p,i)=>(4+2*i)+' 0 R').join(' ')+'] /Count '+pages.length+' >>';
+    objects[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+    for(let i=0;i<pages.length;i++){
+      const pageId=4+i*2,contentId=pageId+1;
+      objects[pageId]='<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents '+contentId+' 0 R >>';
+      let stream='';
+      pages[i].forEach((line,k)=>{stream+='BT /F1 10 Tf 42 '+(793-k*16)+' Td ('+quote(line)+') Tj ET\n';});
+      stream+='BT /F1 9 Tf 42 44 Td (Pagina '+(i+1)+' de '+pages.length+') Tj ET\n';
+      objects[contentId]='<< /Length '+stream.length+' >>\nstream\n'+stream+'endstream';
+    }
+    const n=objects.length-1;
+    let pdf='%PDF-1.4\n%\xe2\xe3\xcf\xd3\n',offsets=[0];
+    for(let i=1;i<=n;i++){offsets[i]=pdf.length;pdf+=i+' 0 obj\n'+objects[i]+'\nendobj\n';}
+    const xref=pdf.length;
+    pdf+='xref\n0 '+(n+1)+'\n0000000000 65535 f \n';
+    for(let i=1;i<=n;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+    pdf+='trailer\n<< /Size '+(n+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n';
+    return Uint8Array.from(pdf,c=>c.charCodeAt(0)&255);
+  }
+  window.cbIsMobileReceipt=function(){
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||window.matchMedia('(max-width:760px)').matches;
+  };
+  window.cbDownloadReceiptPdf=function(receipt,fileName,fallbackId){
+    if(!receipt||!receipt.querySelector('h1')){alert('Nenhum bilhete disponível para download.');return false;}
+    try{
+      const paragraphs=Array.from(receipt.querySelectorAll('h1,p'));
+      const lines=paragraphs.map(el=>{
+        if(el.classList.contains('cb-print-row')){
+          return (el.querySelector('span')?.textContent||'')+': '+(el.querySelector('strong')?.textContent||'');
+        }
+        return el.textContent||'';
+      });
+      const blob=new Blob([buildPdf(lines)],{type:'application/pdf'});
+      const url=URL.createObjectURL(blob);
+      const safeName=String(fileName||'copabet-bilhete.pdf').replace(/[^a-zA-Z0-9._-]/g,'_');
+      const fallback=document.getElementById(fallbackId);
+      if(fallback){fallback.href=url;fallback.target='_blank';fallback.rel='noopener';fallback.hidden=false;fallback.textContent='ABRIR PDF PARA SALVAR OU IMPRIMIR';}
+      const link=document.createElement('a');
+      link.href=url;link.download=safeName;link.style.display='none';
+      document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),600000);
+      return true;
+    }catch(error){
+      console.error('Não foi possível gerar o PDF do bilhete:',error);
+      alert('Não foi possível gerar o PDF. Tente novamente ou use a impressão do navegador.');
+      return false;
+    }
+  };
+})();
+</script>
 </head>
 <body>
 
@@ -649,6 +733,8 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <div class="row"><span>Cotação total</span><b id="combined" class="orange">0,00</b></div>
    <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="payout" class="orange">R$ 0,00</b></div>
    <button class="btn" id="payBtn" style="width:100%">CONTINUAR PARA PAGAMENTO</button>
+   <button type="button" class="secondary" id="cbDownloadTicketPublic" style="width:100%;margin-top:8px">BAIXAR PRÉVIA DO BILHETE (PDF)</button>
+   <a id="cbPublicPdfFallback" href="#" hidden style="display:block;margin-top:8px;color:#f5c400;font-weight:bold">ABRIR PDF PARA SALVAR OU IMPRIMIR</a>
     
    <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
    </div>
@@ -689,7 +775,9 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
       </div>
       <div class="row"><span>Cotação total</span><b id="adminTicketCombined">0,00</b></div>
       <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="adminTicketPayout">R$ 0,00</b></div>
-      <button type="button" class="btn" id="adminTicketIssue" style="width:100%">GERAR E IMPRIMIR BILHETE</button>
+      <button type="button" class="btn" id="adminTicketIssue" style="width:100%">GERAR BILHETE</button>
+      <button type="button" class="secondary" id="adminTicketDownload" style="width:100%;margin-top:8px" disabled>BAIXAR BILHETE EM PDF</button>
+      <a id="adminTicketPdfFallback" href="#" hidden style="display:block;margin-top:8px;color:#f5c400;font-weight:bold">ABRIR PDF PARA SALVAR OU IMPRIMIR</a>
       <button type="button" class="secondary" id="adminTicketReprint" style="width:100%;margin-top:8px" disabled>REIMPRIMIR ÚLTIMO BILHETE</button>
       <p class="small" id="adminTicketResult" role="status"></p>
       <p class="small">O recibo não confirma pagamento ou validação da aposta. Consulte Confirmação de Bilhetes para verificar o registro.</p>
@@ -1700,7 +1788,7 @@ const matchesContainer = $("matches");
 
   // Recibo térmico: imprime pelo diálogo do sistema operacional (inclusive serviço de impressora Bluetooth).
   // Não indica aposta paga/validada: o pagamento precisa de conferência pelo administrador.
-  function cbPrintTicket(){
+  function cbPrintTicket(mode="print"){
     if(picks.length < 2){alert("Selecione pelo menos dois jogos para imprimir o bilhete.");return;}
     const stake=Number($("amount").value);
     if(!Number.isFinite(stake)||stake<=0){alert("Informe um valor válido antes de imprimir.");$("amount").focus();return;}
@@ -1741,9 +1829,14 @@ const matchesContainer = $("matches");
     row("Retorno potencial",money(stake*oddTotal));
     add("p","PRÉVIA — NÃO É COMPROVANTE DE PAGAMENTO.","cb-print-divider cb-print-small");
     add("p","Aposta sujeita a confirmação de pagamento e validação pela COPA BET SERGIPE.","cb-print-small");
-    if(typeof window.print!=="function"){alert("Seu navegador não oferece impressão. Tente no Chrome com o serviço de impressão da impressora.");return;}
+    if(mode==="pdf"){
+      window.cbDownloadReceiptPdf(receipt,"copabet-previa-"+new Date().toISOString().slice(0,10)+".pdf","cbPublicPdfFallback");
+      return;
+    }
+    if(typeof window.print!=="function"){alert("Seu navegador não oferece impressão. Use a opção BAIXAR PRÉVIA DO BILHETE (PDF).");return;}
     window.print();
   }
+  $("cbDownloadTicketPublic")?.addEventListener("click",()=>cbPrintTicket("pdf"));
   $("cbPrintTicketBtn")?.addEventListener("click",cbPrintTicket);
   $("cbPrintTicketPixBtn")?.addEventListener("click",cbPrintTicket);
 
@@ -2704,7 +2797,7 @@ async function issue(){
   if(Math.abs(Number(g.odds[p.side])-p.odd)>0.0001){selected.delete(p.id);render();alert("Cotação alterada. Selecione novamente: "+p.a+" × "+p.b);return;}
   if(p.source==="manual"&&Number.isFinite(g.maxStake)&&t.amount>g.maxStake){alert("Limite para "+g.a+" × "+g.b+": "+money(g.maxStake));return;}
  }
- if(!confirm("Registrar o bilhete de "+name+" no valor de "+money(t.amount)+" como PENDENTE e imprimir?"))return;
+ if(!confirm("Registrar o bilhete de "+name+" no valor de "+money(t.amount)+" como PENDENTE?"))return;
  busy=true;const btn=$("adminTicketIssue");btn.disabled=true;btn.textContent="REGISTRANDO...";
  try{
   if(!active()||auth.currentUser?.uid!==user.uid)throw Error("Sessão administrativa indisponível.");
@@ -2717,21 +2810,32 @@ async function issue(){
   });
   latest={id:snap.id,name,phone,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})};
   $("adminTicketReprint").disabled=false;
-  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. Você pode reimprimi-lo.";
+  $("adminTicketDownload").disabled=false;
+  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em BAIXAR BILHETE EM PDF para salvar ou imprimir no celular.":"Você pode baixar o PDF ou imprimir.");
   selected.clear();render();receipt(latest);
-  window.print();
+  if(!window.cbIsMobileReceipt() && typeof window.print==="function")window.print();
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete no Firebase: "+(error.message||error));}
- finally{busy=false;btn.disabled=false;btn.textContent="GERAR E IMPRIMIR BILHETE";}
+ finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
 $("adminTicketSource").addEventListener("change",render);
 $("adminTicketSearch").addEventListener("input",render);
 $("adminTicketAmount").addEventListener("input",summary);
 $("adminTicketRefresh").addEventListener("click",render);
 $("adminTicketIssue").addEventListener("click",issue);
-$("adminTicketReprint").addEventListener("click",()=>{if(!active()||!latest)return;receipt(latest);window.print();});
+$("adminTicketDownload").addEventListener("click",()=>{
+ if(!active()||!latest)return;
+ receipt(latest);
+ window.cbDownloadReceiptPdf(document.getElementById("cbPrintReceipt"),"copabet-bilhete-"+String(latest.id).slice(0,24)+".pdf","adminTicketPdfFallback");
+});
+$("adminTicketReprint").addEventListener("click",()=>{
+ if(!active()||!latest)return;
+ receipt(latest);
+ if(window.cbIsMobileReceipt())$("adminTicketDownload").click();
+ else window.print();
+});
 document.querySelector('[data-admin-tab="adminTicketPane"]')?.addEventListener("click",render);
 window.addEventListener("copabet:api-games-updated",()=>{if(active())render();});
-onAuthStateChanged(auth,user=>{if(!user||user.uid!==ADMIN_UID){selected.clear();latest=null;$("adminTicketReprint").disabled=true;}});
+onAuthStateChanged(auth,user=>{if(!user||user.uid!==ADMIN_UID){selected.clear();latest=null;$("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;document.getElementById("adminTicketPdfFallback").hidden=true;}});
 </script>
 </body>
 </html>
