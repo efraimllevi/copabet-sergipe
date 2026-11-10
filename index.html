@@ -552,6 +552,14 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 .cb-t-pick{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #333}
 #adminTicketPane input,#adminTicketPane select{width:100%;min-width:0}
 @media(max-width:699px){#adminTicketGames{grid-template-columns:minmax(0,1fr);max-height:45vh}#adminTicketPane .cb-ticket-fields{grid-template-columns:minmax(0,1fr)}}
+#cambistaView{max-width:1200px;margin:20px auto;padding:0 12px}
+#cambistaView .card{padding:16px}
+#cambistaView #adminTicketPane{display:block}
+#cambistaView .cb-t-odds{grid-template-columns:repeat(3,minmax(0,1fr))}
+#cambistaView .cb-t-odds button{min-width:0;white-space:normal}
+#cambistaView #adminTicketSummary{position:sticky;bottom:0;z-index:5;background:#101010;box-shadow:0 -8px 22px #0009}
+#cambistaView #adminTicketIssuerName[readonly]{opacity:.8}
+@media(max-width:699px){#cambistaView{padding:0 6px;margin:6px auto}#cambistaView .card{padding:10px}#cambistaView #adminTicketGames{max-height:none}#cambistaView #adminTicketSummary{max-height:60vh;overflow:auto}}
 </style>
 
 <script id="cb-pdf-export">
@@ -780,6 +788,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
 
+   <div id="adminTicketSlot" hidden></div>
    <div id="adminTicketPane" class="admin-pane hidden">
     <h3>Gerar e imprimir bilhetes — somente administradores</h3>
     <p class="small">Escolha as partidas e as cotações de Casa, Empate ou Fora. O bilhete é registrado com identificação e fica pendente até a confirmação do pagamento.</p>
@@ -982,12 +991,29 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   </div>
 </div>
 
-<!-- Modal Login Admin -->
+<!-- Área isolada de cambistas: somente bilhetes de jogos manuais. -->
+<section id="cambistaView" class="hidden" aria-label="Área do cambista">
+ <div class="card">
+  <div class="row" style="gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+   <div><h2 style="margin:0">Painel do cambista</h2><p class="small" id="cambistaGreeting">Somente jogos manuais</p></div>
+   <button type="button" class="secondary" id="closeCambistaBtn">Sair</button>
+  </div>
+  <p class="small">Selecione os jogos manuais, registre o bilhete e imprima pelo sistema ou por impressora térmica conectada. Os jogos da API e as funções de administrador não estão disponíveis neste acesso.</p>
+  <div id="cambistaTicketHost"></div>
+ </div>
+</section>
+
+<!-- Login seguro por perfil -->
 <div id="adminLogin" class="modal hidden">
  <div class="modalbox">
-  <h2>Acesso administrativo</h2>
-  <label>E-mail</label><input id="adminEmail" type="email" placeholder="admin@copabet.com">
-  <label>Senha</label><input id="adminPassword" type="password" placeholder="Digite sua senha">
+  <h2>Entrar na COPABET</h2>
+  <label for="loginRole">Tipo de acesso</label>
+  <select id="loginRole" aria-label="Selecione seu perfil de acesso" style="width:100%;margin-bottom:12px">
+   <option value="admin">Administrador</option>
+   <option value="cambista">Cambista</option>
+  </select>
+  <label for="adminEmail">E-mail</label><input id="adminEmail" type="email" autocomplete="username" placeholder="seu@email.com">
+  <label for="adminPassword">Senha</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha">
   <button class="btn" id="loginSubmitBtn" style="width:100%">ENTRAR</button>
   <button class="secondary" id="cancelLoginBtn" style="width:100%;margin-top:8px">CANCELAR</button>
  </div>
@@ -1869,31 +1895,57 @@ const matchesContainer = $("matches");
   const executarLogin = async () => {
     const email = normalizeEmail($("adminEmail").value);
     const password = $("adminPassword").value;
+    const role = $("loginRole").value;
     
     if(!validEmailFormat(email)) {
-      alert("Digite o e-mail administrativo completo e válido, por exemplo admin@seudominio.com.");
+      alert("Digite um e-mail válido, como nome@seudominio.com.");
       $("adminEmail").focus();
       return;
     }
     if(!password) {
-      alert("Informe a senha administrativa.");
+      alert("Informe sua senha.");
       $("adminPassword").focus();
       return;
     }
 
     try {
-      // Autentica primeiro e valida o UID autorizado pelas regras do Firestore.
+      // A escolha do perfil não concede permissão; ela é validada no Firebase.
       const credential = await signInWithEmailAndPassword(auth, email, password);
       const ADMIN_UID = "rjWeKGZpkMVrW8UynAKCwjZXklM2";
-      if (credential.user.uid !== ADMIN_UID) {
+      if(role==="admin"){
+        if (credential.user.uid !== ADMIN_UID) {
+          await signOut(auth);
+          throw Object.assign(new Error("Esta conta não possui acesso de administrador."), { code: "copabet/admin-uid-mismatch" });
+        }
+        window.copabetCambistaSession=null;
+        $("cambistaView").classList.add("hidden");
+        restoreAdminTicket();
+        $("adminLogin").classList.add("hidden");
+        $("publicView").classList.add("hidden");
+        $("adminView").classList.remove("hidden");
+        window.renderAdminMatches();
+        listenAdminDeposits();
+      } else if(role==="cambista"){
+        if(credential.user.uid===ADMIN_UID){
+          await signOut(auth);
+          throw Object.assign(new Error("Use a opção Administrador para esta conta."),{code:"copabet/role-mismatch"});
+        }
+        let cambistaDoc;
+        try{cambistaDoc=await getDoc(doc(db,"cambistas",credential.user.uid));}
+        catch(error){
+          await signOut(auth);
+          throw Object.assign(new Error("Não foi possível conferir o cadastro de cambista no Firebase. Verifique as regras da coleção cambistas."),{code:"copabet/cambista-rules",cause:error});
+        }
+        const record=cambistaDoc.exists()?cambistaDoc.data():null;
+        if(!record||record.active!==true||record.role!=="cambista"||typeof record.name!=="string"||record.name.trim().length<2){
+          await signOut(auth);
+          throw Object.assign(new Error("Cambista não cadastrado ou desativado. Peça ao administrador para liberar sua conta."),{code:"copabet/cambista-inactive"});
+        }
+        openCambista({uid:credential.user.uid,name:record.name.trim()});
+      } else {
         await signOut(auth);
-        throw Object.assign(new Error("A conta autenticada não é o administrador autorizado. Confira o UID em Firebase → Authentication → Users."), { code: "copabet/admin-uid-mismatch" });
+        throw new Error("Tipo de acesso inválido.");
       }
-      $("adminLogin").classList.add("hidden");
-      $("publicView").classList.add("hidden");
-      $("adminView").classList.remove("hidden");
-      window.renderAdminMatches();
-      listenAdminDeposits();
     } catch(e) {
       console.error("Firebase Authentication login failed:", e);
       const messages = {
@@ -1905,7 +1957,10 @@ const matchesContainer = $("matches");
         "auth/network-request-failed": "Falha de rede. Verifique a conexão e se o site está publicado em HTTPS.",
         "auth/too-many-requests": "Muitas tentativas. Aguarde e tente novamente.",
         "auth/unauthorized-domain": "Este domínio não está autorizado. Adicione-o em Firebase Authentication → Settings → Authorized domains.",
-        "copabet/admin-uid-mismatch": e.message
+        "copabet/admin-uid-mismatch": e.message,
+        "copabet/role-mismatch": e.message,
+        "copabet/cambista-rules": e.message,
+        "copabet/cambista-inactive": e.message
       };
       alert("Não foi possível entrar: " + (messages[e.code] || e.message || e.code || "erro de autenticação"));
     }
@@ -1963,9 +2018,47 @@ const matchesContainer = $("matches");
     if(!$('adminView').classList.contains('hidden'))cbLoadPayments();
   });paymentObserver.observe($('adminView'),{attributes:true,attributeFilter:['class']});
 
-  $("closeAdminBtn").addEventListener("click", () => {
+  $("closeAdminBtn").addEventListener("click", async () => {
     $("adminView").classList.add("hidden");
     $("publicView").classList.remove("hidden");
+    await signOut(auth).catch(error=>console.error("Falha ao encerrar sessão administrativa:",error));
+  });
+  function restoreAdminTicket(){
+    const pane=$("adminTicketPane"),slot=$("adminTicketSlot");
+    if(pane&&slot&&pane.parentElement!==$("adminView")){
+      slot.after(pane);
+    }
+    if(pane)pane.classList.add("hidden");
+    const source=$("adminTicketSource");
+    if(source)source.closest("div").hidden=false;
+    const issuer=$("adminTicketIssuerName");
+    if(issuer){issuer.readOnly=false;issuer.value="";}
+    const heading=pane?.querySelector("h3");
+    if(heading)heading.textContent="Gerar e imprimir bilhetes — somente administradores";
+  }
+  function openCambista(session){
+    window.copabetCambistaSession=session;
+    const pane=$("adminTicketPane");
+    $("cambistaTicketHost").append(pane);
+    pane.classList.remove("hidden");
+    $("adminTicketSource").value="manual";
+    $("adminTicketSource").closest("div").hidden=true;
+    $("adminTicketIssuerName").value=session.name;
+    $("adminTicketIssuerName").readOnly=true;
+    pane.querySelector("h3").textContent="Bilhetes de jogos manuais";
+    $("cambistaGreeting").textContent="Cambista: "+session.name+" · Somente jogos manuais";
+    $("adminLogin").classList.add("hidden");
+    $("adminView").classList.add("hidden");
+    $("publicView").classList.add("hidden");
+    $("cambistaView").classList.remove("hidden");
+    window.dispatchEvent(new Event("copabet:cambista-opened"));
+  }
+  $("closeCambistaBtn").addEventListener("click",async()=>{
+    window.copabetCambistaSession=null;
+    $("cambistaView").classList.add("hidden");
+    restoreAdminTicket();
+    $("publicView").classList.remove("hidden");
+    await signOut(auth).catch(error=>console.error("Falha ao encerrar sessão do cambista:",error));
   });
 
   $("payBtn").addEventListener("click", async () => {
@@ -2677,7 +2770,11 @@ let latest=null,busy=false;
 const formatOdd=n=>Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const money=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n)||0);
 const admin=()=>auth.currentUser?.uid===ADMIN_UID&&!auth.currentUser?.isAnonymous;
-const active=()=>admin()&&!$("adminView").classList.contains("hidden")&&!$("adminTicketPane").classList.contains("hidden");
+const cambista=()=>!admin()&&!auth.currentUser?.isAnonymous&&
+  !!auth.currentUser&&window.copabetCambistaSession?.uid===auth.currentUser.uid&&
+  !$("cambistaView").classList.contains("hidden")&&$("adminTicketPane").parentElement===$("cambistaTicketHost");
+const active=()=>!$("adminTicketPane").classList.contains("hidden")&&
+  ((admin()&&!$("adminView").classList.contains("hidden"))||cambista());
 const validOdd=n=>Number.isFinite(Number(n))&&Number(n)>1;
 const element=(tag,text,cls,parent)=>{
  const el=document.createElement(tag);if(cls)el.className=cls;
@@ -2688,6 +2785,7 @@ function games(){
  const manual=(window.matches||[]).filter(m=>String(m.status||"pending")==="pending"&&m.datetime&&new Date(m.datetime).getTime()>Date.now())
  .map(m=>({id:String(m.id),source:"manual",cup:String(m.cup||"Campeonato"),a:String(m.a||""),b:String(m.b||""),
    startTime:new Date(m.datetime).getTime(),odds:[0,1,2].map(i=>validOdd(m.odds?.[i])?Number(m.odds[i]):null),maxStake:Number(m.maxStake??100)}));
+ if(cambista())return manual;
  const api=typeof window.copabetAdminApiGames==="function"?window.copabetAdminApiGames():[];
  return manual.concat(api);
 }
@@ -2709,7 +2807,7 @@ function summary(){
 }
 function render(){
  if(!active())return;
- const source=$("adminTicketSource").value,term=$("adminTicketSearch").value.toLocaleLowerCase("pt-BR").trim();
+ const source=cambista()?"manual":$("adminTicketSource").value,term=$("adminTicketSearch").value.toLocaleLowerCase("pt-BR").trim();
  const all=games(),filtered=all.filter(g=>(source==="all"||g.source===source)&&(!term||(g.cup+" "+g.a+" "+g.b).toLocaleLowerCase("pt-BR").includes(term)));
  const root=$("adminTicketGames");root.replaceChildren();
  $("adminTicketStatus").textContent=all.length+" jogo(s) disponíveis · exibindo "+Math.min(120,filtered.length)+(filtered.length>120?" de "+filtered.length:"");
@@ -2744,12 +2842,12 @@ function receipt(t){
    logo.src=siteLogo.src;logo.alt="COPABET";
  }
  add("h1","COPA BET SERGIPE");
- add("p","BILHETE EMITIDO PELO ADMINISTRADOR","cb-print-center");
+ add("p",t.issuerRole==="cambista"?"BILHETE EMITIDO PELO CAMBISTA":"BILHETE EMITIDO PELO ADMINISTRADOR","cb-print-center");
  add("p","PAGAMENTO PENDENTE DE CONFIRMAÇÃO","cb-print-center cb-print-small");
  add("p","Nº "+t.id,"cb-print-divider");
  add("p","Emissão: "+t.date+" (Brasília)");
  add("p","Data/hora da impressão: "+new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})+" (Brasília)");
- add("p","Administrador: "+t.issuerName);
+ add("p",(t.issuerRole==="cambista"?"Cambista: ":"Administrador: ")+t.issuerName);
  add("p","Cliente: "+t.name);
  if(t.phone)add("p","Telefone: "+t.phone);
  t.picks.forEach((p,i)=>{
@@ -2767,9 +2865,11 @@ function receipt(t){
  add("p","PENDENTE — não comprova pagamento ou validação.","cb-print-divider cb-print-small");
 }
 async function issue(){
- if(busy||!active()){alert("Somente administradores autenticados podem emitir bilhetes.");return;}
- const user=auth.currentUser,name=$("adminTicketName").value.trim(),phone=$("adminTicketPhone").value.trim(),issuerName=$("adminTicketIssuerName").value.trim(),list=picks(),t=totals();
- if(issuerName.length<2){alert("Informe o nome do administrador responsável.");$("adminTicketIssuerName").focus();return;}
+ if(busy||!active()){alert("Entre como Administrador ou Cambista autorizado para emitir bilhetes.");return;}
+ const user=auth.currentUser,issuedAsAdmin=admin(),name=$("adminTicketName").value.trim(),phone=$("adminTicketPhone").value.trim(),list=picks(),t=totals();
+ let issuerName=issuedAsAdmin?$("adminTicketIssuerName").value.trim():window.copabetCambistaSession?.name||"";
+ if(!issuedAsAdmin && list.some(p=>p.source!=="manual")){alert("Cambistas só podem selecionar jogos manuais.");return;}
+ if(issuerName.length<2){alert("Informe o nome do responsável pela emissão.");$("adminTicketIssuerName").focus();return;}
  if(name.length<2){alert("Informe o nome do cliente.");$("adminTicketName").focus();return;}
  if(!list.length){alert("Selecione pelo menos um jogo.");return;}
  if(!Number.isFinite(t.amount)||t.amount<=0){alert("Informe um valor válido.");return;}
@@ -2784,15 +2884,26 @@ async function issue(){
  if(!confirm("Registrar o bilhete de "+name+" no valor de "+money(t.amount)+" como PENDENTE?"))return;
  busy=true;const btn=$("adminTicketIssue");btn.disabled=true;btn.textContent="REGISTRANDO...";
  try{
-  if(!active()||auth.currentUser?.uid!==user.uid)throw Error("Sessão administrativa indisponível.");
+  if(!active()||auth.currentUser?.uid!==user.uid)throw Error("Sessão de emissão indisponível.");
+  if(!issuedAsAdmin){
+    const {getDoc,doc}=await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const verified=await getDoc(doc(db,"cambistas",user.uid));
+    if(!verified.exists()||verified.data().active!==true||verified.data().role!=="cambista"){
+      throw Error("Este cambista não está mais autorizado a emitir bilhetes.");
+    }
+    issuerName=String(verified.data().name||"").trim();
+    if(issuerName.length<2)throw Error("Cadastro de cambista sem nome válido.");
+    if(list.some(p=>p.source!=="manual"))throw Error("O cambista só pode emitir apostas manuais.");
+  }
   const snap=await addDoc(collection(db,"bets"),{
    uid:user.uid,bettorName:name,bettorPhone:phone,cpfNormalized:"",
-   adminIssued:true,source:"admin_print",issuedByUid:user.uid,issuedByName:issuerName,sentToWhatsApp:false,
+   adminIssued:issuedAsAdmin,cambistaIssued:!issuedAsAdmin,
+   source:issuedAsAdmin?"admin_print":"cambista_manual",issuedByUid:user.uid,issuedByName:issuerName,sentToWhatsApp:false,
    amount:t.amount,combined:t.combined,payout:t.payout,
-   picks:list.map(p=>({id:p.id,cup:p.cup,a:p.a,b:p.b,side:p.side,odd:p.odd,startTime:p.startTime||null})),
+   picks:list.map(p=>({id:p.id,cup:p.cup,a:p.a,b:p.b,side:p.side,odd:p.odd,startTime:p.startTime||null,source:p.source})),
    status:"pending",paymentStatus:"pending_confirmation",createdAt:serverTimestamp()
   });
-  latest={id:snap.id,name,phone,issuerName,issuerUid:user.uid,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})};
+  latest={id:snap.id,name,phone,issuerName,issuerRole:issuedAsAdmin?"admin":"cambista",issuerUid:user.uid,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})};
   $("adminTicketReprint").disabled=false;
   $("adminTicketDownload").disabled=false;
   $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em BAIXAR BILHETE EM PDF para salvar ou imprimir no celular.":"Você pode baixar o PDF ou imprimir.");
@@ -2824,7 +2935,17 @@ onAuthStateChanged(auth,user=>{
   const nameInput=$("adminTicketIssuerName");
   if(nameInput&&!nameInput.value.trim()&&user.displayName)nameInput.value=user.displayName.trim();
  }
- if(!user||user.uid!==ADMIN_UID){selected.clear();latest=null;$("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;document.getElementById("adminTicketPdfFallback").hidden=true;}});
+ if(!user||!(user.uid===ADMIN_UID||window.copabetCambistaSession?.uid===user.uid)){
+   selected.clear();latest=null;$("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;document.getElementById("adminTicketPdfFallback").hidden=true;
+ }
+});
+window.addEventListener("copabet:cambista-opened",()=>{
+ selected.clear();latest=null;
+ $("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;
+ $("adminTicketSearch").value="";$("adminTicketName").value="";$("adminTicketPhone").value="";
+ $("adminTicketResult").textContent="";
+ render();
+});
 </script>
 </body>
 </html>
