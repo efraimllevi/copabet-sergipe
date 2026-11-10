@@ -671,6 +671,38 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   };
 })();
 </script>
+<style id="copabet-betslip-and-admin-polish-2026">
+#floatingBetSlip #selections{display:flex;flex-direction:column;gap:7px}
+.cb-slip-pick{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px;border:1px solid #305c81;border-radius:9px;background:#0c2541;min-width:0}
+.cb-slip-pick>div{min-width:0;overflow-wrap:anywhere}
+.cb-slip-pick b{display:block;font-size:12px;line-height:1.3;color:#fff}
+.cb-slip-pick span{display:block;color:#ffda57;font-weight:700;font-size:12px;margin-top:3px}
+.cb-slip-remove{border:1px solid #6280a0!important;border-radius:7px;background:#183b5c!important;color:#fff!important;padding:6px 8px;font-size:11px;cursor:pointer;flex-shrink:0}
+#adminView .admin-tabbar{display:flex;gap:8px;flex-wrap:wrap}
+#adminView .admin-tab{white-space:normal}
+.cb-ticket-source-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}
+.cb-ticket-source-buttons button{flex:1;min-width:100px;border:1px solid #43759d;background:#183c60;color:white;border-radius:8px;padding:10px 8px;font-weight:700;cursor:pointer}
+.cb-ticket-source-buttons button[aria-pressed="true"]{background:#ffd43b;color:#10233a;border-color:#ffe783}
+#adminImportedList{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px}
+#adminImportedList .cb-live-game{margin:0}
+#adminImportedList strong{display:block;margin:7px 0}
+#adminImportedList p{margin:5px 0}
+#sportsapiPanel .cb-live-match{margin-bottom:6px}
+#sportsapiPanel .cb-odds-grid{margin:8px 0}
+#sportsapiPanel .cb-match-time{margin:7px 0 2px}
+@media(max-width:699px){
+ #floatingBetSlip{max-height:48vh!important}
+ #floatingBetSlip:not(.is-collapsed){max-height:48vh!important}
+ #floatingBetSlip #selections{max-height:22vh!important;overflow-y:auto}
+ #floatingBetSlip .cb-slip-pick{padding:7px}
+ #matches .grid.odds{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+ #matches .grid.odds button{min-width:0!important;font-size:11px!important;padding:10px 3px!important;overflow-wrap:anywhere}
+ #sportsapiPanel .cb-odds-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #sportsapiPanel .cb-odd{min-width:0!important}
+ #adminView .admin-tabbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #adminView .admin-tab{min-width:0}
+}
+</style>
 </head>
 <body>
 
@@ -744,7 +776,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
 <section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span><button id="cbRefreshGames" class="secondary" type="button" style="padding:8px 11px">Atualizar partidas</button></div>
-  <p class="small">Selecione Casa (1), Empate (X) ou Fora (2). Você pode escolher várias partidas antes de finalizar o bilhete.</p>
+  <p class="small">Escolha Casa, Empate ou Fora e adicione quantas partidas quiser ao mesmo bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
     <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
@@ -779,8 +811,8 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <div class="row"><h2>Administrador Geral</h2><button class="secondary" id="closeAdminBtn">Sair</button></div>
    
 <div class="admin-tabbar">
-    <button type="button" class="admin-tab active" data-admin-tab="matchesPane" aria-controls="matchesPane" aria-pressed="true">Jogos</button>
-     <button type="button" class="admin-tab" data-admin-tab="apiGamesPane" aria-controls="apiGamesPane" aria-pressed="false">Jogos automáticos</button>
+    <button type="button" class="admin-tab active" data-admin-tab="matchesPane" aria-controls="matchesPane" aria-pressed="true">Jogos manuais</button>
+     <button type="button" class="admin-tab" data-admin-tab="apiGamesPane" aria-controls="apiGamesPane" aria-pressed="false">Jogos da API</button>
      <button type="button" class="admin-tab" data-admin-tab="manualFormPane" aria-controls="manualFormPane" aria-pressed="false">Criar jogo manual</button>
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
@@ -793,7 +825,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     <h3>Gerar e imprimir bilhetes — somente administradores</h3>
     <p class="small">Escolha as partidas e as cotações de Casa, Empate ou Fora. O bilhete é registrado com identificação e fica pendente até a confirmação do pagamento.</p>
     <div class="cb-ticket-fields">
-      <div><label for="adminTicketSource">Jogos</label><select id="adminTicketSource"><option value="all">Manuais e API</option><option value="manual">Somente manuais</option><option value="api">Somente API</option></select></div>
+      <div><label>Escolha o tipo de jogo</label><div class="cb-ticket-source-buttons" role="group" aria-label="Tipo de jogo"><button type="button" data-ticket-source="manual" aria-pressed="true">Jogos manuais</button><button type="button" data-ticket-source="api" aria-pressed="false">Jogos da API</button></div><input type="hidden" id="adminTicketSource" value="manual"></div>
       <div><label for="adminTicketSearch">Buscar time ou campeonato</label><input type="search" id="adminTicketSearch" placeholder="Pesquisar jogo"></div>
       <div><button id="adminTicketRefresh" type="button" class="secondary" style="width:100%">Atualizar jogos</button></div>
     </div>
@@ -828,7 +860,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 </div><!-- /matchesPane -->
 <div id="apiGamesPane" class="admin-pane hidden">
  <section id="adminImportedGames" class="card">
-    <h3>Jogos automáticos</h3>
+    <h3>Jogos da API</h3>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
     <div id="adminImportedList"></div>
    </section>
@@ -1747,7 +1779,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     const id = 'sportsapi:' + String(info.gameId);
     const odd = Number(info.odd);
     if (!Number.isFinite(odd) || odd <= 1) { alert('Cotação inválida.'); return; }
-    if (!info.house || info.house === 'Casa não informada') { alert('Casa da cotação não identificada.'); return; }
+    // Cotação real válida não depende da presença do nome da casa.
     const idx = picks.findIndex(p => String(p.id) === id);
     const item = {id, side: ({Casa:0,Empate:1,Fora:2})[String(info.selection)] ?? 0, odd, cup: String(info.competition||'Futebol'),
       a: String(info.home||'Mandante'), b: String(info.away||'Visitante'),
@@ -1827,7 +1859,7 @@ const matchesContainer = $("matches");
     if(!sel) return;
     
     const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=picks.length ? ` · ${picks.length} ${picks.length===1?"jogo":"jogos"}` : "";
-    sel.innerHTML = picks.length ? picks.map(p => `<p>${esc(p.cup)}: <b>${esc(p.a)} x ${esc(p.b)}</b><br><span class="small">Palpite: ${["Vitória da casa","Empate","Vitória visitante"][p.side]} ${String(p.id).startsWith("sportsapi:") ? " · " + esc(p.location) : ""} • Cotação ${p.odd}</span></p>`).join("") : "Você ainda não selecionou jogos.";
+    sel.innerHTML = picks.length ? picks.map((p,i) => `<div class="cb-slip-pick"><div><b>${esc(p.a)} × ${esc(p.b)}</b><span>${["Casa","Empate","Fora"][p.side]} · ${formatOdds(p.odd)}</span></div><button type="button" class="cb-slip-remove" data-remove-pick="${i}" aria-label="Remover ${esc(p.a)} e ${esc(p.b)} do bilhete">Remover</button></div>`).join("") : "Você ainda não selecionou jogos.";
     
     const amount = Math.max(0, Number($("amount").value) || 0);
     combined = picks.reduce((t, p) => t * p.odd, 1);
@@ -1837,6 +1869,16 @@ const matchesContainer = $("matches");
   }
 
   $("amount").addEventListener("input", renderPicks);
+  $("selections")?.addEventListener("click",event=>{
+    const button=event.target.closest("[data-remove-pick]");
+    if(!button)return;
+    const index=Number(button.dataset.removePick);
+    if(!Number.isInteger(index)||index<0||index>=picks.length)return;
+    const removed=picks.splice(index,1)[0];
+    if(String(removed.id).startsWith("sportsapi:"))window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(removed.id).slice("sportsapi:".length),side:""}}));
+    else if(typeof window.render==="function")window.render();
+    renderPicks();
+  });
 
   // Somente administradores autenticados emitem e imprimem bilhetes.
   // A área pública permite apenas selecionar jogos e prosseguir ao pagamento.
@@ -2437,7 +2479,7 @@ function parseOdds(raw){
 
 // Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
 const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg"];
+const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg","america pernambuco","america de pernambuco","america-pe","guarani"];
 const rivalries=[["flamengo","vasco"],["flamengo","fluminense"],["flamengo","botafogo"],["corinthians","palmeiras"],["corinthians","sao paulo"],["corinthians","santos"],["palmeiras","sao paulo"],["palmeiras","santos"],["sao paulo","santos"],["gremio","internacional"],["atletico mineiro","cruzeiro"],["bahia","vitoria"],["sport recife","santa cruz"],["sport recife","nautico"],["fortaleza","ceara"],["athletico paranaense","coritiba"],["fluminense","botafogo"],["vasco","botafogo"],["real madrid","barcelona"],["manchester united","liverpool"],["arsenal","tottenham"],["inter milan","milan"]];
 const teams=g=>[normalized(name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))),normalized(name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away)))];
 // Datas podem chegar como Timestamp do Firestore, segundos/milissegundos, ISO ou data brasileira.
@@ -2496,7 +2538,7 @@ function relevance(g){
  const big=Number(known(a))+Number(known(b));
  const time=startTimestamp(g),now=Date.now();
  const today=new Date(now).toDateString()===new Date(time).toDateString();
- return (classics?10000:0)+(today?3000:0)+big*1000+(brazilCompetition(g)?300:0)+(isLive(g)?30:0);
+ return (classics&&today?30000:0)+(big&&today?12000:0)+(classics?7000:0)+(today?4000:0)+big*1700+(brazilCompetition(g)?300:0)+(isLive(g)?50:0);
 }
 
 window.copabetAdminApiGames=function(){
@@ -2571,7 +2613,9 @@ function render(){
     }
     grid.append(box);
   }
-  card.append(grid);
+  const timeRow=card.querySelector(".cb-match-time");
+  if(timeRow)card.insertBefore(grid,timeRow);
+  else card.append(grid);
 
   fragment.append(card);
   }catch(error){
@@ -2593,28 +2637,36 @@ function render(){
  root.replaceChildren(fragment);
 }
 function renderImportedAdmin(){
- const currentGames=games.filter(isAvailableApiGame);
- // O diagnóstico do banco é exibido pelo listener; não substituí-lo durante a montagem do painel.
+ const currentGames=games.filter(g=>football(g)&&isAvailableApiGame(g))
+  .sort((a,b)=>relevance(b)-relevance(a)||startTimestamp(a)-startTimestamp(b));
  const adminStatus=document.getElementById("adminImportedStatus"),adminList=document.getElementById("adminImportedList");
- if(adminStatus)adminStatus.textContent=currentGames.length+" jogo(s) profissional(is) da API disponível(is) — categorias de base e jogos antigos ocultos";
+ if(adminStatus)adminStatus.textContent=currentGames.length+" partidas de futebol da API disponíveis";
  if(!adminList)return;
  adminList.replaceChildren();
- if(currentGames.length===0){
-  adminList.append(node("p","Nenhum jogo da API disponivel no momento. Os jogos manuais continuam na aba Jogos.","small"));
+ if(!currentGames.length){
+  adminList.append(node("p",apiDataConfirmed?"Nenhum jogo de futebol disponível na API neste momento. Os jogos manuais continuam na outra aba.":"Carregando jogos da API...","small"));
   return;
  }
- for(const g of currentGames.slice(0,30)){
-  const article=node("div","","cb-live-game");
-  const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante não informado";
-  const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante não informado";
-  const league=name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada";
-  article.append(node("strong",a+" × "+b));
+ const fragment=document.createDocumentFragment();
+ for(const g of currentGames.slice(0,150)){
+  const article=node("article","","cb-live-game");
+  const home=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
+  const away=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
+  const league=competitionOf(g)||"Futebol";
+  article.append(node("span",league,"small"));
+  article.append(node("strong",home+" × "+away));
   const ts=startTimestamp(g);
-  const when=ts===Number.MAX_SAFE_INTEGER?"":(" · "+new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts)));
-  article.append(node("p",league+when,"small"));
-  adminList.append(article);
+  if(ts!==Number.MAX_SAFE_INTEGER){
+   const when=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts));
+   article.append(node("p",when+" (Brasília)","small"));
+  }
+  const quote=cachedOdds(g);
+  const oddsLine=["Casa","Empate","Fora"].map(side=>side+": "+(fmt(quote.values.get(side))||"Indisponível")).join("  ·  ");
+  article.append(node("p",oddsLine,"small"));
+  fragment.append(article);
  }
- if(currentGames.length>150)adminList.append(node("p","Exibindo os primeiros 150 jogos disponíveis da API.","small"));
+ adminList.append(fragment);
+ if(currentGames.length>150)adminList.append(node("p","Mostrando 150 de "+currentGames.length+" partidas. Todas continuam disponíveis na página pública.","small"));
 }
 const previewKey="copabet-fast-preview-v2";
 const dataLoadStarted=Date.now();
@@ -2672,15 +2724,8 @@ function displayGamesFromSnapshot(snapshot,source){
    const latest=knownDates.length?Math.max(...knownDates):null;
    const last=latest?new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(latest)):"sem data identificável";
    statusEl.textContent=apiDataConfirmed
-    ? (visible
-      ? visible+" jogo(s) de futebol futuro(s) carregado(s)"
-      : total===0
-       ? "Banco conectado, mas vazio — verifique o importador"
-       : footballGames.length===0
-        ? total+" registro(s) recebidos, nenhum identificado como futebol"
-        : "Calendário desatualizado: último jogo registrado "+last)
-     +" · "+total+" registro(s)"
-    : "Aguardando atualização do servidor";
+    ? (visible ? "Partidas disponíveis" : "Sem partidas futuras disponíveis")
+    : "Atualizando partidas...";
   }
  }catch(error){
   console.error("Falha ao exibir partidas:",error);
@@ -2912,7 +2957,7 @@ async function issue(){
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete no Firebase: "+(error.message||error));}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
-$("adminTicketSource").addEventListener("change",render);
+document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(button=>button.addEventListener("click",()=>{if(cambista()&&button.dataset.ticketSource!=="manual")return;const source=button.dataset.ticketSource;$("adminTicketSource").value=source;document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));
 $("adminTicketSearch").addEventListener("input",render);
 $("adminTicketAmount").addEventListener("input",summary);
 $("adminTicketRefresh").addEventListener("click",render);
