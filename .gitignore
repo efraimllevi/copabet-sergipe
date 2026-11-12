@@ -1,0 +1,8 @@
+node_modules/
+.netlify/
+.env
+.env.*
+!.env.example
+*service-account*.json
+*firebase-admin*.json
+firebase-key*.json
