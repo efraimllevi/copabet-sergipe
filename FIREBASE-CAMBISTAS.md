@@ -1,34 +1,76 @@
-# COPABET — acesso dos cambistas (guia; NÃO é um segundo arquivo de regras)
+# COPABET — Cadastro de cambistas pela Netlify (Firebase Spark)
 
-**As regras do Firebase são únicas.** Copie e publique o conteúdo completo de [`firestore.rules`](./firestore.rules) em **Firebase Console > Firestore Database > Regras**. Esse arquivo já reúne as regras do restante da COPABET (usuários, bilhetes, jogos, pagamentos, configurações) e dos cambistas. Não cole trechos deste guia por cima das regras atuais e não crie dois blocos `match /cambistas`.
+Este projeto mantém **Firebase Authentication e Firestore no plano Spark**, usando **Netlify Functions** como backend para criar contas de cambistas. Não usa Cloud Functions do Firebase.
 
-## Cadastro automático pelo painel administrativo
+## Como funciona
 
-O cadastro no site usa duas etapas:
+1. O administrador entra no COPABET com o usuário autorizado.
+2. No formulário **Cadastrar Cambista**, informa nome, e-mail, senha e comissão.
+3. O navegador envia o ID token do administrador e os dados à rota HTTPS \`/.netlify/functions/cadastrar-cambista\`.
+4. A função da Netlify verifica o **ID token assinado pelo Firebase**, a identidade administrativa e os dados.
+5. O servidor cria o usuário no Firebase Authentication e grava \`cambistas/{UID}\` no Firestore.
+6. O cambista usa as credenciais criadas na aba **Cambista**.
 
-1. Cria o e-mail e a senha no **Firebase Authentication** (pela API do Firebase Authentication, usando uma sessão secundária para não desconectar o administrador).
-2. Grava o documento em **Cloud Firestore > `cambistas/{UID}`** com nome, e-mail, `role: "cambista"`, `active: true` e `commissionPercent`.
+A senha não é gravada no Firestore e a sessão do administrador não é substituída.
 
-O UID do documento Firestore deve ser exatamente o UID do Authentication. A senha **não** é armazenada no Firestore. Para o cambista entrar, escolha o perfil **Cambista** no login.
+## Instalação inicial (obrigatória)
 
-## Configuração inicial
+### A. Configure o segredo somente na Netlify
 
-Em **Firebase Console > Authentication > Sign-in method**, habilite **Email/Password**, se ainda não estiver habilitado. É necessário fazer isso uma vez; **nenhuma regra do Firestore cria contas no Authentication**. Se for exibido `auth/email-already-in-use`, confirme se aquele e-mail já existe em Authentication antes de criar uma segunda conta.
+No Firebase Console, abra o projeto **indexxx-94ed1**:
+**Configurações do projeto > Contas de serviço > Firebase Admin SDK > Gerar nova chave privada**.
 
-Se o Firebase negar a gravação do perfil (`permission-denied`), confira se as regras de `firestore.rules` estão publicadas e se o usuário administrador autenticado tem o UID esperado pela função `isAdmin()`. Atualizar GitHub ou Netlify **não** publica as regras do Firebase.
+**NÃO envie esse arquivo JSON para o GitHub, Netlify como arquivo público, WhatsApp ou chat.**
 
-## Segurança e relatórios
+No painel do **site existente** na Netlify, vá a **Site configuration > Environment variables** e crie a variável:
 
-O cambista pode consultar somente o próprio perfil. Somente o administrador pode listar perfis, definir porcentagens ou ativar/desativar cambistas. A regra de `bets` permite ao administrador consultar todos os bilhetes e ao titular consultar os próprios. A comissão exibida é um cálculo sobre bilhetes com pagamento confirmado, não uma comprovação financeira independente.
+- **Nome:** \`FIREBASE_SERVICE_ACCOUNT_JSON\`
+- **Valor:** conteúdo completo do JSON baixado, inclusive chaves e quebras de linha.
+- **Escopo:** Functions, incluindo produção (e previews, se quiser testar previews).
 
-Para apostas com dinheiro real, o cadastro e a autorização no navegador não substituem validação de odds, limites, pagamentos e resultados em servidor confiável. Também é recomendável validar no backend a criação de bilhetes de cambistas.
+Configure como variável secreta/sensível se essa opção estiver disponível. A função recusa iniciar se a credencial faltar ou se pertencer a outro projeto.
 
-## Diagnóstico
+### B. Publique o projeto e a função na Netlify
 
-- `auth/operation-not-allowed`: ativar Email/Password em Authentication.
-- `auth/invalid-credential`: conta inexistente ou credenciais incorretas, conforme política atual de erros.
-- `auth/email-already-in-use`: o e-mail já foi registrado no Authentication.
-- `permission-denied`: verificar as regras publicadas e a identidade autenticada.
-- Sem cadastro em `cambistas`: consultar o documento com ID igual ao UID criado em Authentication.
+Este repositório contém \`netlify.toml\`, \`package.json\`, \`netlify/functions/cadastrar-cambista.js\` e \`index.html\`.
 
-**Fonte única para colar no Firebase: [`firestore.rules`](./firestore.rules).**
+**Se conectar o GitHub ao seu site existente na Netlify:** configure o branch de produção, publicação no diretório \`.\` e diretório de funções \`netlify/functions\` (configurações do \`netlify.toml\`). A Netlify executa o deploy automaticamente após mesclar a alteração no branch conectado.
+
+**Se continuar fazendo envio manual de pasta/ZIP:** arrastar apenas \`index.html\` ou um ZIP para o painel de upload não configura corretamente esta função. Use a **Netlify CLI** para publicar o código e as funções, vinculando ao **site existente**:
+
+\`\`\`bash
+npm install
+npm install -g netlify-cli
+netlify login
+netlify link
+netlify deploy
+# Após testar a prévia:
+netlify deploy --prod
+\`\`\`
+
+Na etapa \`netlify link\`, vincule ao site atual do COPABET, não crie outro. Execute os comandos na pasta do projeto.
+
+### C. Regras do Firestore
+
+As regras de acesso da coleção \`cambistas\` já estão no arquivo \`firestore.rules\` do repositório e permitem ao próprio cambista ler seu perfil e ao admin gerir os perfis. **Atualizar GitHub ou Netlify não publica essas regras.** Confira o que está publicado em **Firebase Console > Firestore Database > Regras**, compare com suas regras atuais e só então publique mudanças. Não substitua regras atuais sem conferir as de jogos, bilhetes e pagamentos.
+
+A função usa o Admin SDK no servidor. **As regras do Firestore não criam contas de login**.
+
+## Segurança e recuperação
+
+- **Nunca** inclua \`FIREBASE_SERVICE_ACCOUNT_JSON\` em \`index.html\`, \`.env\` público, arquivos enviados ao GitHub ou \`netlify.toml\`.
+- Somente token válido do administrador específico consegue criar cambistas. Informar \`role=admin\` no navegador não autoriza ninguém.
+- E-mail já existente no Authentication retorna erro de conflito. Não apague ou recrie contas de cambistas antigos sem analisar a correspondência de UID e dados.
+- Se gravar o perfil falhar, o backend tenta excluir o login criado para evitar conta órfã. Em caso de falha de reversão, não repita o cadastro; consulte os logs.
+- Valores financeiros, apostas e permissões devem ser validados pelo servidor. Esta alteração trata o **cadastro do cambista**, não faz auditoria completa das regras de apostas/pagamentos.
+- Planos gratuitos têm cotas e limites. A função e o login devem ser testados em produção depois do deploy.
+
+## Teste
+
+Depois de publicar a Netlify Function **com a credencial configurada**:
+
+1. Acesse o COPABET na Netlify, entre como administrador e cadastre um cambista com e-mail ainda não utilizado.
+2. Confirme a mensagem de sucesso e a existência do registro em \`cambistas/{UID}\`.
+3. Encerre a sessão e acesse a opção **Cambista** com o e-mail e a senha criados.
+
+Se o cadastro informar que a Netlify não está configurada, revise a variável e os logs da função. Se a rota \`/.netlify/functions/cadastrar-cambista\` retornar 404, a função não foi publicada nesse site.
