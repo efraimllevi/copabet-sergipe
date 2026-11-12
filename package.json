@@ -1,0 +1,9 @@
+{
+  "name": "copabet-netlify-cambistas",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cadastro de cambistas do COPABET via Netlify Functions e Firebase Authentication",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
