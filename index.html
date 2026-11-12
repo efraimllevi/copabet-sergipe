@@ -884,6 +884,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 </div>
 <p class="small">Comissões calculadas sobre vendas brutas com pagamento confirmado. Os valores pendentes não entram no cálculo.</p>
 <div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
+<p id="cbCambistaListingStatus" class="small" role="status" aria-live="polite">O total de cambistas será confirmado ao consultar o Firebase.</p>
 <div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
 </section>
 <div id="adminTicketSlot" hidden></div>
@@ -3148,6 +3149,8 @@ let ticketReadOk=true, ticketReadError="";
 async function loadAll(){
  if(!admin())return;
  const version=++sequence,root=$("cbCambistaRows"),needle=$("cbCambistaFilter").value.trim();
+ const listingStatus=$("cbCambistaListingStatus");
+ if(listingStatus)listingStatus.textContent="Consultando a coleção de cambistas no Firebase...";
  root.textContent=needle?"Consultando cadastro de cambistas...":"Digite as primeiras letras do nome para pesquisar.";
  try{
   // Os cadastros aparecem mesmo que o Firebase bloqueie uma consulta de bilhetes.
@@ -3168,10 +3171,15 @@ async function loadAll(){
    return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),active:x.active===true,
      rate:validRate(x.commissionPercent)?Number(x.commissionPercent):null,...summarize(own,x.commissionPercent)};
   }).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  if(listingStatus)listingStatus.textContent=rows.length
+   ?rows.length+" cambista(s) encontrado(s) no banco. Digite o início do nome para localizar um registro."
+   :"O Firebase retornou 0 cambistas. Nenhum cadastro foi localizado nesta coleção.";
   render();
  }catch(e){
   console.error("Falha na consulta de cambistas:",e);
-  root.textContent="Não foi possível consultar o cadastro de cambistas. Verifique as permissões atuais em Firestore Database > Regras. Erro: "+String(e.code||e.message);
+  const reason=String(e.code||e.message||"erro desconhecido");
+  if(listingStatus)listingStatus.textContent="Não foi possível consultar o Firestore ("+reason+"). Isso não significa que o cadastro esteja vazio.";
+  root.textContent="Não foi possível consultar os cambistas. Confira as regras de leitura do Firestore. Erro: "+reason;
  }
 }
 // Pesquisa de prefixo, sem procurar letras soltas no meio do nome.
@@ -3251,7 +3259,7 @@ async function createCambista(event){
  const rateRaw=$("cbCambistaRate").value.trim();
  const commissionPercent=Number(rateRaw);
  if(
-  nome.length<2||nome.length>100||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||
+  nome.length<2||nome.length>100||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
   senha.length<8||senha.length>128||rateRaw===""||
   !Number.isFinite(commissionPercent)||commissionPercent<0||commissionPercent>100
  ){
@@ -3297,8 +3305,25 @@ async function createCambista(event){
    throw Error(message);
   }
   $("cbCambistaCreateForm").reset();
-  status.textContent="Cadastro concluído! "+nome+" ("+email+") já pode entrar pela aba Cambista.";
-  try{await loadAll();}catch(e){console.warn("Não foi possível atualizar a lista de cambistas:",e);}
+  status.textContent="Cadastro confirmado no servidor para "+nome+" ("+email+").";
+  // Abre automaticamente a consulta filtrada pelo novo cambista para que o
+  // administrador confirme o registro gravado, sem expor senhas nem UIDs.
+  const searchTab=document.querySelector('[data-admin-tab="cbCambistaAdminPane"]');
+  if(searchTab){
+   searchTab.click();
+   $("cbCambistaFilter").value=nome;
+  }
+  try{
+   await loadAll();
+   const listing=$("cbCambistaListingStatus");
+   if(listing && searchTab && !$("cbCambistaAdminPane").classList.contains("hidden")){
+    if(rows.some(r=>r.email===email)){
+     listing.textContent="Cadastro de "+nome+" confirmado e localizado no Firebase. O acesso deve usar o e-mail e a senha recém-cadastrados.";
+    }else if(listing.textContent.includes("cambista(s)")||listing.textContent.includes("0 cambistas")){
+     listing.textContent="O servidor confirmou a criação, mas o nome ainda não apareceu na consulta do Firebase. Não repita o cadastro; verifique a sincronização e as permissões.";
+    }
+   }
+  }catch(e){console.warn("Cadastro criado; não foi possível atualizar a lista:",e);}
  }catch(error){
   console.error("Falha no cadastro de cambista:",error);
   const networkFailure=error instanceof TypeError && /fetch|network|rede/i.test(String(error.message||""));
