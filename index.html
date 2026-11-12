@@ -865,7 +865,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 
    <section id="cbCambistaCreatePane" class="admin-pane hidden">
 <h3>Cadastrar Cambista</h3>
-<p class="small">Cadastre nome, e-mail, senha e a porcentagem de comissão. O cambista entrará com o perfil Cambista.</p>
+<p class="small">Cadastre nome, e-mail, senha e comissão. O login será criado no servidor para acesso imediato à aba Cambista.</p>
 <form id="cbCambistaCreateForm" class="cb-cambista-form card">
 <div><label for="cbCambistaName">Nome completo</label><input id="cbCambistaName" type="text" required minlength="2" maxlength="100" autocomplete="off"></div>
 <div><label for="cbCambistaEmail">E-mail de acesso</label><input id="cbCambistaEmail" type="email" required autocomplete="off"></div>
@@ -873,7 +873,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 <div><label for="cbCambistaRate">Comissão (%)</label><input id="cbCambistaRate" type="number" min="0" max="100" step="0.01" required placeholder="Ex.: 10"></div>
 <button class="btn" type="submit" id="cbCambistaCreateBtn">CADASTRAR CAMBISTA</button>
 </form>
-<p id="cbCambistaCreateStatus" role="status" class="small">O e-mail e o UID identificam o cambista. A senha nunca é salva no Firestore.</p>
+<p id="cbCambistaCreateStatus" role="status" class="small">O cadastro é protegido pela Netlify. A senha nunca é armazenada no Firestore.</p>
 </section>
 <section id="cbCambistaAdminPane" class="admin-pane hidden">
 <h3>Pesquisar Cambistas</h3>
@@ -3124,8 +3124,8 @@ window.addEventListener("copabet:cambista-opened",()=>{
 </script>
 
 <script type="module" id="cb-cambista-management-module">
-import{getApps,getApp,initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import{getAuth,createUserWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import{getApps,getApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2", app=getApps().length?getApp():null, auth=app?getAuth(app):null, db=app?getFirestore(app):null;
 const $=id=>document.getElementById(id), money=x=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(x)||0);
@@ -3241,51 +3241,49 @@ function cambistaSignupError(error,stage){
 async function createCambista(event){
  event.preventDefault();
  const status=$("cbCambistaCreateStatus");
- if(!admin()){status.textContent="Faça login com a conta administradora antes de cadastrar cambistas.";return;}
- const name=$("cbCambistaName").value.trim(),
-       email=$("cbCambistaEmail").value.trim().toLowerCase(),
-       password=$("cbCambistaPassword").value,
-       rate=$("cbCambistaRate").value;
- if(name.length<2||!email.includes("@")||password.length<8||!validRate(rate)){
-  status.textContent="Confira nome, e-mail válido, senha de pelo menos 8 caracteres e comissão entre 0 e 100%.";
+ if(!admin()){
+  status.textContent="Faça login como administrador antes de cadastrar cambistas.";
+  return;
+ }
+ const nome=$("cbCambistaName").value.trim();
+ const email=$("cbCambistaEmail").value.trim().toLowerCase();
+ const senha=$("cbCambistaPassword").value;
+ const rateRaw=$("cbCambistaRate").value;
+ const commissionPercent=Number(rateRaw);
+ if(
+  nome.length<2||nome.length>100||!email.includes("@")||
+  senha.length<8||senha.length>128||rateRaw===""||
+  !Number.isFinite(commissionPercent)||commissionPercent<0||commissionPercent>100
+ ){
+  status.textContent="Informe nome, e-mail válido, senha de 8 a 128 caracteres e comissão de 0 a 100%.";
   return;
  }
  const btn=$("cbCambistaCreateBtn");
  btn.disabled=true;
- let auth2=null,created=null,stage="criação no Authentication";
+ btn.textContent="CADASTRANDO...";
+ status.textContent="Criando login e perfil do cambista...";
  try{
-  if(!app||!auth||!db)throw Error("Firebase ainda não foi inicializado.");
-  // Segundo app: cria o novo login sem substituir a sessão do administrador.
-  const secondary=getApps().find(a=>a.name==="cb-create-cambista")||
-    initializeApp(app.options,"cb-create-cambista");
-  auth2=getAuth(secondary);
-  btn.textContent="CRIANDO LOGIN...";
-  status.textContent="Etapa 1/2: criando o usuário no Firebase Authentication...";
-  created=await createUserWithEmailAndPassword(auth2,email,password);
-  if(!created?.user?.uid)throw Error("Authentication não retornou o UID.");
-  if(!admin())throw Error("Sessão do administrador encerrada durante o cadastro.");
-  stage="gravação do perfil no Firestore";
-  btn.textContent="SALVANDO PERFIL...";
-  status.textContent="Etapa 2/2: login criado; registrando o cambista no Firestore...";
-  await setDoc(doc(db,"cambistas",created.user.uid),{
-   name,email,role:"cambista",active:true,commissionPercent:Number(rate),
-   createdAt:serverTimestamp(),createdBy:ADMIN_UID
+  if(!auth?.currentUser)throw Error("Sua sessão expirou. Entre novamente.");
+  // O login é criado no servidor, preservando a sessão do administrador.
+  const token=await auth.currentUser.getIdToken();
+  const result=await fetch("/.netlify/functions/cadastrar-cambista",{
+   method:"POST",
+   cache:"no-store",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+   body:JSON.stringify({nome,email,senha,commissionPercent})
   });
-  const profileCheck=await getDoc(doc(db,"cambistas",created.user.uid));
-  if(!profileCheck.exists()||profileCheck.data().email!==email)
-   throw Error("O cadastro foi enviado, mas ainda não foi confirmado no Firestore.");
+  const payload=await result.json().catch(()=>({}));
+  if(!result.ok||payload.success!==true){
+   throw Error(payload.message||"Não foi possível cadastrar o cambista (HTTP "+result.status+").");
+  }
   $("cbCambistaCreateForm").reset();
-  status.textContent="Cadastro confirmado! "+name+" — "+email+". Login e perfil salvos no Firebase. Já pode entrar com o perfil Cambista.";
-  // Falha na atualização da lista não anula um cadastro já confirmado.
-  try{await loadAll();}catch(e){console.warn("Atualização da lista após cadastro:",e);}
- }catch(e){
-  console.error("Erro ao cadastrar cambista. Etapa:",stage,e);
-  status.textContent=(created?
-   "Authentication criou o login, mas o perfil ainda não foi confirmado. UID: "+created.user.uid+". Não repita o cadastro com esse e-mail. ":
-   "O login não foi criado. ")+cambistaSignupError(e,stage);
+  status.textContent="Cadastro confirmado! "+nome+" ("+email+") já pode entrar pela aba Cambista.";
+  try{await loadAll();}catch(e){console.warn("Não foi possível atualizar a lista:",e);}
+ }catch(error){
+  console.error("Cadastro de cambista:",error);
+  status.textContent="Cadastro não concluído: "+String(error.message||"Erro desconhecido");
  }finally{
   $("cbCambistaPassword").value="";
-  if(auth2)await signOut(auth2).catch(e=>console.warn("Falha ao encerrar sessão temporária:",e));
   btn.disabled=false;
   btn.textContent="CADASTRAR CAMBISTA";
  }
