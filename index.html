@@ -1045,14 +1045,14 @@ body:has(#adminLogin:not(.hidden)) #floatingBetSlip,body:has(#paymentModal:not(.
   </div>
 </div>
 
-<!-- Área isolada de cambistas: somente bilhetes de jogos manuais. -->
+<!-- Área de cambistas: jogos manuais e partidas da API. -->
 <section id="cambistaView" class="hidden" aria-label="Área do cambista">
  <div class="card">
   <div class="row" style="gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
-   <div><h2 style="margin:0">Painel do cambista</h2><p class="small" id="cambistaGreeting">Somente jogos manuais</p></div>
+   <div><h2 style="margin:0">Painel do cambista</h2><p class="small" id="cambistaGreeting">Jogos manuais e da API</p></div>
    <button type="button" class="secondary" id="closeCambistaBtn">Sair</button>
   </div>
-  <p class="small">Selecione os jogos manuais, registre o bilhete e imprima pelo sistema ou por impressora térmica conectada. Os jogos da API e as funções de administrador não estão disponíveis neste acesso.</p>
+  <p class="small">Selecione jogos manuais ou jogos da API, registre o bilhete e imprima. Funções de administrador não estão disponíveis neste acesso.</p>
   <div id="cambistaTicketHost"></div>
  </div>
 </section>
@@ -1941,6 +1941,7 @@ const matchesContainer = $("matches");
     window.matches.sort((a,b) => String(a.id).localeCompare(String(b.id), undefined, {numeric:true}));
     renderChampionshipTabs();
     window.render();
+    window.dispatchEvent(new Event("copabet:manual-games-updated"));
   }, (error) => {
     console.error("Firestore matches listener failed:", error);
     const container = $("matches");
@@ -2124,11 +2125,12 @@ const matchesContainer = $("matches");
     $("cambistaTicketHost").append(pane);
     pane.classList.remove("hidden");
     $("adminTicketSource").value="manual";
-    $("adminTicketSource").closest("div").hidden=true;
+    $("adminTicketSource").closest("div").hidden=false;
+    document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.ticketSource==="manual")));
     $("adminTicketIssuerName").value=session.name;
     $("adminTicketIssuerName").readOnly=true;
-    pane.querySelector("h3").textContent="Bilhetes de jogos manuais";
-    $("cambistaGreeting").textContent="Cambista: "+session.name+" · Somente jogos manuais";
+    pane.querySelector("h3").textContent="Gerar bilhete — jogos manuais e da API";
+    $("cambistaGreeting").textContent="Cambista: "+session.name+" · Jogos manuais e da API";
     $("adminLogin").classList.add("hidden");
     $("adminView").classList.add("hidden");
     $("publicView").classList.add("hidden");
@@ -2707,7 +2709,7 @@ function renderImportedAdmin(){
   fragment.append(article);
  }
  adminList.append(fragment);
- if(currentGames.length>150)adminList.append(node("p","Mostrando 150 de "+currentGames.length+" partidas. Todas continuam disponíveis na página pública.","small"));
+ if(currentGames.length>150)adminList.append(node("p","Mostrando 150 de "+currentGames.length+" partidas importadas.","small"));
 }
 const previewKey="copabet-fast-preview-v2";
 const dataLoadStarted=Date.now();
@@ -2868,10 +2870,13 @@ const element=(tag,text,cls,parent)=>{
  if(parent)parent.append(el);return el;
 };
 function games(){
- const manual=(window.matches||[]).filter(m=>String(m.status||"pending")==="pending"&&m.datetime&&new Date(m.datetime).getTime()>Date.now())
- .map(m=>({id:String(m.id),source:"manual",cup:String(m.cup||"Campeonato"),a:String(m.a||""),b:String(m.b||""),
-   startTime:new Date(m.datetime).getTime(),odds:[0,1,2].map(i=>validOdd(m.odds?.[i])?Number(m.odds[i]):null),maxStake:Number(m.maxStake??100)}));
- if(cambista())return manual;
+ const manual=(window.matches||[]).map(m=>{
+   const start=Date.parse(String(m.datetime||""));
+   const startTime=Number.isFinite(start)&&start>0?start:null;
+   return {id:String(m.id),source:"manual",cup:String(m.cup||"Campeonato"),a:String(m.a||""),b:String(m.b||""),startTime,
+     openToBet:String(m.status||"pending")==="pending"&&startTime!==null&&startTime>Date.now(),
+     odds:[0,1,2].map(i=>validOdd(m.odds?.[i])?Number(m.odds[i]):null),maxStake:Number(m.maxStake??100)};
+ }).filter(g=>g.a&&g.b).sort((a,b)=>Number(b.openToBet)-Number(a.openToBet)||(a.startTime||Infinity)-(b.startTime||Infinity));
  const api=typeof window.copabetAdminApiGames==="function"?window.copabetAdminApiGames():[];
  return manual.concat(api);
 }
@@ -2893,21 +2898,22 @@ function summary(){
 }
 function render(){
  if(!active())return;
- const source=cambista()?"manual":$("adminTicketSource").value,term=$("adminTicketSearch").value.toLocaleLowerCase("pt-BR").trim();
+ const source=$("adminTicketSource").value,term=$("adminTicketSearch").value.toLocaleLowerCase("pt-BR").trim();
  const all=games(),filtered=all.filter(g=>(source==="all"||g.source===source)&&(!term||(g.cup+" "+g.a+" "+g.b).toLocaleLowerCase("pt-BR").includes(term)));
  const root=$("adminTicketGames");root.replaceChildren();
- $("adminTicketStatus").textContent=all.length+" jogo(s) disponíveis · exibindo "+Math.min(120,filtered.length)+(filtered.length>120?" de "+filtered.length:"");
- if(!filtered.length)element("p","Não há jogos disponíveis neste filtro.","small",root);
+ $("adminTicketStatus").textContent=filtered.length+" jogo(s) encontrados · "+filtered.filter(g=>g.openToBet!==false).length+" abertos para apostas";
+ if(!filtered.length)element("p",source==="manual"?"Nenhum jogo manual cadastrado. No ADM, crie uma partida em Criar jogo manual.":"Nenhum jogo da API disponível neste momento. Confira a importação.","small",root);
  for(const g of filtered.slice(0,120)){
   const card=element("article",null,"cb-t-game",root);
   element("span",(g.source==="api"?"API · ":"Manual · ")+g.cup,"small",card);
   element("strong",g.a+" × "+g.b,"",card);
-  element("div",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(g.startTime))+" (Brasília)","small",card);
+  element("div",g.startTime?new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(g.startTime))+" (Brasília)":"Horário não informado","small",card);
+   if(g.openToBet===false)element("p","Jogo iniciado, encerrado ou sem horário — apostas indisponíveis.","small",card);
   const grid=element("div",null,"cb-t-odds",card);
   ["Casa","Empate","Fora"].forEach((label,side)=>{
    const odd=g.odds[side],enabled=validOdd(odd),chosen=selected.get(g.id)?.side===side;
    const btn=element("button",label+" · "+(enabled?formatOdd(odd):"Indisponível"),chosen?"is-picked":"",grid);
-   btn.type="button";btn.disabled=!enabled;btn.setAttribute("aria-pressed",String(chosen));
+   btn.type="button";btn.disabled=!enabled||g.openToBet===false;btn.setAttribute("aria-pressed",String(chosen));
    btn.addEventListener("click",()=>{
     if(!active())return;
     if(selected.get(g.id)?.side===side)selected.delete(g.id);
@@ -2954,7 +2960,7 @@ async function issue(){
  if(busy||!active()){alert("Entre como Administrador ou Cambista autorizado para emitir bilhetes.");return;}
  const user=auth.currentUser,issuedAsAdmin=admin(),name=$("adminTicketName").value.trim(),phone=$("adminTicketPhone").value.trim(),list=picks(),t=totals();
  let issuerName=issuedAsAdmin?$("adminTicketIssuerName").value.trim():window.copabetCambistaSession?.name||"";
- if(!issuedAsAdmin && list.some(p=>p.source!=="manual")){alert("Cambistas só podem selecionar jogos manuais.");return;}
+ 
  if(issuerName.length<2){alert("Informe o nome do responsável pela emissão.");$("adminTicketIssuerName").focus();return;}
  if(name.length<2){alert("Informe o nome do cliente.");$("adminTicketName").focus();return;}
  if(!list.length){alert("Selecione pelo menos um jogo.");return;}
@@ -2963,7 +2969,7 @@ async function issue(){
  const fresh=new Map(games().map(g=>[g.id,g]));
  for(const p of list){
   const g=fresh.get(p.id);
-  if(!g||!validOdd(g.odds[p.side])){alert("Jogo indisponível: "+p.a+" × "+p.b);render();return;}
+  if(!g||g.openToBet===false||!validOdd(g.odds[p.side])){alert("Jogo indisponível ou já iniciado: "+p.a+" × "+p.b);render();return;}
   if(Math.abs(Number(g.odds[p.side])-p.odd)>0.0001){selected.delete(p.id);render();alert("Cotação alterada. Selecione novamente: "+p.a+" × "+p.b);return;}
   if(p.source==="manual"&&Number.isFinite(g.maxStake)&&t.amount>g.maxStake){alert("Limite para "+g.a+" × "+g.b+": "+money(g.maxStake));return;}
  }
@@ -2979,7 +2985,7 @@ async function issue(){
     }
     issuerName=String(verified.data().name||"").trim();
     if(issuerName.length<2)throw Error("Cadastro de cambista sem nome válido.");
-    if(list.some(p=>p.source!=="manual"))throw Error("O cambista só pode emitir apostas manuais.");
+    
   }
   const snap=await addDoc(collection(db,"bets"),{
    uid:user.uid,bettorName:name,bettorPhone:phone,cpfNormalized:"",
@@ -2998,7 +3004,7 @@ async function issue(){
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete no Firebase: "+(error.message||error));}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
-document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(button=>button.addEventListener("click",()=>{if(cambista()&&button.dataset.ticketSource!=="manual")return;const source=button.dataset.ticketSource;$("adminTicketSource").value=source;document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));
+document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(button=>button.addEventListener("click",()=>{const source=button.dataset.ticketSource;$("adminTicketSource").value=source;document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));
 $("adminTicketSearch").addEventListener("input",render);
 $("adminTicketAmount").addEventListener("input",summary);
 $("adminTicketRefresh").addEventListener("click",render);
@@ -3016,6 +3022,7 @@ $("adminTicketReprint").addEventListener("click",()=>{
 });
 document.querySelector('[data-admin-tab="adminTicketPane"]')?.addEventListener("click",render);
 window.addEventListener("copabet:api-games-updated",()=>{if(active())render();});
+ window.addEventListener("copabet:manual-games-updated",()=>{if(active())render();});
 onAuthStateChanged(auth,user=>{
  if(user?.uid===ADMIN_UID){
   const nameInput=$("adminTicketIssuerName");
