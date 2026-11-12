@@ -877,14 +877,14 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 </section>
 <section id="cbCambistaAdminPane" class="admin-pane hidden">
 <h3>Pesquisar Cambistas</h3>
-<p class="small">Pesquise pelo nome ou e-mail para consultar apenas o cambista desejado. Nenhum cadastro será exibido antes da pesquisa.</p>
+<p class="small">Pesquise pelas primeiras letras do nome, na ordem em que aparecem. Ex.: O → OL → OLE encontra Olegário; digitar L não encontra Olegário. Nenhum cadastro aparece antes da pesquisa.</p>
 <div class="row" style="gap:8px;flex-wrap:wrap;margin:16px 0">
-<div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Nome ou e-mail do cambista</label><input id="cbCambistaFilter" type="search" autocomplete="off" placeholder="Ex.: Pedro ou pedro@email.com"></div>
+<div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Pesquisar cambista pelo início do nome</label><input id="cbCambistaFilter" type="search" autocomplete="off" placeholder="Digite as primeiras letras: O, OL, OLE..." aria-label="Pesquisar cambistas pelo início do nome"></div>
 <button class="secondary" type="button" id="cbCambistaRefresh">ATUALIZAR</button><button class="secondary" type="button" id="cbCambistaCsv">BAIXAR CSV DO RESULTADO</button>
 </div>
 <p class="small">Comissões calculadas sobre vendas brutas com pagamento confirmado. Os valores pendentes não entram no cálculo.</p>
 <div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
-<div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite um nome ou e-mail para pesquisar.</p></div>
+<div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
 </section>
 <div id="adminTicketSlot" hidden></div>
    <div id="adminTicketPane" class="admin-pane hidden">
@@ -3148,7 +3148,7 @@ let ticketReadOk=true, ticketReadError="";
 async function loadAll(){
  if(!admin())return;
  const version=++sequence,root=$("cbCambistaRows"),needle=$("cbCambistaFilter").value.trim();
- root.textContent=needle?"Consultando cadastro de cambistas...":"Digite um nome ou e-mail para pesquisar.";
+ root.textContent=needle?"Consultando cadastro de cambistas...":"Digite as primeiras letras do nome para pesquisar.";
  try{
   // Os cadastros aparecem mesmo que o Firebase bloqueie uma consulta de bilhetes.
   const profiles=await getDocs(collection(db,"cambistas"));
@@ -3174,12 +3174,20 @@ async function loadAll(){
   root.textContent="Não foi possível consultar o cadastro de cambistas. Verifique as permissões atuais em Firestore Database > Regras. Erro: "+String(e.code||e.message);
  }
 }
+// Pesquisa de prefixo, sem procurar letras soltas no meio do nome.
+const normalizeSearchText=value=>String(value??"").normalize("NFD")
+ .replace(/[\u0300-\u036f]/g,"").trim().toLocaleLowerCase("pt-BR")
+ .replace(/\s+/g," ");
+const matchFirstNamePrefix=(name,query)=>{
+ const prefix=normalizeSearchText(query);
+ return prefix.length>0 && normalizeSearchText(name).startsWith(prefix);
+};
 function render(){
  if(!admin())return;
- const needle=$("cbCambistaFilter").value.trim().toLowerCase();
+ const needle=$("cbCambistaFilter").value.trim();
  const root=$("cbCambistaRows"),totals=$("cbCambistaTotals");root.replaceChildren();totals.replaceChildren();
- if(!needle){root.textContent="Digite um nome ou e-mail para pesquisar.";return;}
- const filtered=rows.filter(r=>(r.name+" "+r.email).toLowerCase().includes(needle));
+ if(!needle){root.textContent="Digite as primeiras letras do nome para pesquisar.";return;}
+ const filtered=rows.filter(r=>matchFirstNamePrefix(r.name,needle));
  if(!ticketReadOk){const warning=document.createElement("p");warning.className="small";warning.textContent="A consulta de bilhetes não está disponível ("+ticketReadError+"). Cadastro e porcentagem podem ser consultados, mas os valores financeiros estão temporariamente indisponíveis.";root.append(warning);}
  tile(totals,"Cambistas",filtered.length);
  tile(totals,"Vendas brutas confirmadas",ticketReadOk?money(round(filtered.reduce((n,r)=>n+r.gross,0))):"Indisponível");
@@ -3299,9 +3307,9 @@ async function loadPersonal(){
 function csvExport(){
  if(!admin())return;
  if(!ticketReadOk){alert("Não é possível exportar comissões sem acesso aos bilhetes. Verifique as permissões no Firestore.");return;}
- const search=$("cbCambistaFilter").value.trim().toLowerCase();
- if(!search){alert("Pesquise um cambista antes de exportar.");return;}
- const filtered=rows.filter(r=>(r.name+" "+r.email).toLowerCase().includes(search));
+ const search=$("cbCambistaFilter").value.trim();
+ if(!search){alert("Digite as primeiras letras do nome antes de exportar.");return;}
+ const filtered=rows.filter(r=>matchFirstNamePrefix(r.name,search));
  const csvValue=v=>'"'+String(v??"").replaceAll('"','""')+'"';
  const data=[["Nome","Email","UID","Ativo","Percentual","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)"],...filtered.map(r=>[r.name,r.email,r.uid,r.active?"Sim":"Nao",r.rate??"",r.issued,r.done,r.gross,r.due??"",r.pending])];
  const blob=new Blob(["\uFEFF"+data.map(a=>a.map(csvValue).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
@@ -3316,7 +3324,7 @@ document.querySelector('[data-admin-tab="cbCambistaAdminPane"]')?.addEventListen
   $("cbCambistaFilter").value="";
   rows=[];
   $("cbCambistaTotals").replaceChildren();
-  $("cbCambistaRows").textContent="Digite um nome ou e-mail para pesquisar.";
+  $("cbCambistaRows").textContent="Digite as primeiras letras do nome para pesquisar.";
   $("cbCambistaFilter").focus();
   loadAll();
 });
