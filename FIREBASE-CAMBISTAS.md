@@ -1,59 +1,34 @@
-# COPABET — correção do acesso do cambista no Firebase
+# COPABET — acesso dos cambistas (guia; NÃO é um segundo arquivo de regras)
 
-Estas instruções se aplicam ao projeto Firebase `indexxx-94ed1` utilizado pelo `index.html`.
+**As regras do Firebase são únicas.** Copie e publique o conteúdo completo de [`firestore.rules`](./firestore.rules) em **Firebase Console > Firestore Database > Regras**. Esse arquivo já reúne as regras do restante da COPABET (usuários, bilhetes, jogos, pagamentos, configurações) e dos cambistas. Não cole trechos deste guia por cima das regras atuais e não crie dois blocos `match /cambistas`.
 
-## 1. Firestore Database > Rules
+## Cadastro automático pelo painel administrativo
 
-**ATENÇÃO:** não substitua todas as regras atuais por este trecho; isso bloquearia outras áreas da COPABET. Dentro do `service cloud.firestore { match /databases/{database}/documents { ... } }` já existente, adicione ou ajuste o bloco de `/cambistas/{cambistaUid}`:
+O cadastro no site usa duas etapas:
 
-```javascript
-match /cambistas/{cambistaUid} {
-  // Somente o titular consulta o próprio cadastro;
-  // o administrador pode consultar todos os cambistas.
-  allow get: if request.auth != null &&
-    (request.auth.uid == cambistaUid ||
-     request.auth.uid == "rjWeKGZpkMVrW8UynAKCwjZXklM2");
+1. Cria o e-mail e a senha no **Firebase Authentication** (pela API do Firebase Authentication, usando uma sessão secundária para não desconectar o administrador).
+2. Grava o documento em **Cloud Firestore > `cambistas/{UID}`** com nome, e-mail, `role: "cambista"`, `active: true` e `commissionPercent`.
 
-  // Proíbe que um cambista liste todos os cadastros.
-  allow list: if request.auth != null &&
-    request.auth.uid == "rjWeKGZpkMVrW8UynAKCwjZXklM2";
+O UID do documento Firestore deve ser exatamente o UID do Authentication. A senha **não** é armazenada no Firestore. Para o cambista entrar, escolha o perfil **Cambista** no login.
 
-  // Cambistas não podem criar contas privilegiadas nem
-  // ativar ou alterar a função/identidade por conta própria.
-  allow create, update, delete: if request.auth != null &&
-    request.auth.uid == "rjWeKGZpkMVrW8UynAKCwjZXklM2";
-}
-```
+## Configuração inicial
 
-Se já houver um `match /cambistas/{...}`, **edite o bloco existente** em vez de duplicá-lo. Confirme também que não existe uma regra genérica permissiva (por exemplo, `allow read, write: if true`), pois condições em `match` sobrepostos se combinam por **OU**.
+Em **Firebase Console > Authentication > Sign-in method**, habilite **Email/Password**, se ainda não estiver habilitado. É necessário fazer isso uma vez; **nenhuma regra do Firestore cria contas no Authentication**. Se for exibido `auth/email-already-in-use`, confirme se aquele e-mail já existe em Authentication antes de criar uma segunda conta.
 
-Clique em **Publish/Publicar** nas regras do Cloud Firestore. Publicar o site no Netlify ou enviar um arquivo ao GitHub **não publica** essas regras no Firebase.
+Se o Firebase negar a gravação do perfil (`permission-denied`), confira se as regras de `firestore.rules` estão publicadas e se o usuário administrador autenticado tem o UID esperado pela função `isAdmin()`. Atualizar GitHub ou Netlify **não** publica as regras do Firebase.
 
-## 2. Cadastro autorizado do cambista
+## Segurança e relatórios
 
-No Firebase Console:
-1. **Authentication > Users:** confirme a conta de e-mail/senha e copie o **UID** dela.
-2. **Firestore Database > Data:** abra/crie a coleção `cambistas`.
-3. Crie o documento cujo **ID é exatamente o UID** do Authentication.
-4. Cadastre os campos:
-   - `name`: string com o nome (mínimo de 2 caracteres);
-   - `role`: string `cambista`;
-   - `active`: boolean `true`.
-5. Faça login no site escolhendo a função **Cambista**.
+O cambista pode consultar somente o próprio perfil. Somente o administrador pode listar perfis, definir porcentagens ou ativar/desativar cambistas. A regra de `bets` permite ao administrador consultar todos os bilhetes e ao titular consultar os próprios. A comissão exibida é um cálculo sobre bilhetes com pagamento confirmado, não uma comprovação financeira independente.
 
-Se a conta não estiver no Authentication, ative **Sign-in method > Email/Password** e crie o usuário. Se a conta existir mas não tiver o documento com esses campos, o site continuará recusando o acesso de propósito.
+Para apostas com dinheiro real, o cadastro e a autorização no navegador não substituem validação de odds, limites, pagamentos e resultados em servidor confiável. Também é recomendável validar no backend a criação de bilhetes de cambistas.
 
-## 3. Emissão de bilhetes
+## Diagnóstico
 
-A tela do cambista grava bilhetes em `bets` com `cambistaIssued: true`, `source: "cambista_manual"` e `issuedByUid` igual ao UID autenticado. A regra acima resolve especificamente **a consulta do cadastro para entrar**. Se, depois do login, surgir `permission-denied` ao **registrar** um bilhete, será necessário revisar a regra **existente** de `bets` sem expor os bilhetes de outros clientes.
+- `auth/operation-not-allowed`: ativar Email/Password em Authentication.
+- `auth/invalid-credential`: conta inexistente ou credenciais incorretas, conforme política atual de erros.
+- `auth/email-already-in-use`: o e-mail já foi registrado no Authentication.
+- `permission-denied`: verificar as regras publicadas e a identidade autenticada.
+- Sem cadastro em `cambistas`: consultar o documento com ID igual ao UID criado em Authentication.
 
-**Segurança:** permissões de leitura do cadastro não bastam para validar apostas com dinheiro real. Odds, limites, elegibilidade dos jogos e valores de pagamento precisam de validação confiável no servidor, não apenas no JavaScript do navegador.
-
-## 4. Diagnóstico
-
-- `permission-denied` na consulta de `cambistas/{UID}`: regra de leitura não publicada ou bloqueada.
-- `Cambista não cadastrado ou desativado`: documento inexistente, `active` diferente de `true`, `role` diferente de `cambista` ou nome inválido.
-- `auth/invalid-credential`: e-mail/senha incorretos.
-- `auth/unauthorized-domain`: adicione o domínio do Netlify em **Authentication > Settings > Authorized domains**.
-
-**O arquivo `index.html` do GitHub já distingue falha de permissão de falha de conexão durante o login do cambista.**
+**Fonte única para colar no Firebase: [`firestore.rules`](./firestore.rules).**
