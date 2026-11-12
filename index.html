@@ -811,7 +811,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <div class="row"><h2>Administrador Geral</h2><button class="secondary" id="closeAdminBtn">Sair</button></div>
    
 <div class="admin-tabbar">
-    <button type="button" class="admin-tab active" data-admin-tab="matchesPane" aria-controls="matchesPane" aria-pressed="true">Jogos manuais</button>
+    <button type="button" class="admin-tab active" data-admin-tab="matchesPane" aria-controls="matchesPane" aria-pressed="true">Jogos</button>
      <button type="button" class="admin-tab" data-admin-tab="apiGamesPane" aria-controls="apiGamesPane" aria-pressed="false">Jogos da API</button>
      <button type="button" class="admin-tab" data-admin-tab="manualFormPane" aria-controls="manualFormPane" aria-pressed="false">Criar jogo manual</button>
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
@@ -852,15 +852,16 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    </div><!-- /adminTicketPane -->
    <div id="matchesPane" class="admin-pane">
  <div class="row" style="gap:12px;align-items:center;flex-wrap:wrap">
-  <h3 style="margin:0">Jogos manuais cadastrados</h3>
+  <h3 style="margin:0">Jogos</h3>
   <button type="button" class="btn" id="openManualFormBtn">+ Criar jogo manual</button>
  </div>
- <p class="small">Gerencie os jogos cadastrados manualmente: editar, atualizar placar ou excluir.</p>
+ <p class="small">Somente jogos manuais. Para visualizar as partidas importadas, abra a aba <b>Jogos da API</b>. Aqui você pode editar, atualizar o placar ou excluir jogos criados manualmente.</p>
  <div id="adminMatches"><p class="small">Carregando jogos manuais...</p></div>
 </div><!-- /matchesPane -->
 <div id="apiGamesPane" class="admin-pane hidden">
  <section id="adminImportedGames" class="card">
     <h3>Jogos da API</h3>
+    <p class="small">Somente partidas importadas automaticamente. Os jogos manuais ficam na aba <b>Jogos</b>.</p>
     <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
     <div id="adminImportedList"></div>
    </section>
