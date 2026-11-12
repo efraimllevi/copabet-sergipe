@@ -21,27 +21,55 @@ function reply(statusCode, message, extra = {}) {
   };
 }
 
+function configError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
 function getFirebaseAdmin() {
   if (admin.apps.length) return admin;
 
-  // Configure apenas em Netlify > Environment variables > Functions.
-  // NUNCA inclua a chave privada neste repositório ou no site.
+  // Somente o servidor pode ler a variável; nunca registrar o valor.
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON ausente.");
-
-  const credentials = JSON.parse(raw);
-  if (
-    credentials.project_id !== PROJECT_ID ||
-    !credentials.private_key ||
-    !credentials.client_email
-  ) {
-    throw new Error("Credencial do Firebase não corresponde ao COPABET.");
+  if (typeof raw !== "string" || !raw.trim()) {
+    throw configError("CONFIG_MISSING");
   }
-
-  admin.initializeApp({
-    credential: admin.credential.cert(credentials),
-    projectId: PROJECT_ID,
-  });
+  let credentials;
+  try {
+    credentials = JSON.parse(raw.trim().replace(/^\uFEFF/, ""));
+    if (typeof credentials === "string") credentials = JSON.parse(credentials);
+  } catch (_) {
+    throw configError("CONFIG_INVALID_JSON");
+  }
+  if (!credentials || typeof credentials !== "object" || Array.isArray(credentials)) {
+    throw configError("CONFIG_INVALID_JSON");
+  }
+  if (credentials.project_id !== PROJECT_ID) {
+    throw configError("CONFIG_PROJECT_MISMATCH");
+  }
+  if (
+    typeof credentials.client_email !== "string" ||
+    !credentials.client_email.trim() ||
+    typeof credentials.private_key !== "string"
+  ) {
+    throw configError("CONFIG_FIELDS_MISSING");
+  }
+  const privateKey = credentials.private_key.replace(/\\n/g, "\n");
+  if (
+    !privateKey.startsWith("-----BEGIN PRIVATE KEY-----") ||
+    !privateKey.trimEnd().endsWith("-----END PRIVATE KEY-----")
+  ) {
+    throw configError("CONFIG_KEY_INVALID");
+  }
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({ ...credentials, private_key: privateKey }),
+      projectId: PROJECT_ID,
+    });
+  } catch (_) {
+    throw configError("CONFIG_KEY_INVALID");
+  }
   return admin;
 }
 
@@ -57,8 +85,16 @@ exports.handler = async (event) => {
   try {
     firebase = getFirebaseAdmin();
   } catch (error) {
-    console.error("Firebase Admin não configurado:", error.message);
-    return reply(503, "O cadastro precisa ser configurado na Netlify.");
+    const messages = {
+      CONFIG_MISSING: "A variável FIREBASE_SERVICE_ACCOUNT_JSON não está disponível para esta função na Netlify.",
+      CONFIG_INVALID_JSON: "O valor da credencial na Netlify não é JSON válido. Use o arquivo .json original completo, não uma tabela ou texto formatado.",
+      CONFIG_PROJECT_MISMATCH: "A credencial configurada é de outro projeto Firebase; use a conta de serviço do COPABET.",
+      CONFIG_FIELDS_MISSING: "O JSON da credencial está incompleto: faltam campos obrigatórios.",
+      CONFIG_KEY_INVALID: "A chave privada do Firebase está inválida ou incompleta. Gere uma chave nova e configure o JSON original na Netlify.",
+    };
+    const code = Object.prototype.hasOwnProperty.call(messages, error.code) ? error.code : "CONFIG_INIT_ERROR";
+    console.error("COPABET Firebase Admin:", code);
+    return reply(503, messages[code] || "Não foi possível iniciar a conexão com o Firebase. Verifique os registros da função na Netlify.", { code });
   }
 
   let session;
