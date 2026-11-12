@@ -740,6 +740,9 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 @media(min-width:700px){#cbSlipReopen{position:fixed;right:16px;top:190px;z-index:6}}
 @media(max-width:699px){#cbSlipReopen{position:sticky;top:8px;z-index:6;margin:0 0 12px auto;max-width:100%;min-height:42px}}
 </style>
+<style id="cb-cambista-management-css">
+.cb-cambista-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:10px 0}.cb-cambista-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px}.cb-cambista-form button{align-self:end}.cb-cambista-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}.cb-cambista-stat{background:#112b46;border:1px solid #3b6686;border-radius:9px;padding:10px;min-width:0}.cb-cambista-stat small{display:block;font-size:12px;opacity:.85}.cb-cambista-stat b{font-size:17px;word-break:break-word}.cb-cambista-row{background:#10243e;border:1px solid #3b6686;border-radius:12px;margin:10px 0;padding:14px}.cb-cambista-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.cb-cambista-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:12px}.cb-cambista-actions input{max-width:130px}.cb-cambista-actions label{display:grid;gap:5px}@media(max-width:699px){.cb-cambista-form{grid-template-columns:1fr}.cb-cambista-actions button{flex:1}}
+</style>
 </head>
 <body>
 
@@ -855,10 +858,30 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbCambistaAdminPane" aria-controls="cbCambistaAdminPane" aria-pressed="false">Cambistas / Comissões</button>
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
 
-   <div id="adminTicketSlot" hidden></div>
+   <section id="cbCambistaAdminPane" class="admin-pane hidden">
+<h3>Cadastro de cambistas e comissões</h3>
+<p class="small">Cadastre nome, e-mail, senha e porcentagem. Cada cambista entra usando o perfil Cambista. Comissão aplicada somente às vendas brutas de bilhetes confirmados pelo administrador.</p>
+<form id="cbCambistaCreateForm" class="cb-cambista-form card">
+<div><label for="cbCambistaName">Nome completo</label><input id="cbCambistaName" type="text" required minlength="2" maxlength="100" autocomplete="off"></div>
+<div><label for="cbCambistaEmail">E-mail de acesso</label><input id="cbCambistaEmail" type="email" required autocomplete="off"></div>
+<div><label for="cbCambistaPassword">Senha inicial (mín. 8 caracteres)</label><input id="cbCambistaPassword" type="password" required minlength="8" autocomplete="new-password"></div>
+<div><label for="cbCambistaRate">Comissão (%)</label><input id="cbCambistaRate" type="number" min="0" max="100" step="0.01" required placeholder="Ex.: 10"></div>
+<button class="btn" type="submit" id="cbCambistaCreateBtn">CADASTRAR CAMBISTA</button>
+</form>
+<p id="cbCambistaCreateStatus" role="status" class="small">O e-mail e o UID identificam o cambista. A senha nunca é salva no Firestore.</p>
+<div class="row" style="gap:8px;flex-wrap:wrap;margin:16px 0">
+<div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Filtrar pelo nome ou e-mail</label><input id="cbCambistaFilter" type="search" placeholder="Buscar cambista"></div>
+<button class="secondary" type="button" id="cbCambistaRefresh">ATUALIZAR</button><button class="secondary" type="button" id="cbCambistaCsv">BAIXAR CSV</button>
+</div>
+<p class="small">Valores pendentes ou rejeitados não geram comissão. Alterações no percentual recalculam o histórico exibido.</p>
+<div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
+<div id="cbCambistaRows"><p class="small">Abra a aba para consultar os cambistas e o faturamento.</p></div>
+</section>
+<div id="adminTicketSlot" hidden></div>
    <div id="adminTicketPane" class="admin-pane hidden">
     <h3>Gerar e imprimir bilhetes — somente administradores</h3>
     <p class="small">Escolha as partidas e as cotações de Casa, Empate ou Fora. O bilhete é registrado com identificação e fica pendente até a confirmação do pagamento.</p>
@@ -1070,7 +1093,12 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
    <button type="button" class="secondary" id="closeCambistaBtn">Sair</button>
   </div>
   <p class="small">Selecione jogos manuais ou jogos da API, registre o bilhete e imprima. Funções de administrador não estão disponíveis neste acesso.</p>
-  <div id="cambistaTicketHost"></div>
+  <section class="card" id="cbCambistaPersonalReport">
+<div class="row" style="gap:8px;flex-wrap:wrap"><h3>Minhas vendas e comissão</h3><button type="button" class="secondary" id="cbCambistaPersonalRefresh">ATUALIZAR</button></div>
+<p class="small">Comissões calculadas apenas sobre bilhetes com pagamento confirmado.</p>
+<div id="cbCambistaPersonalTotals" class="cb-cambista-totals">Abra a sessão para consultar suas vendas.</div>
+</section>
+<div id="cambistaTicketHost"></div>
  </div>
 </section>
 
@@ -3088,6 +3116,136 @@ window.addEventListener("copabet:cambista-opened",()=>{
  document.getElementById("openAdminBtn")?.addEventListener("click",reset);
  document.getElementById("cancelLoginBtn")?.addEventListener("click",reset);
 })();
+</script>
+
+<script type="module" id="cb-cambista-management-module">
+import{getApps,getApp,initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import{getAuth,createUserWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2", app=getApps().length?getApp():null, auth=app?getAuth(app):null, db=app?getFirestore(app):null;
+const $=id=>document.getElementById(id), money=x=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(x)||0);
+const admin=()=>auth?.currentUser?.uid===ADMIN_UID&&!auth.currentUser.isAnonymous&&!$("adminView").classList.contains("hidden");
+const cambista=()=>auth?.currentUser&&!auth.currentUser.isAnonymous&&window.copabetCambistaSession?.uid===auth.currentUser.uid&&!$("cambistaView").classList.contains("hidden");
+const validRate=r=>r!==undefined&&r!==null&&String(r).trim()!==""&&Number.isFinite(Number(r))&&Number(r)>=0&&Number(r)<=100;
+const round=n=>Math.round((Number(n)||0)*100)/100;
+const append=(p,tag,txt,cls)=>{const e=document.createElement(tag);e.textContent=String(txt);if(cls)e.className=cls;p.append(e);return e;};
+const confirmed=b=>{const payment=String(b.paymentStatus||"").toLowerCase(),status=String(b.status||"").toLowerCase();return payment==="confirmed"||(payment===""&&["accepted","won","lost"].includes(status));};
+const amt=b=>{const n=Number(b.amount);return Number.isFinite(n)&&n>0?n:0};
+function summarize(rows,rate){
+ const bets=rows.filter(b=>b.cambistaIssued===true||String(b.source||"").startsWith("cambista_"));
+ const done=bets.filter(confirmed),pending=bets.filter(b=>!confirmed(b)&&!["rejected","cancelled"].includes(String(b.status||"").toLowerCase())&&!["rejected","cancelled"].includes(String(b.paymentStatus||"").toLowerCase()));
+ const gross=round(done.reduce((n,b)=>n+amt(b),0));
+ return {issued:bets.length,done:done.length,gross,pending:round(pending.reduce((n,b)=>n+amt(b),0)),due:validRate(rate)?round(gross*Number(rate)/100):null};
+}
+const tile=(parent,label,value)=>{const d=append(parent,"div","","cb-cambista-stat");append(d,"small",label);append(d,"b",value);};
+let rows=[],sequence=0;
+async function loadAll(){
+ if(!admin())return;
+ const n=++sequence,root=$("cbCambistaRows");root.textContent="Carregando...";
+ try{
+  const [profiles,tickets]=await Promise.all([getDocs(collection(db,"cambistas")),getDocs(collection(db,"bets"))]);
+  if(n!==sequence||!admin())return;
+  const all=tickets.docs.map(d=>({id:d.id,...d.data()}));
+  rows=profiles.docs.map(d=>{
+   const x=d.data(),own=all.filter(b=>String(b.issuedByUid||"")===d.id);
+   return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),active:x.active===true,rate:validRate(x.commissionPercent)?Number(x.commissionPercent):null,...summarize(own,x.commissionPercent)};
+  }).sort((a,b)=>b.gross-a.gross||a.name.localeCompare(b.name,"pt-BR"));
+  render();
+ }catch(e){console.error(e);root.textContent="Falha ao consultar cadastros ou bilhetes: "+String(e.code||e.message);}
+}
+function render(){
+ if(!admin())return;
+ const needle=$("cbCambistaFilter").value.trim().toLowerCase(),filtered=rows.filter(r=>(r.name+" "+r.email).toLowerCase().includes(needle));
+ const root=$("cbCambistaRows"),totals=$("cbCambistaTotals");root.replaceChildren();totals.replaceChildren();
+ tile(totals,"Cambistas",filtered.length);
+ tile(totals,"Vendas brutas confirmadas",money(round(filtered.reduce((n,r)=>n+r.gross,0))));
+ tile(totals,"Comissões calculadas",money(round(filtered.reduce((n,r)=>n+(r.due||0),0))));
+ tile(totals,"Apostas pendentes",money(round(filtered.reduce((n,r)=>n+r.pending,0))));
+ if(!filtered.length){append(root,"p","Nenhum cambista encontrado.");return;}
+ for(const r of filtered){
+  const card=append(root,"article","","cb-cambista-row");
+  append(card,"h4",r.name+" — "+(r.active?"Ativo":"Inativo"));
+  append(card,"p",r.email||"E-mail não cadastrado — confira o perfil no Firebase.","small");
+  const d=append(card,"div","","cb-cambista-details");
+  tile(d,"Bilhetes emitidos",r.issued);tile(d,"Pagamentos confirmados",r.done);tile(d,"Venda bruta",money(r.gross));
+  tile(d,"Percentual",r.rate===null?"A definir":r.rate.toLocaleString("pt-BR")+"%");
+  tile(d,"Comissão",r.due===null?"A definir":money(r.due));tile(d,"Pendentes",money(r.pending));
+  const actions=append(card,"div","","cb-cambista-actions");
+  const label=append(actions,"label","Alterar comissão (%)");
+  const input=append(label,"input","");input.type="number";input.min="0";input.max="100";input.step="0.01";input.value=r.rate===null?"":String(r.rate);
+  const save=append(actions,"button","SALVAR %","secondary");save.type="button";
+  save.addEventListener("click",async()=>{
+   if(!validRate(input.value)){alert("Informe percentual entre 0 e 100.");return;}
+   if(!admin())return;
+   save.disabled=true;
+   try{await updateDoc(doc(db,"cambistas",r.uid),{commissionPercent:Number(input.value),updatedAt:serverTimestamp()});await loadAll();}
+   catch(e){alert("Falha ao salvar comissão: "+e.message);save.disabled=false;}
+  });
+  const toggle=append(actions,"button",r.active?"DESATIVAR":"ATIVAR","secondary");toggle.type="button";
+  toggle.addEventListener("click",async()=>{
+   if(!admin()||!confirm((r.active?"Desativar":"Ativar")+" o acesso de "+r.name+"?"))return;
+   toggle.disabled=true;
+   try{await updateDoc(doc(db,"cambistas",r.uid),{active:!r.active,updatedAt:serverTimestamp()});await loadAll();}
+   catch(e){alert("Falha ao atualizar situação: "+e.message);toggle.disabled=false;}
+  });
+ }
+}
+async function createCambista(event){
+ event.preventDefault();
+ if(!admin()){alert("Faça login como administrador.");return;}
+ const name=$("cbCambistaName").value.trim(),email=$("cbCambistaEmail").value.trim().toLowerCase(),password=$("cbCambistaPassword").value,rate=$("cbCambistaRate").value,status=$("cbCambistaCreateStatus");
+ if(name.length<2||!email.includes("@")||password.length<8||!validRate(rate)){status.textContent="Preencha nome, e-mail válido, senha de pelo menos 8 caracteres e percentual entre 0 e 100.";return;}
+ const btn=$("cbCambistaCreateBtn");btn.disabled=true;btn.textContent="CADASTRANDO...";
+ let auth2=null,created=null;
+ try{
+  const secondary=getApps().find(a=>a.name==="cb-create-cambista")||initializeApp(app.options,"cb-create-cambista");
+  auth2=getAuth(secondary);
+  created=await createUserWithEmailAndPassword(auth2,email,password);
+  if(!admin())throw Error("A sessão do administrador foi encerrada.");
+  await setDoc(doc(db,"cambistas",created.user.uid),{name,email,role:"cambista",active:true,commissionPercent:Number(rate),createdAt:serverTimestamp(),createdBy:ADMIN_UID});
+  $("cbCambistaCreateForm").reset();
+  status.textContent="Cadastrado: "+name+" — "+email+". O cambista poderá entrar no perfil Cambista usando o e-mail e a senha.";
+  await loadAll();
+ }catch(e){
+  console.error("Cadastro de cambista:",e);
+  status.textContent=(created?"Conta de login criada, mas não foi possível salvar o perfil. Consulte no Firebase o UID "+created.user.uid+" e corrija antes de repetir. ":"Não foi possível criar a conta. ")+String(e.code||e.message);
+ }finally{
+  $("cbCambistaPassword").value="";
+  if(auth2)await signOut(auth2).catch(()=>{});
+  btn.disabled=false;btn.textContent="CADASTRAR CAMBISTA";
+ }
+}
+async function loadPersonal(){
+ if(!cambista())return;
+ const user=auth.currentUser,root=$("cbCambistaPersonalTotals");root.textContent="Carregando...";
+ try{
+  const [p,bets]=await Promise.all([getDoc(doc(db,"cambistas",user.uid)),getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))]);
+  if(!cambista()||auth.currentUser.uid!==user.uid)return;
+  if(!p.exists()||p.data().active!==true){root.textContent="Cadastro desativado.";return;}
+  const all=bets.docs.map(d=>d.data()),r=summarize(all,p.data().commissionPercent);root.replaceChildren();
+  tile(root,"Bilhetes emitidos",r.issued);tile(root,"Bruto confirmado",money(r.gross));
+  tile(root,"Comissão a receber",r.due===null?"Percentual não definido":money(r.due));
+  tile(root,"Percentual",validRate(p.data().commissionPercent)?Number(p.data().commissionPercent).toLocaleString("pt-BR")+"%":"A definir");
+  tile(root,"Valor pendente",money(r.pending));
+ }catch(e){root.textContent="Erro ao consultar vendas: "+String(e.code||e.message);}
+}
+function csvExport(){
+ if(!admin())return;
+ const search=$("cbCambistaFilter").value.trim().toLowerCase();
+ const filtered=rows.filter(r=>(r.name+" "+r.email).toLowerCase().includes(search));
+ const csvValue=v=>'"'+String(v??"").replaceAll('"','""')+'"';
+ const data=[["Nome","Email","UID","Ativo","Percentual","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)"],...filtered.map(r=>[r.name,r.email,r.uid,r.active?"Sim":"Nao",r.rate??"",r.issued,r.done,r.gross,r.due??"",r.pending])];
+ const blob=new Blob(["\uFEFF"+data.map(a=>a.map(csvValue).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="copabet-comissoes-cambistas.csv";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$("cbCambistaCreateForm")?.addEventListener("submit",createCambista);
+$("cbCambistaRefresh")?.addEventListener("click",loadAll);
+$("cbCambistaFilter")?.addEventListener("input",render);
+$("cbCambistaCsv")?.addEventListener("click",csvExport);
+$("cbCambistaPersonalRefresh")?.addEventListener("click",loadPersonal);
+document.querySelector('[data-admin-tab="cbCambistaAdminPane"]')?.addEventListener("click",loadAll);
+window.addEventListener("copabet:cambista-opened",loadPersonal);
+onAuthStateChanged(auth,user=>{if(!user){rows=[];sequence++;}});
 </script>
 </body>
 </html>
