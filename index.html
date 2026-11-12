@@ -709,6 +709,21 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 #cbTogglePassword{flex-shrink:0;min-width:105px;background:#202020;border:1px solid #666;color:white;border-radius:9px;padding:8px;cursor:pointer}
 #cbTogglePassword:focus-visible{outline:2px solid #ffd400;outline-offset:2px}
 </style>
+<style id="cb-overlay-and-layout-repair">
+#sportsapiPanel[hidden]{display:none!important}
+#adminLogin:not(.hidden),#paymentModal:not(.hidden){z-index:1000!important}
+body:has(#adminLogin:not(.hidden)) #floatingBetSlip,body:has(#paymentModal:not(.hidden)) #floatingBetSlip{display:none!important}
+#cbSlipToggle{min-width:42px;min-height:38px;padding:5px 10px!important;font-size:22px;font-weight:700}
+#floatingBetSlip.is-collapsed #cbSlipToggle{font-size:12px;white-space:nowrap}
+@media(min-width:700px){#floatingBetSlip{top:190px!important;z-index:4!important}header{position:relative;z-index:5}}
+@media(max-width:699px){
+ #floatingBetSlip{position:sticky!important;top:8px!important;bottom:auto!important;z-index:3!important;max-height:46vh!important}
+ #floatingBetSlip #selections{max-height:18vh!important}
+ #matches .grid.odds{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #cambistaView #adminTicketSummary{position:static!important;max-height:none!important;overflow:visible!important;box-shadow:none!important}
+ #cambistaView #adminTicketGames{max-height:none!important;overflow:visible!important}
+}
+</style>
 </head>
 <body>
 
@@ -747,7 +762,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 </div>
 
 <div class="site-layout cb-api-mode" id="cbGamesLayout">
- <aside class="champ-sidebar" id="cbSocietySidebar" aria-label="Campeonatos estaduais de society" hidden>
+ <aside class="champ-sidebar" id="cbSocietySidebar" aria-label="Campeonatos estaduais de society">
   <h3>CAMPEONATOS DE SOCIETY</h3>
   <p class="small">Escolha uma competição para filtrar os jogos manuais de society.</p>
   <div id="championshipTabs" class="champ-list"><button class="champ-tab active" data-cup-filter="__all">Todos os campeonatos</button></div>
@@ -777,10 +792,10 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 
 
   <div class="row">
-   <h2>Partidas disponíveis</h2>
+   <h2>JOGOS ESTADUAIS</h2>
   </div>
   <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
-<section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
+<section id="sportsapiPanel" aria-label="Jogos de futebol e cotações" hidden>
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span><button id="cbRefreshGames" class="secondary" type="button" style="padding:8px 11px">Atualizar partidas</button></div>
   <p class="small">Escolha Casa, Empate ou Fora e adicione quantas partidas quiser ao mesmo bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
@@ -792,13 +807,13 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
-<section id="cbSocietyGames" aria-label="Jogos Estaduais" hidden>
+<section id="cbSocietyGames" aria-label="Jogos Estaduais">
   <h3>Jogos Estaduais</h3>
   <p class="small">Partidas estaduais organizadas por campeonato.</p>
   <div id="matches"></div>
 </section>
   <div class="card" id="floatingBetSlip" aria-label="Bilhete de apostas selecionadas">
-   <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount" class="cb-slip-count"></span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody">Recolher</button></div>
+   <div class="cb-slip-title"><h2>Seu bilhete <span id="cbSlipCount" class="cb-slip-count"></span></h2><button type="button" id="cbSlipToggle" aria-expanded="true" aria-controls="cbSlipBody" aria-label="Fechar bilhete" title="Fechar bilhete">×</button></div>
    <div id="cbSlipBody"><p class="small">Acompanhe seus palpites enquanto seleciona os jogos.</p>
    <div id="selections">Você ainda não selecionou jogos.</div>
    <label for="amount">Valor da aposta única (R$)</label>
@@ -1856,8 +1871,10 @@ const matchesContainer = $("matches");
   if(slipToggle)slipToggle.addEventListener("click",()=>{
     const slip=document.getElementById("floatingBetSlip");
     const closed=slip.classList.toggle("is-collapsed");
-    slipToggle.textContent=closed?"Ver bilhete":"Recolher";
+    slipToggle.textContent=closed?"Ver bilhete":"×";
     slipToggle.setAttribute("aria-expanded",String(!closed));
+    slipToggle.setAttribute("aria-label",closed?"Ver bilhete":"Fechar bilhete");
+    slipToggle.title=closed?"Ver bilhete":"Fechar bilhete";
   });
   // No celular o bilhete começa aberto e permanece visível no topo.
 
@@ -2166,6 +2183,7 @@ const matchesContainer = $("matches");
     $("customerStep").classList.remove("hidden");
     $("pixStep").classList.add("hidden");
     $("paymentModal").classList.remove("hidden");
+    requestAnimationFrame(()=>$("bettorName")?.focus());
   });
 
   $("showPixBtn").addEventListener("click", () => {
@@ -2396,7 +2414,7 @@ const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 const societyRoot=document.getElementById("cbSocietyGames");
 const societySidebar=document.getElementById("cbSocietySidebar");
 const gamesLayout=document.getElementById("cbGamesLayout");
-let games = [], filter="all", renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
+let games = [], filter="society", renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
 const oddsCache=new WeakMap();
 function cachedOdds(g){
  if(oddsCache.has(g))return oddsCache.get(g);
