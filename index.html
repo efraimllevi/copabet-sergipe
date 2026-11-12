@@ -703,6 +703,12 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
  #adminView .admin-tab{min-width:0}
 }
 </style>
+<style id="cb-password-accessibility">
+.cb-password-row{display:flex;gap:8px;align-items:stretch;margin:6px 0 14px}
+.cb-password-row #adminPassword{flex:1;min-width:0;margin:0}
+#cbTogglePassword{flex-shrink:0;min-width:105px;background:#202020;border:1px solid #666;color:white;border-radius:9px;padding:8px;cursor:pointer}
+#cbTogglePassword:focus-visible{outline:2px solid #ffd400;outline-offset:2px}
+</style>
 </head>
 <body>
 
@@ -1046,7 +1052,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
    <option value="cambista">Cambista</option>
   </select>
   <label for="adminEmail">E-mail</label><input id="adminEmail" type="email" autocomplete="username" placeholder="seu@email.com">
-  <label for="adminPassword">Senha</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+  <label for="adminPassword">Senha</label><div class="cb-password-row"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" id="cbTogglePassword" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">👁 Mostrar</button></div>
   <button class="btn" id="loginSubmitBtn" style="width:100%">ENTRAR</button>
   <button class="secondary" id="cancelLoginBtn" style="width:100%;margin-top:8px">CANCELAR</button>
  </div>
@@ -3008,6 +3014,23 @@ window.addEventListener("copabet:cambista-opened",()=>{
  $("adminTicketResult").textContent="";
  render();
 });
+</script>
+<script id="cb-password-visibility">
+(function(){
+ const input=document.getElementById("adminPassword"),toggle=document.getElementById("cbTogglePassword");
+ if(!input||!toggle)return;
+ function reset(){input.type="password";toggle.textContent="👁 Mostrar";toggle.setAttribute("aria-pressed","false");toggle.setAttribute("aria-label","Mostrar senha");toggle.title="Mostrar senha";}
+ toggle.addEventListener("click",()=>{
+  const showing=input.type==="password";
+  input.type=showing?"text":"password";
+  toggle.textContent=showing?"🙈 Ocultar":"👁 Mostrar";
+  toggle.setAttribute("aria-pressed",String(showing));
+  toggle.setAttribute("aria-label",showing?"Ocultar senha":"Mostrar senha");
+  toggle.title=showing?"Ocultar senha":"Mostrar senha";
+ });
+ document.getElementById("openAdminBtn")?.addEventListener("click",reset);
+ document.getElementById("cancelLoginBtn")?.addEventListener("click",reset);
+})();
 </script>
 </body>
 </html>
