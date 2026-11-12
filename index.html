@@ -873,7 +873,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 <div><label for="cbCambistaRate">Comissão (%)</label><input id="cbCambistaRate" type="number" min="0" max="100" step="0.01" required placeholder="Ex.: 10"></div>
 <button class="btn" type="submit" id="cbCambistaCreateBtn">CADASTRAR CAMBISTA</button>
 </form>
-<p id="cbCambistaCreateStatus" role="status" class="small">O cadastro é protegido pela Netlify. A senha nunca é armazenada no Firestore.</p>
+<p id="cbCambistaCreateStatus" role="status" class="small">Cadastro Netlify + Firebase (revisão 12/11/2026). A senha não é armazenada no Firestore.</p>
 </section>
 <section id="cbCambistaAdminPane" class="admin-pane hidden">
 <h3>Pesquisar Cambistas</h3>
@@ -3242,48 +3242,70 @@ async function createCambista(event){
  event.preventDefault();
  const status=$("cbCambistaCreateStatus");
  if(!admin()){
-  status.textContent="Faça login como administrador antes de cadastrar cambistas.";
+  status.textContent="Entre com a conta administrativa autorizada antes de cadastrar cambistas.";
   return;
  }
  const nome=$("cbCambistaName").value.trim();
  const email=$("cbCambistaEmail").value.trim().toLowerCase();
  const senha=$("cbCambistaPassword").value;
- const rateRaw=$("cbCambistaRate").value;
+ const rateRaw=$("cbCambistaRate").value.trim();
  const commissionPercent=Number(rateRaw);
  if(
-  nome.length<2||nome.length>100||!email.includes("@")||
+  nome.length<2||nome.length>100||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||
   senha.length<8||senha.length>128||rateRaw===""||
   !Number.isFinite(commissionPercent)||commissionPercent<0||commissionPercent>100
  ){
-  status.textContent="Informe nome, e-mail válido, senha de 8 a 128 caracteres e comissão de 0 a 100%.";
+  status.textContent="Informe nome, e-mail válido, senha de 8 a 128 caracteres e comissão entre 0% e 100%.";
   return;
  }
  const btn=$("cbCambistaCreateBtn");
  btn.disabled=true;
  btn.textContent="CADASTRANDO...";
- status.textContent="Criando login e perfil do cambista...";
+ status.textContent="Verificando autorização e cadastrando cambista pelo servidor...";
  try{
-  if(!auth?.currentUser)throw Error("Sua sessão expirou. Entre novamente.");
-  // O login é criado no servidor, preservando a sessão do administrador.
-  const token=await auth.currentUser.getIdToken();
+  if(!auth?.currentUser)throw Error("Sua sessão expirou. Entre novamente como administrador.");
+  // Atualiza o token antes do cadastro sem trocar a sessão do administrador.
+  const token=await auth.currentUser.getIdToken(true);
   const result=await fetch("/.netlify/functions/cadastrar-cambista",{
    method:"POST",
    cache:"no-store",
    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
    body:JSON.stringify({nome,email,senha,commissionPercent})
   });
-  const payload=await result.json().catch(()=>({}));
-  if(!result.ok||payload.success!==true){
-   throw Error(payload.message||"Não foi possível cadastrar o cambista (HTTP "+result.status+").");
+  // A Netlify pode devolver HTML em um 404 ou erro de implantação.
+  // Nunca trate uma página HTML como cadastro realizado.
+  const contentType=result.headers.get("content-type")||"";
+  const payload=contentType.includes("application/json")
+    ?await result.json().catch(()=>null):null;
+  if(!result.ok||payload?.success!==true){
+   let message=typeof payload?.message==="string"?payload.message.trim():"";
+   if(!message){
+    if(result.status===404){
+     message="A função cadastrar-cambista não foi publicada neste site da Netlify. Confira o deploy do repositório GitHub conectado.";
+    }else if(result.status===401){
+     message="Sessão administrativa inválida ou expirada. Entre novamente como administrador.";
+    }else if(result.status===403){
+     message="Esta conta não tem autorização para cadastrar cambistas.";
+    }else if(result.status===502||result.status===503){
+     message="O servidor da Netlify não conseguiu concluir o cadastro. Confira a configuração e os registros da função.";
+    }else{
+     message="O servidor não devolveu uma confirmação de cadastro (HTTP "+result.status+").";
+    }
+   }
+   const safeCode=String(payload?.code||"");
+   if(/^[A-Z][A-Z0-9_]{2,55}$/.test(safeCode))message+=" [Código: "+safeCode+"]";
+   throw Error(message);
   }
   $("cbCambistaCreateForm").reset();
-  status.textContent="Cadastro confirmado! "+nome+" ("+email+") já pode entrar pela aba Cambista.";
-  try{await loadAll();}catch(e){console.warn("Não foi possível atualizar a lista:",e);}
+  status.textContent="Cadastro concluído! "+nome+" ("+email+") já pode entrar pela aba Cambista.";
+  try{await loadAll();}catch(e){console.warn("Não foi possível atualizar a lista de cambistas:",e);}
  }catch(error){
-  console.error("Cadastro de cambista:",error);
-  status.textContent="Cadastro não concluído: "+String(error.message||"Erro desconhecido");
+  console.error("Falha no cadastro de cambista:",error);
+  const networkFailure=error instanceof TypeError && /fetch|network|rede/i.test(String(error.message||""));
+  status.textContent="Cadastro não concluído: "+(
+   networkFailure?"Não foi possível comunicar com a Netlify. Verifique a conexão e se o site está publicado.":String(error.message||"Erro desconhecido")
+  );
  }finally{
-  $("cbCambistaPassword").value="";
   btn.disabled=false;
   btn.textContent="CADASTRAR CAMBISTA";
  }
