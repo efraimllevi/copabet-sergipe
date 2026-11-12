@@ -1,3 +1,8 @@
+// COPABET — REGRAS ÚNICAS E CONSOLIDADAS PARA O FIRESTORE.
+// Cole este arquivo inteiro em Firestore Database > Regras e clique em Publicar.
+// FIREBASE-CAMBISTAS.md contém somente instruções, não outra regra.
+// A criação de contas no Authentication acontece no site, não neste arquivo.
+// IMPORTANTE: compare com quaisquer alterações feitas no console antes de substituir.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -105,7 +110,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // CADASTROS DOS CAMBISTAS
+    // CAMBISTAS — incorporado às regras gerais da COPABET.
+    // O titular pode consultar apenas o próprio perfil.
+    // Apenas o administrador consulta todos, cadastra, altera comissão e ativa/desativa.
+    // O UID do documento precisa ser o mesmo UID gerado pelo Firebase Authentication.
     match /cambistas/{cambistaUid} {
       allow get: if signedIn()
         && (request.auth.uid == cambistaUid || isAdmin());
