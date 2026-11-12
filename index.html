@@ -704,10 +704,15 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
 }
 </style>
 <style id="cb-password-accessibility">
-.cb-password-row{display:flex;gap:8px;align-items:stretch;margin:6px 0 14px}
-.cb-password-row #adminPassword{flex:1;min-width:0;margin:0}
-#cbTogglePassword{flex-shrink:0;min-width:105px;background:#202020;border:1px solid #666;color:white;border-radius:9px;padding:8px;cursor:pointer}
-#cbTogglePassword:focus-visible{outline:2px solid #ffd400;outline-offset:2px}
+.cb-password-row{position:relative;display:block;width:100%;margin:6px 0 14px}
+.cb-password-row #adminPassword{display:block;width:100%;min-width:0;margin:0!important;padding-right:52px!important;box-sizing:border-box}
+.cb-password-row #cbTogglePassword{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:40px;height:40px;min-width:40px!important;min-height:40px;padding:0!important;margin:0!important;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:8px;cursor:pointer;color:currentColor;opacity:.45;transition:opacity .18s ease}
+.cb-password-row #cbTogglePassword:hover,.cb-password-row #cbTogglePassword:focus-visible{opacity:.9}
+.cb-password-row #cbTogglePassword:focus-visible{outline:2px solid #ffd400;outline-offset:-3px}
+.cb-password-row #cbTogglePassword svg{width:20px;height:20px;display:block;stroke:currentColor;fill:none;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.cb-password-row #cbTogglePassword .cb-eye-closed{display:none}
+.cb-password-row #cbTogglePassword.is-visible .cb-eye-open{display:none}
+.cb-password-row #cbTogglePassword.is-visible .cb-eye-closed{display:block}
 </style>
 <style id="cb-overlay-and-layout-repair">
 #sportsapiPanel[hidden]{display:none!important}
@@ -895,7 +900,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
  <section id="adminImportedGames" class="card">
     <h3>Jogos da API</h3>
     <p class="small">Somente partidas importadas automaticamente. Os jogos manuais ficam na aba <b>Jogos</b>.</p>
-    <p id="adminImportedStatus" class="small">Conectando ao Firebase...</p>
+    <p id="adminImportedStatus" class="small">Carregando partidas...</p>
     <div id="adminImportedList"></div>
    </section>
 </div><!-- /apiGamesPane -->
@@ -1079,7 +1084,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
    <option value="cambista">Cambista</option>
   </select>
   <label for="adminEmail">E-mail</label><input id="adminEmail" type="email" autocomplete="username" placeholder="seu@email.com">
-  <label for="adminPassword">Senha</label><div class="cb-password-row"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" id="cbTogglePassword" aria-label="Ver senha" aria-pressed="false" title="Ver senha">👁 Ver senha</button></div>
+  <label for="adminPassword">Senha</label><div class="cb-password-row"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" id="cbTogglePassword" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha"><svg class="cb-eye-open" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.65"/></svg><svg class="cb-eye-closed" aria-hidden="true" viewBox="0 0 24 24"><path d="m3 3 18 18M10.6 5.65A11.8 11.8 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a14.5 14.5 0 0 1-3.1 3.75M6.8 6.8A14.1 14.1 0 0 0 2 12s3.6 6.5 10 6.5c1.3 0 2.5-.25 3.6-.7"/><path d="M10.6 10.6a2.65 2.65 0 0 0 3.75 3.75"/></svg></button></div>
   <button class="btn" id="loginSubmitBtn" style="width:100%">ENTRAR</button>
   <button class="secondary" id="cancelLoginBtn" style="width:100%;margin-top:8px">CANCELAR</button>
  </div>
@@ -1215,7 +1220,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
       alert("Acesso de visitante ativado. Você já pode escolher jogos e apostar sem criar conta ou senha.");
     } catch(e) {
       console.error("Falha ao iniciar acesso de visitante:",e);
-      alert("Não foi possível entrar como visitante. Confirme se o método Anônimo está habilitado no Firebase Authentication.");
+      alert("Não foi possível continuar neste momento. Tente novamente em instantes.");
     } finally { guestBtn.disabled=false; }
   });
   $("closeAccountBtn").addEventListener("click",hideAccount);
@@ -1969,7 +1974,7 @@ const matchesContainer = $("matches");
   }, (error) => {
     console.error("Firestore matches listener failed:", error);
     const container = $("matches");
-    if (container) container.innerHTML = `<div class="card"><b>Não foi possível carregar as partidas.</b><p class="small">${esc(error.message || "Verifique as regras e a configuração do Firebase.")}</p></div>`;
+    if (container) container.innerHTML = '<div class="card"><b>Partidas temporariamente indisponíveis.</b><p class="small">Tente atualizar a página em instantes.</p></div>';
   });
 
   $("openAdminBtn").addEventListener("click", () => {
@@ -2056,20 +2061,20 @@ const matchesContainer = $("matches");
       console.error("Firebase Authentication login failed:", e);
       const messages = {
         "auth/invalid-credential": "E-mail ou senha incorretos.",
-        "auth/user-not-found": "Esse e-mail não está cadastrado no Firebase Authentication.",
+        "auth/user-not-found": "E-mail ou senha incorretos.",
         "auth/wrong-password": "Senha incorreta.",
         "auth/invalid-email": "O formato do e-mail é inválido.",
-        "auth/operation-not-allowed": "Ative o método E-mail/Senha em Firebase Authentication → Sign-in method.",
+        "auth/operation-not-allowed": "Acesso temporariamente indisponível. Tente novamente mais tarde.",
         "auth/network-request-failed": "Falha de rede. Verifique a conexão e se o site está publicado em HTTPS.",
         "auth/too-many-requests": "Muitas tentativas. Aguarde e tente novamente.",
-        "auth/unauthorized-domain": "Este domínio não está autorizado. Adicione-o em Firebase Authentication → Settings → Authorized domains.",
+        "auth/unauthorized-domain": "Acesso temporariamente indisponível. Contate o suporte.",
         "copabet/admin-uid-mismatch": e.message,
         "copabet/role-mismatch": e.message,
-        "copabet/cambista-rules": e.message,
-        "copabet/cambista-connection": e.message,
-        "copabet/cambista-inactive": e.message
+        "copabet/cambista-rules": "Não foi possível confirmar seu acesso. Contate o responsável.",
+        "copabet/cambista-connection": "Não foi possível confirmar seu acesso no momento. Tente novamente.",
+        "copabet/cambista-inactive": "Acesso não autorizado. Contate o responsável."
       };
-      alert("Não foi possível entrar: " + (messages[e.code] || e.message || e.code || "erro de autenticação"));
+      alert("Não foi possível entrar: " + (messages[e.code] || "Verifique seus dados e tente novamente."));
     }
   };
 
@@ -2195,7 +2200,7 @@ const matchesContainer = $("matches");
       }
     } catch (e) {
       console.error("Falha ao iniciar sessão de aposta:", e);
-      alert("Não foi possível iniciar a aposta. Verifique se o acesso anônimo está ativado no Firebase Authentication.");
+      alert("Não foi possível iniciar a aposta agora. Tente novamente em instantes.");
       return;
     }
     combined = picks.reduce((t, p) => t * p.odd, 1);
@@ -2630,11 +2635,11 @@ function render(){
   const message=!apiDataConfirmed
    ? "Conectando ao calendário de partidas. Os dados ainda não foram confirmados."
    : !games.length
-    ? "O Firebase respondeu, mas não enviou nenhuma partida. Verifique o importador de jogos."
+    ? "Ainda não há partidas disponíveis neste momento."
     : !games.some(g=>football(g))
-     ? "O Firebase enviou partidas, mas nenhuma foi identificada como futebol."
+     ? "Nenhuma partida de futebol disponível neste momento."
      : !availableGames.length
-      ? "O banco enviou partidas, porém nenhuma tem data futura válida. Verifique se o importador está atualizando o calendário."
+      ? "Ainda não há partidas futuras disponíveis."
       : "Nenhuma partida disponível para este filtro. Experimente Futebol em Destaque.";
   root.replaceChildren(node("p",message,"small"));
   return;
@@ -2711,7 +2716,7 @@ function renderImportedAdmin(){
  if(!adminList)return;
  adminList.replaceChildren();
  if(!currentGames.length){
-  adminList.append(node("p",apiDataConfirmed?"Nenhum jogo de futebol disponível na API neste momento. Os jogos manuais continuam na outra aba.":"Carregando jogos da API...","small"));
+  adminList.append(node("p",apiDataConfirmed?"Nenhuma partida disponível no momento.":"Carregando partidas...","small"));
   return;
  }
  const fragment=document.createDocumentFragment();
@@ -2816,7 +2821,7 @@ onSnapshot(collection(db,"jogos"),{includeMetadataChanges:true},
   if(!serverReadConfirmed){
    apiDataConfirmed=false;
    statusEl.textContent="Sem conexão com os jogos";
-   if(!games.length)root.replaceChildren(node("p","Os jogos não puderam ser carregados: "+error.message,"small"));
+   if(!games.length)root.replaceChildren(node("p","Não foi possível carregar as partidas agora. Tente atualizar em instantes.","small"));
    else render();
   }
  });
@@ -2831,7 +2836,7 @@ setTimeout(async()=>{
   console.warn("Leitura direta indisponível:",error);
   if(!serverReadConfirmed && statusEl){
    statusEl.textContent="Não foi possível atualizar os jogos";
-   if(!games.length)root.replaceChildren(node("p","A conexão com as partidas falhou. Confira o acesso ao Firebase e tente atualizar a página.","small"));
+   if(!games.length)root.replaceChildren(node("p","Não foi possível carregar as partidas agora. Tente atualizar em instantes.","small"));
   }
  }
 },6000);
@@ -2840,7 +2845,7 @@ refreshButton?.addEventListener("click",async()=>{
  if(refreshButton.disabled)return;
  refreshButton.disabled=true;
  refreshButton.textContent="Atualizando...";
- statusEl.textContent="Consultando o Firebase...";
+ statusEl.textContent="Atualizando partidas...";
  try{
   const fresh=await getDocsFromServer(collection(db,"jogos"));
   // Forçar a leitura mais recente, mesmo se a primeira consulta já tiver confirmado outra versão.
@@ -2848,7 +2853,7 @@ refreshButton?.addEventListener("click",async()=>{
   displayGamesFromSnapshot(fresh,"server");
  }catch(error){
   console.error("Não foi possível atualizar as partidas:",error);
-  statusEl.textContent="Falha na atualização: "+error.message;
+  statusEl.textContent="Não foi possível atualizar as partidas agora.";
  }finally{
   refreshButton.disabled=false;
   refreshButton.textContent="Atualizar partidas";
@@ -2926,7 +2931,7 @@ function render(){
  const all=games(),filtered=all.filter(g=>(source==="all"||g.source===source)&&(!term||(g.cup+" "+g.a+" "+g.b).toLocaleLowerCase("pt-BR").includes(term)));
  const root=$("adminTicketGames");root.replaceChildren();
  $("adminTicketStatus").textContent=filtered.length+" jogo(s) encontrados · "+filtered.filter(g=>g.openToBet!==false).length+" abertos para apostas";
- if(!filtered.length)element("p",source==="manual"?"Nenhum jogo manual cadastrado. No ADM, crie uma partida em Criar jogo manual.":"Nenhum jogo da API disponível neste momento. Confira a importação.","small",root);
+ if(!filtered.length)element("p",source==="manual"?"Nenhum jogo manual cadastrado. No ADM, crie uma partida em Criar jogo manual.":"Nenhum jogo disponível nesta categoria no momento.","small",root);
  for(const g of filtered.slice(0,120)){
   const card=element("article",null,"cb-t-game",root);
   element("span",(g.source==="api"?"API · ":"Manual · ")+g.cup,"small",card);
@@ -3025,7 +3030,7 @@ async function issue(){
   $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em BAIXAR BILHETE EM PDF para salvar ou imprimir no celular.":"Você pode baixar o PDF ou imprimir.");
   selected.clear();render();receipt(latest);
   if(!window.cbIsMobileReceipt() && typeof window.print==="function")window.print();
- }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete no Firebase: "+(error.message||error));}
+ }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete neste momento. Tente novamente ou contate o responsável.");}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
 document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(button=>button.addEventListener("click",()=>{const source=button.dataset.ticketSource;$("adminTicketSource").value=source;document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));
@@ -3068,14 +3073,17 @@ window.addEventListener("copabet:cambista-opened",()=>{
 (function(){
  const input=document.getElementById("adminPassword"),toggle=document.getElementById("cbTogglePassword");
  if(!input||!toggle)return;
- function reset(){input.type="password";toggle.textContent="👁 Ver senha";toggle.setAttribute("aria-pressed","false");toggle.setAttribute("aria-label","Ver senha");toggle.title="Ver senha";}
+ function reset(){
+  input.type="password";toggle.classList.remove("is-visible");
+  toggle.setAttribute("aria-pressed","false");toggle.setAttribute("aria-label","Mostrar senha");toggle.title="Mostrar senha";
+ }
  toggle.addEventListener("click",()=>{
   const showing=input.type==="password";
   input.type=showing?"text":"password";
-  toggle.textContent=showing?"🙈 Ocultar":"👁 Ver senha";
+  toggle.classList.toggle("is-visible",showing);
   toggle.setAttribute("aria-pressed",String(showing));
-  toggle.setAttribute("aria-label",showing?"Ocultar senha":"Ver senha");
-  toggle.title=showing?"Ocultar senha":"Ver senha";
+  toggle.setAttribute("aria-label",showing?"Ocultar senha":"Mostrar senha");
+  toggle.title=showing?"Ocultar senha":"Mostrar senha";
  });
  document.getElementById("openAdminBtn")?.addEventListener("click",reset);
  document.getElementById("cancelLoginBtn")?.addEventListener("click",reset);
