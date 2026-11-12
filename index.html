@@ -724,6 +724,17 @@ body:has(#adminLogin:not(.hidden)) #floatingBetSlip,body:has(#paymentModal:not(.
  #cambistaView #adminTicketGames{max-height:none!important;overflow:visible!important}
 }
 </style>
+<style id="cb-slip-close-and-reopen">
+/* X fecha o bilhete inteiro; apostas continuam salvas em memória. */
+#floatingBetSlip.is-dismissed{display:none!important}
+#cbSlipReopen{display:none;background:#ffd400;color:#161616;border:0;border-radius:10px;padding:10px 16px;font-weight:750;box-shadow:0 6px 22px #0008;cursor:pointer;align-items:center;gap:7px}
+#cbSlipReopen.is-visible{display:inline-flex!important}
+#cbSlipReopen:focus-visible,#cbSlipToggle:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#cbSlipToggle{line-height:1;font-size:26px!important;min-width:40px;min-height:40px}
+body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cbSlipReopen,body:has(#adminLogin:not(.hidden)) #cbSlipReopen,body:has(#paymentModal:not(.hidden)) #cbSlipReopen{display:none!important}
+@media(min-width:700px){#cbSlipReopen{position:fixed;right:16px;top:190px;z-index:6}}
+@media(max-width:699px){#cbSlipReopen{position:sticky;top:8px;z-index:6;margin:0 0 12px auto;max-width:100%;min-height:42px}}
+</style>
 </head>
 <body>
 
@@ -825,6 +836,7 @@ body:has(#adminLogin:not(.hidden)) #floatingBetSlip,body:has(#paymentModal:not(.
    <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
    </div>
   </div>
+  <button type="button" id="cbSlipReopen" aria-controls="floatingBetSlip" aria-expanded="false" aria-label="Ver bilhete de apostas">Ver bilhete <span id="cbSlipReopenCount"></span></button>
  </section>
 
  <section id="adminView" class="hidden">
@@ -1067,7 +1079,7 @@ body:has(#adminLogin:not(.hidden)) #floatingBetSlip,body:has(#paymentModal:not(.
    <option value="cambista">Cambista</option>
   </select>
   <label for="adminEmail">E-mail</label><input id="adminEmail" type="email" autocomplete="username" placeholder="seu@email.com">
-  <label for="adminPassword">Senha</label><div class="cb-password-row"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" id="cbTogglePassword" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">👁 Mostrar</button></div>
+  <label for="adminPassword">Senha</label><div class="cb-password-row"><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha"><button type="button" id="cbTogglePassword" aria-label="Ver senha" aria-pressed="false" title="Ver senha">👁 Ver senha</button></div>
   <button class="btn" id="loginSubmitBtn" style="width:100%">ENTRAR</button>
   <button class="secondary" id="cancelLoginBtn" style="width:100%;margin-top:8px">CANCELAR</button>
  </div>
@@ -1867,14 +1879,25 @@ const matchesContainer = $("matches");
     });
   }
 
+  // O X fecha o painel inteiro, sem apagar palpites. O botão discreto permite abri-lo novamente.
   const slipToggle=document.getElementById("cbSlipToggle");
-  if(slipToggle)slipToggle.addEventListener("click",()=>{
-    const slip=document.getElementById("floatingBetSlip");
-    const closed=slip.classList.toggle("is-collapsed");
-    slipToggle.textContent=closed?"Ver bilhete":"×";
-    slipToggle.setAttribute("aria-expanded",String(!closed));
-    slipToggle.setAttribute("aria-label",closed?"Ver bilhete":"Fechar bilhete");
-    slipToggle.title=closed?"Ver bilhete":"Fechar bilhete";
+  const slip=document.getElementById("floatingBetSlip");
+  const slipReopen=document.getElementById("cbSlipReopen");
+  if(slipToggle && slip)slipToggle.addEventListener("click",()=>{
+    slip.classList.add("is-dismissed");
+    slipToggle.setAttribute("aria-expanded","false");
+    if(slipReopen){
+      slipReopen.classList.add("is-visible");
+      slipReopen.setAttribute("aria-expanded","false");
+      slipReopen.focus({preventScroll:true});
+    }
+  });
+  if(slipReopen && slip)slipReopen.addEventListener("click",()=>{
+    slip.classList.remove("is-dismissed");
+    slipReopen.classList.remove("is-visible");
+    slipReopen.setAttribute("aria-expanded","true");
+    slipToggle?.setAttribute("aria-expanded","true");
+    slipToggle?.focus({preventScroll:true});
   });
   // No celular o bilhete começa aberto e permanece visível no topo.
 
@@ -1883,6 +1906,7 @@ const matchesContainer = $("matches");
     if(!sel) return;
     
     const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=picks.length ? ` · ${picks.length} ${picks.length===1?"jogo":"jogos"}` : "";
+    const reopenCount=document.getElementById("cbSlipReopenCount"); if(reopenCount) reopenCount.textContent=picks.length ? `(${picks.length})` : "";
     sel.innerHTML = picks.length ? picks.map((p,i) => `<div class="cb-slip-pick"><div><b>${esc(p.a)} × ${esc(p.b)}</b><span>${["Casa","Empate","Fora"][p.side]} · ${formatOdds(p.odd)}</span></div><button type="button" class="cb-slip-remove" data-remove-pick="${i}" aria-label="Remover ${esc(p.a)} e ${esc(p.b)} do bilhete">Remover</button></div>`).join("") : "Você ainda não selecionou jogos.";
     
     const amount = Math.max(0, Number($("amount").value) || 0);
@@ -3044,14 +3068,14 @@ window.addEventListener("copabet:cambista-opened",()=>{
 (function(){
  const input=document.getElementById("adminPassword"),toggle=document.getElementById("cbTogglePassword");
  if(!input||!toggle)return;
- function reset(){input.type="password";toggle.textContent="👁 Mostrar";toggle.setAttribute("aria-pressed","false");toggle.setAttribute("aria-label","Mostrar senha");toggle.title="Mostrar senha";}
+ function reset(){input.type="password";toggle.textContent="👁 Ver senha";toggle.setAttribute("aria-pressed","false");toggle.setAttribute("aria-label","Ver senha");toggle.title="Ver senha";}
  toggle.addEventListener("click",()=>{
   const showing=input.type==="password";
   input.type=showing?"text":"password";
-  toggle.textContent=showing?"🙈 Ocultar":"👁 Mostrar";
+  toggle.textContent=showing?"🙈 Ocultar":"👁 Ver senha";
   toggle.setAttribute("aria-pressed",String(showing));
-  toggle.setAttribute("aria-label",showing?"Ocultar senha":"Mostrar senha");
-  toggle.title=showing?"Ocultar senha":"Mostrar senha";
+  toggle.setAttribute("aria-label",showing?"Ocultar senha":"Ver senha");
+  toggle.title=showing?"Ocultar senha":"Ver senha";
  });
  document.getElementById("openAdminBtn")?.addEventListener("click",reset);
  document.getElementById("cancelLoginBtn")?.addEventListener("click",reset);
