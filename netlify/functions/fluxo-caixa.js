@@ -48,28 +48,29 @@ exports.handler=async(event)=>{
  if(body?.action==="list"){
   try{
    const ledger=db.collection(COLLECTION);
-   // Agregações no Firestore: o caixa total considera TODO o histórico,
-   // inclusive lançamentos fora do período ou das 1.500 linhas exibidas.
-   const summaryQuery=type=>ledger.where("type","==",type).aggregate({
-    totalCents:firebaseAdmin.firestore.AggregateField.sum("amountCents"),
-    recordsCount:firebaseAdmin.firestore.AggregateField.count()
-   }).get();
-   const [snap,incomingSnap,outgoingSnap]=await Promise.all([
-    ledger.orderBy("date","desc").limit(1501).get(),
-    summaryQuery("entrada"),summaryQuery("saida")
-   ]);
-   const records=snap.docs.slice(0,1500).map(d=>{
-    const v=d.data();
-    return{id:d.id,type:v.type,amountCents:v.amountCents,date:v.date,category:v.category,description:v.description,method:v.method,reference:v.reference||"",createdBy:v.createdBy,createdAt:v.createdAt?.toDate?.()?.toISOString?.()||null};
-   });
-   const inData=incomingSnap.data(),outData=outgoingSnap.data();
-   const incoming=Math.round(Number(inData.totalCents)||0);
-   const outgoing=Math.round(Number(outData.totalCents)||0);
-   const lifetime={
-    incoming,outgoing,balance:incoming-outgoing,
-    count:Number(inData.recordsCount||0)+Number(outData.recordsCount||0)
-   };
-   return reply(200,"Lançamentos consultados.",{records,limited:snap.size>1500,lifetime});
+   // Paginação por ID: evita depender de agregações do Firestore e índices compostos.
+   // Calcula o saldo sobre TODO o histórico, não apenas as linhas exibidas.
+   const pageSize=400;
+   let cursor=null,readCount=0,incoming=0,outgoing=0;
+   const records=[];
+   while(true){
+    let query=ledger.orderBy(firebaseAdmin.firestore.FieldPath.documentId()).limit(pageSize);
+    if(cursor)query=query.startAfter(cursor);
+    const page=await query.get();
+    for(const d of page.docs){
+     const v=d.data();
+     const cents=Number(v.amountCents);
+     if(v.type==="entrada"&&Number.isFinite(cents))incoming+=cents;
+     if(v.type==="saida"&&Number.isFinite(cents))outgoing+=cents;
+     if(v.type==="entrada"||v.type==="saida")readCount++;
+     records.push({id:d.id,type:v.type,amountCents:v.amountCents,date:v.date,category:v.category,description:v.description,method:v.method,reference:v.reference||"",createdBy:v.createdBy,createdAt:v.createdAt?.toDate?.()?.toISOString?.()||null});
+    }
+    if(page.size<pageSize)break;
+    cursor=page.docs[page.docs.length-1];
+   }
+   records.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||String(b.id).localeCompare(String(a.id)));
+   const lifetime={incoming,outgoing,balance:incoming-outgoing,count:readCount};
+   return reply(200,"Lançamentos consultados.",{records:records.slice(0,1500),limited:records.length>1500,lifetime});
   }catch(e){console.error("COPABET caixa leitura:",e.code||e.message);return reply(500,"Não foi possível consultar os lançamentos.");}
  }
  if(body?.action==="create"){
