@@ -9,7 +9,7 @@
 </main><script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import {getFirestore,getDoc,doc} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import {getFirestore,getDoc,getDocs,collection,doc} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 const app=initializeApp({apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",authDomain:"indexxx-94ed1.firebaseapp.com",projectId:"indexxx-94ed1",appId:"1:134461084839:web:a8bfd4ba58edad3f043782"});
 const auth=getAuth(app),db=getFirestore(app);
 const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
@@ -30,12 +30,13 @@ async function consult(id){
  try{
   const snap=await getDoc(doc(db,"bets",id));if(!snap.exists())throw Error("Bilhete não encontrado.");
   const bet=snap.data(),picks=Array.isArray(bet.picks)?bet.picks:[],results=[];
+  const matchMap=new Map();
+  if(picks.some(p=>!p.source||p.source==="manual")){
+   const ms=await getDocs(collection(db,"matches"));
+   ms.forEach(d=>{const m=d.data();matchMap.set(String(d.id),m);if(m.id!=null)matchMap.set(String(m.id),m)});
+  }
   for(const p of picks){
-   let match=null;
-   if(!p.source||p.source==="manual"){
-    const matchId=String(p.id||"");
-    if(/^[a-zA-Z0-9_-]{1,128}$/.test(matchId)){const m=await getDoc(doc(db,"matches",matchId));if(m.exists())match=m.data()}
-   }
+   const match=(!p.source||p.source==="manual")?matchMap.get(String(p.id)):null;
    results.push({p,...scorePick(p,match)});
   }
   const complete=results.length>0&&results.every(r=>r.state!=="pending");
