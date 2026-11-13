@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "COPABET",
+  "short_name": "COPABET",
+  "description": "COPABET - jogos, bilhetes e acesso de cambistas",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#061b4b",
+  "theme_color": "#061b4b",
+  "icons": [
+    {
+      "src": "/assets/copabet-app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
