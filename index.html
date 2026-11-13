@@ -774,6 +774,39 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 <style id="cb-cambista-management-css">
 .cb-cambista-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:10px 0}.cb-cambista-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px}.cb-cambista-form button{align-self:end}.cb-cambista-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}.cb-cambista-stat{background:#112b46;border:1px solid #3b6686;border-radius:9px;padding:10px;min-width:0}.cb-cambista-stat small{display:block;font-size:12px;opacity:.85}.cb-cambista-stat b{font-size:17px;word-break:break-word}.cb-cambista-row{background:#10243e;border:1px solid #3b6686;border-radius:12px;margin:10px 0;padding:14px}.cb-cambista-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.cb-cambista-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:12px}.cb-cambista-actions input{max-width:130px}.cb-cambista-actions label{display:grid;gap:5px}@media(max-width:699px){.cb-cambista-form{grid-template-columns:1fr}.cb-cambista-actions button{flex:1}}
 </style>
+<style id="cb-cash-design">
+#cbCashPane .cb-cash{padding:20px}
+#cbCashPane .cb-cash-head{display:flex;align-items:start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+#cbCashPane h2,#cbCashPane h3{margin:0 0 9px}
+#cbCashPane .cb-cash-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));align-items:end;gap:12px;margin:14px 0}
+#cbCashPane .cb-cash-fields label{display:flex;flex-direction:column;gap:6px;font-size:13px}
+#cbCashPane .cb-cash-fields input,#cbCashPane .cb-cash-fields select{width:100%;min-width:0}
+#cbCashPane .cb-cash-wide{grid-column:1/-1}
+#cbCashPane .cb-cash-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;margin:18px 0}
+#cbCashPane .cb-cash-stats>div{padding:15px;background:#091d32;border:1px solid #375d7f;border-radius:12px}
+#cbCashPane .cb-cash-stats small{display:block;color:#aaccdf;font-size:12px;margin-bottom:8px}
+#cbCashPane .cb-cash-stats strong{font-size:clamp(18px,2vw,25px);font-variant-numeric:tabular-nums}
+#cbCashPane .cb-cash-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:12px}
+#cbCashPane .cb-cash-sub{background:#092039;border:1px solid #30577a;border-radius:12px;padding:14px;margin:12px 0}
+#cbCashPane .cb-cash-chart{min-height:120px;max-height:275px;overflow:auto}
+#cbCashPane .cb-cash-chart-row{display:grid;grid-template-columns:75px minmax(40px,1fr);gap:10px;align-items:center;margin:9px 0;font-size:11px}
+#cbCashPane .cb-cash-bar-pair{display:grid;gap:3px}
+#cbCashPane .cb-cash-bar{height:10px;min-width:2px;border-radius:3px}
+#cbCashPane .cb-cash-in{background:#27bf88}#cbCashPane .cb-cash-out{background:#eb6876}
+#cbCashPane .cb-cash-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+#cbCashPane .cb-cash-actions button{flex:1 1 170px}
+#cbCashPane .cb-cash-record{border-bottom:1px solid #32506b;padding:11px 3px;font-size:13px}
+#cbCashPane .cb-cash-record strong{font-variant-numeric:tabular-nums}
+#cbCashPane .cb-cash-record p{margin:5px 0 0}
+#cbCashPane .cb-cash-good{color:#58dfad}#cbCashPane .cb-cash-bad{color:#ff8793}
+#cbCashPrint{display:none}
+@media print{
+ body.cb-cash-print > *:not(#cbCashPrint){display:none!important}
+ body.cb-cash-print > #cbCashPrint{display:block!important;position:static!important;max-width:none!important;width:100%!important;padding:12mm!important;box-sizing:border-box!important;background:white!important;color:black!important;font:12px/1.4 Arial,sans-serif!important}
+ body.cb-cash-print #cbCashPrint *{background:white!important;color:black!important;box-shadow:none!important;border-color:#aaa!important}
+ body.cb-cash-print #cbCashPrint .cb-cash-record{break-inside:avoid!important}
+}
+</style>
 </head>
 <body>
 
@@ -889,6 +922,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbCashPane" aria-controls="cbCashPane" aria-pressed="false">Fluxo de Caixa</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaCreatePane" aria-controls="cbCambistaCreatePane" aria-pressed="false">Cadastrar Cambista</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaAdminPane" aria-controls="cbCambistaAdminPane" aria-pressed="false">Pesquisar Cambistas</button>
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
@@ -1075,6 +1109,60 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
      <p class="small">Confirme somente após verificar o crédito no seu banco. Enviar comprovante não confirma pagamento.</p>
      <button class="secondary" type="button" id="cbRefreshPayments">Atualizar pagamentos</button>
      <div id="cbPaymentRows" style="margin-top:12px"><p class="small">Abra o painel para consultar os bilhetes.</p></div>
+    </section>
+   </div>
+   <div id="cbCashPane" class="admin-pane hidden">
+    <section class="card cb-cash" aria-label="Fluxo de Caixa">
+     <div class="cb-cash-head">
+      <div><h2>Fluxo de Caixa</h2><p class="small">Controle administrativo de entradas, saídas e saldo de lançamentos efetivamente registrados. Vendas dos cambistas não são somadas automaticamente, evitando contagem dupla.</p></div>
+      <button type="button" id="cbCashRefresh" class="secondary">ATUALIZAR</button>
+     </div>
+     <div class="cb-cash-fields">
+      <label>De <input id="cbCashFrom" type="date"></label>
+      <label>Até <input id="cbCashTo" type="date"></label>
+      <button type="button" id="cbCashFilter" class="secondary">FILTRAR PERÍODO</button>
+     </div>
+     <p class="small" id="cbCashStatus" role="status">Abra a aba para consultar o fluxo de caixa.</p>
+     <div class="cb-cash-stats" id="cbCashStats">
+      <div><small>Entradas registradas</small><strong>R$ 0,00</strong></div>
+      <div><small>Saídas registradas</small><strong>R$ 0,00</strong></div>
+      <div><small>Saldo líquido do período</small><strong>R$ 0,00</strong></div>
+      <div><small>Movimentações</small><strong>0</strong></div>
+     </div>
+     <div class="cb-cash-two">
+      <section class="cb-cash-sub">
+       <h3>Entradas e saídas por dia</h3>
+       <div id="cbCashChart" class="cb-cash-chart">Sem lançamentos no período.</div>
+      </section>
+      <section class="cb-cash-sub">
+       <h3>Distribuição por categoria</h3>
+       <div id="cbCashCategories">Sem lançamentos no período.</div>
+      </section>
+     </div>
+     <section class="cb-cash-sub">
+      <h3>Adicionar lançamento</h3>
+      <form id="cbCashForm" class="cb-cash-fields">
+       <label>Movimento<select id="cbCashType" required><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+       <label>Valor (R$)<input id="cbCashAmount" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="0,00"></label>
+       <label>Data<input id="cbCashDate" type="date" required></label>
+       <label>Categoria<select id="cbCashCategory" required></select></label>
+       <label>Forma de pagamento<select id="cbCashMethod" required><option>Dinheiro</option><option>PIX</option><option>Transferência</option><option>Cartão</option><option>Outro</option></select></label>
+       <label>Referência (opcional)<input id="cbCashReference" type="text" maxlength="100" placeholder="Recibo, nota ou repasse"></label>
+       <label class="cb-cash-wide">Descrição<input id="cbCashDescription" type="text" maxlength="160" required placeholder="O que entrou ou saiu do caixa?"></label>
+       <button type="submit" id="cbCashSave" class="btn">SALVAR LANÇAMENTO</button>
+      </form>
+     </section>
+     <section class="cb-cash-sub">
+      <div class="cb-cash-head"><h3>Relatório detalhado</h3></div>
+      <div class="cb-cash-actions">
+       <button type="button" id="cbCashWhatsApp" class="secondary">ENVIAR PELO WHATSAPP</button>
+       <button type="button" id="cbCashPrint" class="secondary">IMPRIMIR RELATÓRIO</button>
+       <button type="button" id="cbCashPdf" class="secondary">BAIXAR PDF</button>
+       <button type="button" id="cbCashCsv" class="secondary">BAIXAR CSV</button><a id="cbCashPdfFallback" href="#" target="_blank" rel="noopener" hidden>Abrir PDF em outra aba</a>
+      </div>
+      <div id="cbCashRows" class="cb-cash-history">Nenhuma movimentação consultada.</div>
+     </section>
+     <p class="small">Fluxo de caixa registrado: entradas menos saídas. Não equivale automaticamente ao saldo bancário; concilie depósitos, repasses e pagamentos antes de fechar o caixa.</p>
     </section>
    </div>
   </div>
@@ -3507,6 +3595,167 @@ window.addEventListener("copabet:cambista-opened",()=>{loadPersonal();loadOwnPen
 window.addEventListener("copabet:ticket-issued",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}});
 window.addEventListener("copabet:payment-confirmed",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}if(admin())loadAll();});
 onAuthStateChanged(auth,user=>{if(!user){rows=[];sequence++;}});
+</script>
+<script type="module" id="cb-cash-module">
+import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+const $=id=>document.getElementById(id);
+const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
+const optionsIn=["Vendas","Repasse de cambista","Capital inicial","Outras entradas"];
+const optionsOut=["Pagamento de prêmio","Comissão","Fornecedor","Despesas operacionais","Taxas","Outras saídas"];
+const num=(n)=>Number.isFinite(Number(n))?Number(n):0;
+const brl=cents=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(num(cents)/100);
+const localDay=(d)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+const datePt=s=>String(s).split("-").reverse().join("/");
+let records=[],loaded=false,limited=false,loading=false;
+const authorized=()=>getApps().length>0&&getAuth(getApp()).currentUser?.uid===ADMIN_UID&&!getAuth(getApp()).currentUser?.isAnonymous;
+const node=(p,tag,content,cls)=>{const el=document.createElement(tag);el.textContent=String(content??"");if(cls)el.className=cls;p.append(el);return el;};
+function categories(){
+ const select=$("cbCashCategory"),available=$("cbCashType").value==="entrada"?optionsIn:optionsOut;
+ const previous=select.value;select.replaceChildren();
+ for(const item of available){const op=document.createElement("option");op.value=item;op.textContent=item;select.append(op);}
+ if(available.includes(previous))select.value=previous;
+}
+function filtered(){
+ const start=$("cbCashFrom").value,end=$("cbCashTo").value;
+ return records.filter(r=>(!start||r.date>=start)&&(!end||r.date<=end)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+}
+function totals(items){
+ const incoming=items.filter(r=>r.type==="entrada").reduce((n,r)=>n+num(r.amountCents),0);
+ const outgoing=items.filter(r=>r.type==="saida").reduce((n,r)=>n+num(r.amountCents),0);
+ return{incoming,outgoing,balance:incoming-outgoing,count:items.length};
+}
+function render(){
+ const rows=filtered(),summary=totals(rows),stats=$("cbCashStats");
+ stats.replaceChildren();
+ for(const [label,value,cls] of [
+  ["Entradas registradas",brl(summary.incoming),"cb-cash-good"],
+  ["Saídas registradas",brl(summary.outgoing),"cb-cash-bad"],
+  ["Saldo líquido do período",brl(summary.balance),summary.balance>=0?"cb-cash-good":"cb-cash-bad"],
+  ["Movimentações",String(summary.count),""]
+ ]){const card=node(stats,"div","");node(card,"small",label);node(card,"strong",value,cls);}
+ const chart=$("cbCashChart");chart.replaceChildren();
+ const dayMap=new Map();
+ for(const r of rows){const v=dayMap.get(r.date)||{date:r.date,in:0,out:0};v[r.type==="entrada"?"in":"out"]+=num(r.amountCents);dayMap.set(r.date,v);}
+ const days=[...dayMap.values()].sort((a,b)=>a.date.localeCompare(b.date)).slice(-31);
+ if(!days.length)chart.textContent="Sem lançamentos no período.";
+ else{
+  const max=Math.max(1,...days.flatMap(d=>[d.in,d.out]));
+  for(const day of days){
+   const row=node(chart,"div","","cb-cash-chart-row");node(row,"span",datePt(day.date).slice(0,5));
+   const pair=node(row,"div","","cb-cash-bar-pair");
+   for(const [v,c,kind] of [[day.in,"cb-cash-in","Entrada"],[day.out,"cb-cash-out","Saída"]]){
+    const bar=node(pair,"div","","cb-cash-bar "+c);
+    bar.style.width=Math.max(1,100*v/max)+"%";
+    bar.title=kind+": "+brl(v);
+   }
+  }
+ }
+ const cats=$("cbCashCategories");cats.replaceChildren();const sums=new Map();
+ for(const r of rows){const key=r.type==="entrada"?"Entrada / "+r.category:"Saída / "+r.category;sums.set(key,(sums.get(key)||0)+num(r.amountCents));}
+ if(!sums.size)cats.textContent="Sem lançamentos no período.";
+ else for(const [k,v] of [...sums.entries()].sort((a,b)=>b[1]-a[1])){
+  const p=node(cats,"p","","small");node(p,"span",k+" — ");node(p,"strong",brl(v));
+ }
+ const history=$("cbCashRows");history.replaceChildren();
+ if(!rows.length)history.textContent="Nenhum lançamento neste período.";
+ else for(const r of rows.slice(0,500)){
+  const card=node(history,"div","","cb-cash-record");
+  node(card,"strong",(r.type==="entrada"?"+ ":"− ")+brl(r.amountCents),r.type==="entrada"?"cb-cash-good":"cb-cash-bad");
+  node(card,"span"," · "+datePt(r.date)+" · "+r.category+" · "+r.method);
+  node(card,"p",r.description+(r.reference?" · Ref.: "+r.reference:""));
+ }
+ $("cbCashStatus").textContent="Período: "+($("cbCashFrom").value||"início")+" a "+($("cbCashTo").value||"hoje")+". "+rows.length+" lançamentos."+(limited?" Aviso: limite de 1.500 movimentações; relatório parcial.":"");
+}
+async function api(body){
+ if(!authorized())throw Error("Entre como administrador para acessar o caixa.");
+ const token=await getAuth(getApp()).currentUser.getIdToken(true);
+ const response=await fetch("/.netlify/functions/fluxo-caixa",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||!data?.success)throw Error(data?.message||"Servidor indisponível (HTTP "+response.status+").");
+ return data;
+}
+async function refresh(){
+ if(loading)return;
+ if(!authorized()){$("cbCashStatus").textContent="Entre como administrador.";return;}
+ loading=true;$("cbCashRefresh").disabled=true;$("cbCashStatus").textContent="Consultando registros do Firebase...";
+ try{const data=await api({action:"list"});records=Array.isArray(data.records)?data.records:[];limited=data.limited===true;loaded=true;render();}
+ catch(e){$("cbCashStatus").textContent="Erro ao consultar caixa: "+String(e.message||e);}
+ finally{loading=false;$("cbCashRefresh").disabled=false;}
+}
+function reportText(rows,short){
+ const totalsValue=totals(rows),start=$("cbCashFrom").value,end=$("cbCashTo").value;
+ const lines=["COPABET — FLUXO DE CAIXA","Período: "+(start?datePt(start):"desde o início")+" até "+(end?datePt(end):"hoje"),
+ "Entradas: "+brl(totalsValue.incoming),"Saídas: "+brl(totalsValue.outgoing),"Saldo do período: "+brl(totalsValue.balance),
+ "Quantidade de lançamentos: "+totalsValue.count,"Valores calculados a partir dos lançamentos manuais do caixa; vendas dos cambistas não são somadas automaticamente.",
+ ...(limited?["ATENÇÃO: relatório parcial, limite de 1.500 lançamentos."]:[]),""];
+ const limit=short?Math.min(20,rows.length):rows.length;
+ for(const r of rows.slice(0,limit)){
+  lines.push(datePt(r.date)+" | "+(r.type==="entrada"?"+":"-")+brl(r.amountCents)+" | "+r.category+" | "+r.method+" | "+r.description+(r.reference?" | Ref.: "+r.reference:""));
+ }
+ if(short&&rows.length>limit)lines.push("Mais "+(rows.length-limit)+" lançamentos disponíveis no PDF/CSV.");
+ return lines;
+}
+function reportElement(){
+ const root=$("cbCashPrint")||document.createElement("div");root.id="cbCashPrint";root.replaceChildren();
+ node(root,"h1","COPABET — Fluxo de Caixa");
+ const rows=filtered(),ls=reportText(rows,false);
+ for(const line of ls.slice(1))node(root,"p",line||" ");
+ if(!root.parentNode)document.body.append(root);
+ return root;
+}
+function downloadCsv(){
+ const rows=filtered(),t=totals(rows),csv=[["Data","Tipo","Categoria","Descrição","Forma","Referência","Valor (R$)"],...rows.map(r=>[r.date,r.type,r.category,r.description,r.method,r.reference||"",(num(r.amountCents)/100).toFixed(2).replace(".",",")])];
+ csv.push(["","TOTAL ENTRADAS","","","","",(t.incoming/100).toFixed(2).replace(".",",")]);
+ csv.push(["","TOTAL SAÍDAS","","","","",(t.outgoing/100).toFixed(2).replace(".",",")]);
+ csv.push(["","SALDO","","","","",(t.balance/100).toFixed(2).replace(".",",")]);
+ const quote=x=>'"'+String(x??"").replaceAll('"','""')+'"';
+ const data="\uFEFF"+csv.map(row=>row.map(quote).join(";")).join("\r\n");
+ const u=URL.createObjectURL(new Blob([data],{type:"text/csv;charset=utf-8"}));
+ const link=document.createElement("a");link.href=u;link.download="copabet-fluxo-caixa.csv";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000);
+}
+function init(){
+ const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
+ $("cbCashDate").value=localDay(now);$("cbCashFrom").value=localDay(first);$("cbCashTo").value=localDay(now);categories();
+ $("cbCashType").addEventListener("change",categories);
+ $("cbCashRefresh").addEventListener("click",refresh);
+ $("cbCashFilter").addEventListener("click",render);
+ document.querySelector('[data-admin-tab="cbCashPane"]')?.addEventListener("click",refresh);
+ $("cbCashForm").addEventListener("submit",async e=>{
+  e.preventDefault();const btn=$("cbCashSave");btn.disabled=true;btn.textContent="SALVANDO...";
+  const amount=Number($("cbCashAmount").value);
+  const record={type:$("cbCashType").value,amount,date:$("cbCashDate").value,category:$("cbCashCategory").value,
+    description:$("cbCashDescription").value.trim(),method:$("cbCashMethod").value,reference:$("cbCashReference").value.trim()};
+  try{
+   await api({action:"create",requestId:crypto.randomUUID(),record});
+   $("cbCashAmount").value="";$("cbCashDescription").value="";$("cbCashReference").value="";
+   await refresh();$("cbCashStatus").textContent="Lançamento salvo no Firebase. "+$("cbCashStatus").textContent;
+  }catch(error){$("cbCashStatus").textContent="Não foi possível salvar: "+String(error.message||error);}
+  finally{btn.disabled=false;btn.textContent="SALVAR LANÇAMENTO";}
+ });
+ $("cbCashWhatsApp").addEventListener("click",()=>{
+  const text=reportText(filtered(),true).join("\n");
+  window.open("https://wa.me/?text="+encodeURIComponent(text),"_blank","noopener,noreferrer");
+ });
+ $("cbCashPrint").addEventListener("click",()=>{
+  reportElement();document.body.classList.add("cb-cash-print");
+  const done=()=>{document.body.classList.remove("cb-cash-print");window.removeEventListener("afterprint",done);};
+  window.addEventListener("afterprint",done,{once:true});
+  window.print();
+ });
+ $("cbCashPdf").addEventListener("click",()=>{
+  const report=reportElement();
+  if(typeof window.cbDownloadReceiptPdf!=="function"){
+   alert("Gerador PDF indisponível. Use IMPRIMIR RELATÓRIO e selecione Salvar como PDF.");return;
+  }
+  window.cbDownloadReceiptPdf(report,"copabet-fluxo-caixa.pdf","cbCashPdfFallback");
+ });
+ $("cbCashCsv").addEventListener("click",downloadCsv);
+ if(getApps().length>0)onAuthStateChanged(getAuth(getApp()),user=>{
+  if(!user||user.uid!==ADMIN_UID){records=[];loaded=false;if(!$("cbCashPane").classList.contains("hidden"))$("cbCashStatus").textContent="Acesso permitido somente ao administrador.";}
+ });
+}
+init();
 </script>
 </body>
 </html>
