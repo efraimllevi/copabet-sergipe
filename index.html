@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="COPABET">
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/copabet-icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/copabet-icon-180.png?v=3">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 <title>Copa Bet Sergipe</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
@@ -3242,6 +3243,18 @@ function receipt(t){
  add("p","Cotação total: "+formatOdd(t.combined));
  add("p","Retorno potencial: "+money(t.payout));
  add("p",t.paymentStatus==="confirmed"?"PAGAMENTO REGISTRADO COMO RECEBIDO — resultado da aposta pendente.":"PENDENTE — não comprova pagamento ou validação.","cb-print-divider cb-print-small");
+ const qrUrl=new URL("/consulta-bilhete.html?id="+encodeURIComponent(t.id),location.origin).href;
+ const qrBox=add("div",null,"cb-print-center");
+ qrBox.style.cssText="display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:10px;page-break-inside:avoid;break-inside:avoid";
+ if(typeof window.QRCode==="function"){
+  new window.QRCode(qrBox,{text:qrUrl,width:152,height:152,correctLevel:window.QRCode.CorrectLevel.M});
+  qrBox.querySelectorAll("canvas,img").forEach(n=>{n.style.width="40mm";n.style.height="40mm";n.style.maxWidth="100%";});
+  add("p","ESCANEIE PARA CONSULTAR O RESULTADO NO PAINEL ADMINISTRATIVO","cb-print-small",qrBox);
+ }else{
+  add("p","QR CODE INDISPONÍVEL — VERIFIQUE A CONEXÃO ANTES DE IMPRIMIR","cb-print-small",qrBox);
+  console.error("Biblioteca de QR Code indisponível.");
+ }
+
 }
 async function issue(){
  if(busy||!active()){alert("Entre como Administrador ou Cambista autorizado para emitir bilhetes.");return;}
