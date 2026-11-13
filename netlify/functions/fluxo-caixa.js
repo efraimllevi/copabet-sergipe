@@ -47,12 +47,29 @@ exports.handler=async(event)=>{
  const db=firebaseAdmin.firestore();
  if(body?.action==="list"){
   try{
-   const snap=await db.collection(COLLECTION).orderBy("date","desc").limit(1500).get();
-   const records=snap.docs.map(d=>{
+   const ledger=db.collection(COLLECTION);
+   // Agregações no Firestore: o caixa total considera TODO o histórico,
+   // inclusive lançamentos fora do período ou das 1.500 linhas exibidas.
+   const summaryQuery=type=>ledger.where("type","==",type).aggregate({
+    totalCents:firebaseAdmin.firestore.AggregateField.sum("amountCents"),
+    recordsCount:firebaseAdmin.firestore.AggregateField.count()
+   }).get();
+   const [snap,incomingSnap,outgoingSnap]=await Promise.all([
+    ledger.orderBy("date","desc").limit(1501).get(),
+    summaryQuery("entrada"),summaryQuery("saida")
+   ]);
+   const records=snap.docs.slice(0,1500).map(d=>{
     const v=d.data();
     return{id:d.id,type:v.type,amountCents:v.amountCents,date:v.date,category:v.category,description:v.description,method:v.method,reference:v.reference||"",createdBy:v.createdBy,createdAt:v.createdAt?.toDate?.()?.toISOString?.()||null};
    });
-   return reply(200,"Lançamentos consultados.",{records,limited:snap.size===1500});
+   const inData=incomingSnap.data(),outData=outgoingSnap.data();
+   const incoming=Math.round(Number(inData.totalCents)||0);
+   const outgoing=Math.round(Number(outData.totalCents)||0);
+   const lifetime={
+    incoming,outgoing,balance:incoming-outgoing,
+    count:Number(inData.recordsCount||0)+Number(outData.recordsCount||0)
+   };
+   return reply(200,"Lançamentos consultados.",{records,limited:snap.size>1500,lifetime});
   }catch(e){console.error("COPABET caixa leitura:",e.code||e.message);return reply(500,"Não foi possível consultar os lançamentos.");}
  }
  if(body?.action==="create"){
