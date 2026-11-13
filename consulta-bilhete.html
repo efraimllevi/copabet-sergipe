@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultar bilhete | COPABET</title>
+<style>body{font:16px system-ui,Arial;background:#081b39;color:#fff;margin:0}main{max-width:700px;margin:28px auto;padding:20px}section{background:#102a4b;padding:18px;border:1px solid #48617b;border-radius:12px;margin-bottom:16px}input,button{font:inherit;padding:12px;border-radius:7px;box-sizing:border-box}input{background:#fff;color:#111;border:0;max-width:100%;width:100%;margin:6px 0}button{background:#ffd400;color:#111;border:0;cursor:pointer;font-weight:bold;margin:6px 0}button:disabled{opacity:.5}h1{color:#ffd400}p{line-height:1.5}.game{border-top:1px solid #4c617a;padding:12px 0}.hit{color:#80efac}.miss{color:#ff9797}.pending{color:#ffe287}video{max-width:100%;border-radius:10px}small{color:#c4d1df}#feedback{min-height:1.5em}</style></head>
+<body><main><h1>COPABET — Consulta de bilhete</h1><p>Consulta administrativa. O QR Code identifica o bilhete; resultados e pagamentos são lidos no Firebase.</p>
+<section id="loginSection"><h2>Acesso administrativo</h2><form id="loginForm"><label>E-mail<input id="email" type="email" autocomplete="username" required></label><label>Senha<input id="password" type="password" autocomplete="current-password" required></label><button>Entrar</button></form></section>
+<section id="querySection" hidden><p id="currentUser"></p><button type="button" id="logout">Sair</button><h2>Consultar bilhete</h2><form id="queryForm"><label>Número do bilhete<input id="ticketId" autocomplete="off" maxlength="128" required></label><button>Consultar resultado</button></form><button type="button" id="scanButton">Escanear QR com câmera</button><p><small>Se a câmera não estiver disponível, escaneie o QR pelo aplicativo de câmera do celular: o endereço abre esta página.</small></p><video id="camera" playsinline muted hidden></video></section>
+<p id="feedback" role="status" aria-live="polite"></p><section id="result" hidden aria-live="polite"></section>
+</main><script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {getFirestore,getDoc,getDocs,collection,doc} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const app=initializeApp({apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",authDomain:"indexxx-94ed1.firebaseapp.com",projectId:"indexxx-94ed1",appId:"1:134461084839:web:a8bfd4ba58edad3f043782"});
+const auth=getAuth(app),db=getFirestore(app);
+const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
+const el=id=>document.getElementById(id), feedback=t=>el("feedback").textContent=t;
+const money=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(n)||0);
+const labels={hit:"ACERTOU",miss:"ERROU",pending:"AGUARDANDO RESULTADO"};
+function stopCamera(){if(window.cameraStream){window.cameraStream.getTracks().forEach(t=>t.stop());window.cameraStream=null}el("camera").hidden=true}
+onAuthStateChanged(auth,u=>{const allowed=!!u&&!u.isAnonymous&&u.uid===ADMIN_UID;el("loginSection").hidden=allowed;el("querySection").hidden=!allowed;el("result").hidden=true;if(allowed){el("currentUser").textContent="Administrador conectado: "+u.email;const id=new URLSearchParams(location.search).get("id");if(id){el("ticketId").value=id;consult(id)}}else{stopCamera();if(u)feedback("Esta conta não possui acesso administrativo.")}});
+el("loginForm").addEventListener("submit",async e=>{e.preventDefault();feedback("Autenticando...");try{const r=await signInWithEmailAndPassword(auth,el("email").value,el("password").value);if(r.user.uid!==ADMIN_UID)throw Error("Conta sem permissão de administrador.");feedback("");el("password").value=""}catch(err){feedback("Não foi possível entrar: "+err.message)}});
+el("logout").addEventListener("click",()=>signOut(auth));
+el("queryForm").addEventListener("submit",e=>{e.preventDefault();consult(el("ticketId").value.trim())});
+function scorePick(p,match){if(!match||match.status!=="ended"||match.scoreA==null||match.scoreB==null||match.scoreA===""||match.scoreB==="")return {state:"pending",score:"Não disponível"};const a=Number(match.scoreA),b=Number(match.scoreB);if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0)return {state:"pending",score:"Não disponível"};const outcome=a>b?0:a===b?1:2;return {state:outcome===Number(p.side)?"hit":"miss",score:a+" x "+b}}
+async function consult(id){
+ stopCamera();el("result").hidden=true;
+ if(!/^[a-zA-Z0-9_-]{1,128}$/.test(id)){feedback("Número inválido.");return}
+ if(!auth.currentUser||auth.currentUser.uid!==ADMIN_UID){feedback("Entre com a conta administrativa.");return}
+ feedback("Consultando bilhete...");
+ try{
+  const snap=await getDoc(doc(db,"bets",id));if(!snap.exists())throw Error("Bilhete não encontrado.");
+  const bet=snap.data(),picks=Array.isArray(bet.picks)?bet.picks:[],results=[];
+  const matchMap=new Map();
+  if(picks.some(p=>!p.source||p.source==="manual")){
+   const ms=await getDocs(collection(db,"matches"));
+   ms.forEach(d=>{const m=d.data();matchMap.set(String(d.id),m);if(m.id!=null)matchMap.set(String(m.id),m)});
+  }
+  for(const p of picks){
+   const match=(!p.source||p.source==="manual")?matchMap.get(String(p.id)):null;
+   results.push({p,...scorePick(p,match)});
+  }
+  const complete=results.length>0&&results.every(r=>r.state!=="pending");
+  const computed=complete?(results.every(r=>r.state==="hit")?"VENCEDOR":"PERDEDOR"):"AGUARDANDO RESULTADOS";
+  const root=el("result");root.replaceChildren();
+  function add(tag,value,cls="",parent=root){const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;parent.append(n);return n}
+  add("h2","Bilhete nº "+snap.id);add("p","Apostador: "+String(bet.bettorName||bet.name||"Não informado"));
+  add("p","Valor apostado: "+money(bet.amount)+" | Retorno potencial: "+money(bet.payout));
+  add("p","Pagamento: "+(bet.paymentStatus==="confirmed"?"CONFIRMADO":"NÃO CONFIRMADO / PENDENTE"));
+  add("h2","Resultado calculado: "+computed,complete?(computed==="VENCEDOR"?"hit":"miss"):"pending");
+  add("p","Situação registrada na COPABET: "+({won:"Vencedor",lost:"Perdedor",pending:"Pendente",cancelled:"Cancelado",rejected:"Rejeitado"}[bet.status]||String(bet.status||"Pendente")));
+  if(!complete)add("p","O resultado ainda não pode ser concluído: só jogos manuais encerrados com placares finais verificados são calculados nesta consulta.");
+  results.forEach((r,i)=>{const box=add("div","","game");add("p",(i+1)+". "+String(r.p.cup||"Liga")+" — "+String(r.p.a||"")+" x "+String(r.p.b||""),"",box);add("p","Palpite: "+(["Casa","Empate","Fora"][Number(r.p.side)]||"Não identificado")+" | Odd: "+String(r.p.odd||"—"),"",box);add("p","Placar: "+r.score+" | "+labels[r.state],r.state,box)});
+  if(!results.length)add("p","Este bilhete não tem seleções registradas.");
+  root.hidden=false;feedback("Consulta concluída.");
+ }catch(error){console.error(error);feedback(error.code==="permission-denied"?"Sem permissão para consultar os dados. Confira as regras publicadas no Firestore.":"Erro na consulta: "+error.message)}
+}
+el("scanButton").addEventListener("click",async()=>{
+ if(!("BarcodeDetector" in window)||!navigator.mediaDevices?.getUserMedia){feedback("Leitor de QR indisponível neste navegador. Use a câmera padrão do celular ou digite o número.");return}
+ try{
+  stopCamera();const detector=new BarcodeDetector({formats:["qr_code"]}),stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});window.cameraStream=stream;const video=el("camera");video.srcObject=stream;video.hidden=false;await video.play();feedback("Aponte para o QR Code do bilhete.");
+  async function frame(){if(!window.cameraStream)return;try{const codes=await detector.detect(video);if(codes.length){let value=codes[0].rawValue;try{value=new URL(value,location.origin).searchParams.get("id")||value}catch{}el("ticketId").value=value;consult(value);return}}catch{}requestAnimationFrame(frame)}requestAnimationFrame(frame);
+ }catch(err){stopCamera();feedback("Não foi possível abrir a câmera: "+err.message)}
+});
+</script></body></html>
