@@ -814,9 +814,56 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
  body.cb-cash-print #cbCashPrint *{background:white!important;color:black!important;box-shadow:none!important;border-color:#aaa!important}
  body.cb-cash-print #cbCashPrint .cb-cash-record{break-inside:avoid!important}
 }
+
+/* COPABET: seleção de perfil na entrada, sem mostrar conteúdo atrás */
+#cbEntryGate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:#061b4b;color:#fff;overflow:auto}
+#cbEntryGate.cb-entry-dismissed{display:none}
+#cbEntryGate .cb-entry-panel{width:min(100%,440px);padding:32px 25px;border-radius:22px;background:#0a2860;border:1px solid rgba(255,212,0,.55);box-shadow:0 22px 70px rgba(0,0,0,.45);text-align:center}
+#cbEntryGate .cb-entry-brand{color:#ffd400;font-size:27px;font-weight:900;letter-spacing:2px;margin-bottom:17px}
+#cbEntryGate h2{font-size:23px;line-height:1.3;color:white;margin:0 0 10px}
+#cbEntryGate p{color:#dce7ff;font-size:14px;margin:0 0 24px}
+#cbEntryGate .cb-entry-choice{display:block;width:100%;padding:17px 15px;margin:12px 0;border:2px solid #ffd400;border-radius:12px;background:#ffd400;color:#061b4b;font-size:17px;font-weight:800;cursor:pointer}
+#cbEntryGate .cb-entry-choice.cb-entry-cambista{color:#ffd400;background:#061b4b}
+#cbEntryGate .cb-entry-choice:focus-visible{outline:3px solid #fff;outline-offset:3px}
+body.cb-entry-locked{overflow:hidden}
 </style>
 </head>
 <body>
+
+<!-- Tela inicial de escolha de perfil -->
+<div id="cbEntryGate" role="dialog" aria-modal="true" aria-labelledby="cbEntryHeading">
+ <div class="cb-entry-panel">
+  <div class="cb-entry-brand">COPABET</div>
+  <h2 id="cbEntryHeading">Você é apostador ou cambista?</h2>
+  <p>Selecione seu perfil para continuar.</p>
+  <button id="cbEntryApostador" class="cb-entry-choice" type="button">SOU APOSTADOR</button>
+  <button id="cbEntryCambista" class="cb-entry-choice cb-entry-cambista" type="button">SOU CAMBISTA</button>
+ </div>
+</div>
+<script id="cb-entry-gate-script">
+(function(){
+ var gate=document.getElementById("cbEntryGate");
+ var apostador=document.getElementById("cbEntryApostador");
+ var cambista=document.getElementById("cbEntryCambista");
+ if(!gate||!apostador||!cambista)return;
+ document.body.classList.add("cb-entry-locked");
+ function dismiss(){
+  gate.classList.add("cb-entry-dismissed");
+  document.body.classList.remove("cb-entry-locked");
+ }
+ apostador.addEventListener("click",function(){dismiss();});
+ cambista.addEventListener("click",function(){
+  dismiss();
+  var role=document.getElementById("loginRole");
+  var modal=document.getElementById("adminLogin");
+  if(role)role.value="cambista";
+  if(modal)modal.classList.remove("hidden");
+  var email=document.getElementById("adminEmail");
+  if(email)email.focus();
+ });
+ apostador.focus();
+})();
+</script>
 
 
 <header>
