@@ -1,5 +1,5 @@
 [build]
-  command = "mkdir -p dist && cp index.html dist/index.html && cp -R assets dist/assets"
+  command = "mkdir -p dist && cp index.html dist/index.html && cp -R assets dist/assets && cp manifest.webmanifest dist/manifest.webmanifest"
   publish = "dist"
   functions = "netlify/functions"
 
