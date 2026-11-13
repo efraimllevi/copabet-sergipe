@@ -777,6 +777,14 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 <style id="cb-cash-design">
 #cbCashPane .cb-cash{padding:20px}
 #cbCashPane .cb-cash-head{display:flex;align-items:start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+#cbCashPane .cb-cash-lifetime{padding:20px;border-radius:14px;margin:18px 0;background:linear-gradient(120deg,#092a46,#0f3b60);border:1px solid #447a9c}
+#cbCashPane .cb-cash-lifetime-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:15px;font-weight:800;letter-spacing:.3px}
+#cbCashPane .cb-cash-lifetime-label{font-size:10px;font-weight:700;color:#a3cce4;letter-spacing:.7px}
+#cbCashPane .cb-cash-lifetime-balance{display:block;font-size:clamp(28px,5vw,43px);line-height:1.18;font-variant-numeric:tabular-nums;margin:13px 0;color:#fff}
+#cbCashPane .cb-cash-lifetime-details{display:flex;gap:10px 22px;flex-wrap:wrap;font-size:13px;margin:12px 0}
+#cbCashPane .cb-cash-lifetime-details b{font-variant-numeric:tabular-nums}
+#cbCashPane .cb-cash-period-title{margin:19px 0 2px}
+#cbCashPane .cb-cash-lifetime .small{margin:9px 0 0;color:#b8d2e5}
 #cbCashPane h2,#cbCashPane h3{margin:0 0 9px}
 #cbCashPane .cb-cash-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));align-items:end;gap:12px;margin:14px 0}
 #cbCashPane .cb-cash-fields label{display:flex;flex-direction:column;gap:6px;font-size:13px}
@@ -1117,6 +1125,17 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
       <div><h2>Fluxo de Caixa</h2><p class="small">Controle administrativo de entradas, saídas e saldo de lançamentos efetivamente registrados. Vendas dos cambistas não são somadas automaticamente, evitando contagem dupla.</p></div>
       <button type="button" id="cbCashRefresh" class="secondary">ATUALIZAR</button>
      </div>
+     <section class="cb-cash-lifetime" aria-label="Caixa total COPABET sem filtro de data">
+      <div class="cb-cash-lifetime-title"><span>CAIXA LÍQUIDO COPABET</span><span class="cb-cash-lifetime-label">TOTAL ACUMULADO · SEM FILTRO DE DATA</span></div>
+      <strong id="cbCashLifetimeBalance" class="cb-cash-lifetime-balance">Aguardando consulta...</strong>
+      <div class="cb-cash-lifetime-details">
+       <span>Entradas de todos os períodos: <b id="cbCashLifetimeIn">—</b></span>
+       <span>Saídas de todos os períodos: <b id="cbCashLifetimeOut">—</b></span>
+       <span>Lançamentos: <b id="cbCashLifetimeCount">—</b></span>
+      </div>
+      <p class="small">Este saldo não muda ao filtrar datas. Cada entrada aumenta o caixa e cada saída, inclusive prêmio ou despesa registrada, reduz o total. Inclui apenas movimentos lançados no Fluxo de Caixa; não consulta automaticamente a conta bancária ou pagamentos de bilhetes.</p>
+     </section>
+     <h3 class="cb-cash-period-title">Movimentação por período</h3>
      <div class="cb-cash-fields">
       <label>De <input id="cbCashFrom" type="date"></label>
       <label>Até <input id="cbCashTo" type="date"></label>
@@ -3607,7 +3626,7 @@ const num=(n)=>Number.isFinite(Number(n))?Number(n):0;
 const brl=cents=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(num(cents)/100);
 const localDay=(d)=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
 const datePt=s=>String(s).split("-").reverse().join("/");
-let records=[],loaded=false,limited=false,loading=false;
+let records=[],loaded=false,limited=false,loading=false,lifetime=null;
 const authorized=()=>getApps().length>0&&getAuth(getApp()).currentUser?.uid===ADMIN_UID&&!getAuth(getApp()).currentUser?.isAnonymous;
 const node=(p,tag,content,cls)=>{const el=document.createElement(tag);el.textContent=String(content??"");if(cls)el.className=cls;p.append(el);return el;};
 function categories(){
@@ -3625,7 +3644,21 @@ function totals(items){
  const outgoing=items.filter(r=>r.type==="saida").reduce((n,r)=>n+num(r.amountCents),0);
  return{incoming,outgoing,balance:incoming-outgoing,count:items.length};
 }
+function showLifetime(){
+ const balance=$("cbCashLifetimeBalance"),inEl=$("cbCashLifetimeIn"),outEl=$("cbCashLifetimeOut"),countEl=$("cbCashLifetimeCount");
+ if(!lifetime){
+  balance.textContent="Indisponível";balance.classList.remove("cb-cash-bad");
+  inEl.textContent="—";outEl.textContent="—";countEl.textContent="—";return;
+ }
+ const sum=Number(lifetime.balance);
+ balance.textContent=brl(sum);
+ balance.classList.toggle("cb-cash-bad",sum<0);
+ inEl.textContent=brl(lifetime.incoming);
+ outEl.textContent=brl(lifetime.outgoing);
+ countEl.textContent=String(lifetime.count);
+}
 function render(){
+ showLifetime();
  const rows=filtered(),summary=totals(rows),stats=$("cbCashStats");
  stats.replaceChildren();
  for(const [label,value,cls] of [
@@ -3679,8 +3712,14 @@ async function refresh(){
  if(loading)return;
  if(!authorized()){$("cbCashStatus").textContent="Entre como administrador.";return;}
  loading=true;$("cbCashRefresh").disabled=true;$("cbCashStatus").textContent="Consultando registros do Firebase...";
- try{const data=await api({action:"list"});records=Array.isArray(data.records)?data.records:[];limited=data.limited===true;loaded=true;render();}
- catch(e){$("cbCashStatus").textContent="Erro ao consultar caixa: "+String(e.message||e);}
+ try{
+  const data=await api({action:"list"});
+  if(!data.lifetime||typeof data.lifetime.balance!=="number"||!Number.isFinite(data.lifetime.balance))throw Error("O servidor ainda não retornou o caixa acumulado. Verifique se o novo deploy foi publicado.");
+  records=Array.isArray(data.records)?data.records:[];
+  lifetime=data.lifetime;
+  limited=data.limited===true;loaded=true;render();
+ }
+ catch(e){lifetime=null;showLifetime();$("cbCashStatus").textContent="Erro ao consultar caixa: "+String(e.message||e);}
  finally{loading=false;$("cbCashRefresh").disabled=false;}
 }
 function reportText(rows,short){
@@ -3752,7 +3791,7 @@ function init(){
  });
  $("cbCashCsv").addEventListener("click",downloadCsv);
  if(getApps().length>0)onAuthStateChanged(getAuth(getApp()),user=>{
-  if(!user||user.uid!==ADMIN_UID){records=[];loaded=false;if(!$("cbCashPane").classList.contains("hidden"))$("cbCashStatus").textContent="Acesso permitido somente ao administrador.";}
+  if(!user||user.uid!==ADMIN_UID){records=[];lifetime=null;loaded=false;showLifetime();if(!$("cbCashPane").classList.contains("hidden"))$("cbCashStatus").textContent="Acesso permitido somente ao administrador.";}
  });
 }
 init();
