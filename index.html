@@ -910,6 +910,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
       <div class="row"><span>Cotação total</span><b id="adminTicketCombined">0,00</b></div>
       <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="adminTicketPayout">R$ 0,00</b></div>
       <button type="button" class="btn" id="adminTicketIssue" style="width:100%">GERAR BILHETE</button>
+      <button type="button" class="btn" id="adminTicketConfirmPayment" style="width:100%;margin-top:8px" disabled>CONFIRMAR PAGAMENTO DO BILHETE</button>
       <button type="button" class="secondary" id="adminTicketDownload" style="width:100%;margin-top:8px" disabled>BAIXAR BILHETE EM PDF</button>
       <a id="adminTicketPdfFallback" href="#" hidden style="color:#f5c400;font-weight:bold">ABRIR PDF PARA SALVAR OU IMPRIMIR</a>
       <button type="button" class="secondary" id="adminTicketReprint" style="width:100%;margin-top:8px" disabled>REIMPRIMIR ÚLTIMO BILHETE</button>
@@ -1103,6 +1104,10 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 <div class="row" style="gap:8px;flex-wrap:wrap"><h3>Minhas vendas e comissão</h3><button type="button" class="secondary" id="cbCambistaPersonalRefresh">ATUALIZAR</button></div>
 <p class="small">Comissões calculadas apenas sobre bilhetes com pagamento confirmado.</p>
 <div id="cbCambistaPersonalTotals" class="cb-cambista-totals">Abra a sessão para consultar suas vendas.</div>
+<h4>Meus bilhetes aguardando pagamento</h4>
+<p class="small">Confirme apenas pagamentos recebidos. O bruto e a comissão serão atualizados, sem alterar o resultado da aposta.</p>
+<button type="button" class="secondary" id="cbCambistaPendingRefresh">ATUALIZAR BILHETES</button>
+<div id="cbCambistaPendingRows" aria-live="polite"><p class="small">Entre como cambista para consultar seus bilhetes.</p></div>
 </section>
 <div id="cambistaTicketHost"></div>
  </div>
@@ -2135,13 +2140,13 @@ const matchesContainer = $("matches");
         const article=document.createElement('div');article.className='card';article.style.margin='8px 0';
         const header=document.createElement('p');
         header.textContent='Bilhete '+bet.id+' · '+String(bet.name||bet.bettorName||'Nome não registrado')+' · '+
-          accountMoney(bet.amount)+' · '+String(bet.status||'pending');
+          accountMoney(bet.amount)+' · '+(bet.paymentStatus==='confirmed'?'PAGAMENTO CONFIRMADO':bet.paymentStatus==='rejected'?'PAGAMENTO REJEITADO':bet.status==='pending'?'AGUARDANDO PAGAMENTO':String(bet.status||'pending'));
         article.append(header);
         const details=document.createElement('p');details.className='small';
         details.textContent='Telefone: '+String(bet.phone||bet.bettorPhone||'Não registrado')+
           ' · '+(Array.isArray(bet.picks)?bet.picks.length:0)+' seleção(ões) · Potencial: '+accountMoney(bet.payout);
         article.append(details);
-        if(bet.status==='pending'){
+        if(bet.status==='pending' && bet.paymentStatus!=='confirmed' && bet.paymentStatus!=='rejected'){
           for (const [label,status] of [['Confirmar pagamento','accepted'],['Rejeitar pagamento','rejected']]){
             const btn=document.createElement('button');btn.type='button';btn.className='secondary';
             btn.style.margin='4px';btn.textContent=label;
@@ -2149,7 +2154,19 @@ const matchesContainer = $("matches");
               if(!confirm(status==='accepted'?'Você verificou o pagamento na conta bancária?':'Rejeitar este pagamento?'))return;
               try{
                 btn.disabled=true;
-                await updateDoc(doc(db,'bets',bet.id),{status,paymentStatus:status==='accepted'?'confirmed':'rejected',paymentReviewedAt:serverTimestamp(),paymentReviewedBy:auth.currentUser?.uid||null});
+                if(status==='accepted'){
+                  const token=await auth.currentUser.getIdToken(true);
+                  const response=await fetch("/.netlify/functions/confirmar-pagamento",{
+                   method:"POST",cache:"no-store",
+                   headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+                   body:JSON.stringify({betId:bet.id})
+                  });
+                  const result=await response.json().catch(()=>null);
+                  if(!response.ok||result?.success!==true)throw Error(result?.message||"Falha no servidor (HTTP "+response.status+").");
+                  window.dispatchEvent(new Event("copabet:payment-confirmed"));
+                }else{
+                  await updateDoc(doc(db,'bets',bet.id),{status:"rejected",paymentStatus:"rejected",paymentReviewedAt:serverTimestamp(),paymentReviewedBy:auth.currentUser?.uid||null});
+                }
                 await cbLoadPayments();
               }catch(e){btn.disabled=false;alert('Não foi possível atualizar. Verifique as permissões de administrador no Firestore: '+e.message)}
             });article.append(btn);
@@ -2998,7 +3015,7 @@ function receipt(t){
  }
  add("h1","COPA BET SERGIPE");
  add("p",t.issuerRole==="cambista"?"BILHETE EMITIDO PELO CAMBISTA":"BILHETE EMITIDO PELO ADMINISTRADOR","cb-print-center");
- add("p","PAGAMENTO PENDENTE DE CONFIRMAÇÃO","cb-print-center cb-print-small");
+ add("p",t.paymentStatus==="confirmed"?"PAGAMENTO CONFIRMADO":"PAGAMENTO PENDENTE DE CONFIRMAÇÃO","cb-print-center cb-print-small");
  add("p","Nº "+t.id,"cb-print-divider");
  add("p","Emissão: "+t.date+" (Brasília)");
  add("p","Data/hora da impressão: "+new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})+" (Brasília)");
@@ -3017,7 +3034,7 @@ function receipt(t){
  add("p","Valor: "+money(t.amount),"cb-print-divider");
  add("p","Cotação total: "+formatOdd(t.combined));
  add("p","Retorno potencial: "+money(t.payout));
- add("p","PENDENTE — não comprova pagamento ou validação.","cb-print-divider cb-print-small");
+ add("p",t.paymentStatus==="confirmed"?"PAGAMENTO REGISTRADO COMO RECEBIDO — resultado da aposta pendente.":"PENDENTE — não comprova pagamento ou validação.","cb-print-divider cb-print-small");
 }
 async function issue(){
  if(busy||!active()){alert("Entre como Administrador ou Cambista autorizado para emitir bilhetes.");return;}
@@ -3058,7 +3075,10 @@ async function issue(){
    picks:list.map(p=>({id:p.id,cup:p.cup,a:p.a,b:p.b,side:p.side,odd:p.odd,startTime:p.startTime||null,source:p.source})),
    status:"pending",paymentStatus:"pending_confirmation",createdAt:serverTimestamp()
   });
-  latest={id:snap.id,name,phone,issuerName,issuerRole:issuedAsAdmin?"admin":"cambista",issuerUid:user.uid,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})};
+  latest={id:snap.id,name,phone,issuerName,issuerRole:issuedAsAdmin?"admin":"cambista",issuerUid:user.uid,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,paymentStatus:"pending_confirmation",date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit","second":"2-digit"})};
+  $("adminTicketConfirmPayment").disabled=false;
+  $("adminTicketConfirmPayment").textContent="CONFIRMAR PAGAMENTO DO BILHETE";
+  window.dispatchEvent(new Event("copabet:ticket-issued"));
   $("adminTicketReprint").disabled=false;
   $("adminTicketDownload").disabled=false;
   $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em BAIXAR BILHETE EM PDF para salvar ou imprimir no celular.":"Você pode baixar o PDF ou imprimir.");
@@ -3067,6 +3087,33 @@ async function issue(){
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete neste momento. Tente novamente ou contate o responsável.");}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
+async function confirmLatestTicketPayment(){
+ if(!active()||!latest||latest.paymentStatus==="confirmed")return;
+ const uid=auth.currentUser?.uid,betId=latest.id;
+ if(!uid||!confirm("Você conferiu o recebimento de "+money(latest.amount)+" do bilhete "+betId+"? Confirme apenas dinheiro efetivamente recebido."))return;
+ const btn=$("adminTicketConfirmPayment");
+ btn.disabled=true;btn.textContent="CONFIRMANDO PAGAMENTO...";
+ try{
+  const token=await auth.currentUser.getIdToken(true);
+  const response=await fetch("/.netlify/functions/confirmar-pagamento",{
+   method:"POST",cache:"no-store",
+   headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+   body:JSON.stringify({betId})
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.success!==true)throw Error(payload?.message||"Falha no servidor (HTTP "+response.status+").");
+  if(auth.currentUser?.uid!==uid||!latest||latest.id!==betId)return;
+  latest.paymentStatus="confirmed";
+  btn.textContent="PAGAMENTO CONFIRMADO";
+  receipt(latest);
+  $("adminTicketResult").textContent="Pagamento do bilhete nº "+betId+" confirmado. Incluído no bruto e na comissão.";
+  window.dispatchEvent(new Event("copabet:payment-confirmed"));
+ }catch(error){
+  btn.disabled=false;btn.textContent="CONFIRMAR PAGAMENTO DO BILHETE";
+  alert("Não foi possível confirmar: "+String(error.message||error));
+ }
+}
+$("adminTicketConfirmPayment").addEventListener("click",confirmLatestTicketPayment);
 document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(button=>button.addEventListener("click",()=>{const source=button.dataset.ticketSource;$("adminTicketSource").value=source;document.querySelectorAll("#adminTicketPane [data-ticket-source]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));render();}));
 $("adminTicketSearch").addEventListener("input",render);
 $("adminTicketAmount").addEventListener("input",summary);
@@ -3092,12 +3139,12 @@ onAuthStateChanged(auth,user=>{
   if(nameInput&&!nameInput.value.trim()&&user.displayName)nameInput.value=user.displayName.trim();
  }
  if(!user||!(user.uid===ADMIN_UID||window.copabetCambistaSession?.uid===user.uid)){
-   selected.clear();latest=null;$("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;document.getElementById("adminTicketPdfFallback").hidden=true;
+   selected.clear();latest=null;$("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;$("adminTicketConfirmPayment").disabled=true;$("adminTicketConfirmPayment").textContent="CONFIRMAR PAGAMENTO DO BILHETE";document.getElementById("adminTicketPdfFallback").hidden=true;
  }
 });
 window.addEventListener("copabet:cambista-opened",()=>{
  selected.clear();latest=null;
- $("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;
+ $("adminTicketReprint").disabled=true;$("adminTicketDownload").disabled=true;$("adminTicketConfirmPayment").disabled=true;$("adminTicketConfirmPayment").textContent="CONFIRMAR PAGAMENTO DO BILHETE";
  $("adminTicketSearch").value="";$("adminTicketName").value="";$("adminTicketPhone").value="";
  $("adminTicketResult").textContent="";
  render();
@@ -3349,6 +3396,56 @@ async function loadPersonal(){
   tile(root,"Valor pendente",money(r.pending));
  }catch(e){root.textContent="Erro ao consultar vendas: "+String(e.code||e.message);}
 }
+
+async function loadOwnPendingPayments(){
+ if(!cambista())return;
+ const user=auth.currentUser,root=$("cbCambistaPendingRows");
+ if(!root)return;
+ root.textContent="Consultando bilhetes pendentes...";
+ try{
+  const [profile,snapshot]=await Promise.all([
+   getDoc(doc(db,"cambistas",user.uid)),
+   getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))
+  ]);
+  if(!cambista()||auth.currentUser?.uid!==user.uid)return;
+  if(!profile.exists()||profile.data().active!==true||profile.data().role!=="cambista"){
+   root.textContent="Seu cadastro não está ativo para confirmar pagamentos.";return;
+  }
+  const items=snapshot.docs.map(d=>({id:d.id,...d.data()}))
+   .filter(b=>b.cambistaIssued===true&&b.issuedByUid===user.uid&&
+    b.status==="pending"&&(!b.paymentStatus||b.paymentStatus==="pending_confirmation"))
+   .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,80);
+  root.replaceChildren();
+  if(!items.length){root.textContent="Nenhum bilhete aguardando confirmação de pagamento.";return;}
+  for(const bet of items){
+   const card=append(root,"div","","card");card.style.margin="8px 0";
+   append(card,"p","Bilhete "+bet.id+" · "+String(bet.bettorName||"Cliente")+" · "+money(bet.amount));
+   append(card,"p","Aguardando pagamento · "+(Array.isArray(bet.picks)?bet.picks.length:0)+" seleção(ões)","small");
+   const btn=append(card,"button","CONFIRMAR PAGAMENTO","secondary");btn.type="button";
+   btn.addEventListener("click",async()=>{
+    if(!cambista()||auth.currentUser?.uid!==user.uid)return;
+    if(!confirm("Você conferiu que recebeu "+money(bet.amount)+" do bilhete "+bet.id+"? Este valor entrará nas suas vendas brutas e na comissão."))return;
+    btn.disabled=true;btn.textContent="CONFIRMANDO...";
+    try{
+     const token=await auth.currentUser.getIdToken(true);
+     const response=await fetch("/.netlify/functions/confirmar-pagamento",{
+      method:"POST",cache:"no-store",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({betId:bet.id})
+     });
+     const payload=await response.json().catch(()=>null);
+     if(!response.ok||payload?.success!==true)throw Error(payload?.message||"Falha no servidor (HTTP "+response.status+").");
+     if(!cambista()||auth.currentUser?.uid!==user.uid)return;
+     await Promise.all([loadPersonal(),loadOwnPendingPayments()]);
+     window.dispatchEvent(new Event("copabet:payment-confirmed"));
+    }catch(error){
+     btn.disabled=false;btn.textContent="CONFIRMAR PAGAMENTO";
+     alert("Não foi possível confirmar o pagamento: "+String(error.message||error));
+    }
+   });
+  }
+ }catch(error){root.textContent="Não foi possível consultar seus bilhetes: "+String(error.code||error.message);}
+}
 function csvExport(){
  if(!admin())return;
  if(!ticketReadOk){alert("Não é possível exportar comissões sem acesso aos bilhetes. Verifique as permissões no Firestore.");return;}
@@ -3364,7 +3461,8 @@ $("cbCambistaCreateForm")?.addEventListener("submit",createCambista);
 $("cbCambistaRefresh")?.addEventListener("click",loadAll);
 $("cbCambistaFilter")?.addEventListener("input",render);
 $("cbCambistaCsv")?.addEventListener("click",csvExport);
-$("cbCambistaPersonalRefresh")?.addEventListener("click",loadPersonal);
+$("cbCambistaPersonalRefresh")?.addEventListener("click",()=>{loadPersonal();loadOwnPendingPayments();});
+$("cbCambistaPendingRefresh")?.addEventListener("click",loadOwnPendingPayments);
 document.querySelector('[data-admin-tab="cbCambistaAdminPane"]')?.addEventListener("click",()=>{
   $("cbCambistaFilter").value="";
   rows=[];
@@ -3373,7 +3471,9 @@ document.querySelector('[data-admin-tab="cbCambistaAdminPane"]')?.addEventListen
   $("cbCambistaFilter").focus();
   loadAll();
 });
-window.addEventListener("copabet:cambista-opened",loadPersonal);
+window.addEventListener("copabet:cambista-opened",()=>{loadPersonal();loadOwnPendingPayments();});
+window.addEventListener("copabet:ticket-issued",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}});
+window.addEventListener("copabet:payment-confirmed",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}if(admin())loadAll();});
 onAuthStateChanged(auth,user=>{if(!user){rows=[];sequence++;}});
 </script>
 </body>
