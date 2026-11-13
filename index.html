@@ -819,7 +819,8 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 #cbEntryGate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;background:#061b4b;color:#fff;overflow:auto}
 #cbEntryGate.cb-entry-dismissed{display:none}
 #cbEntryGate .cb-entry-panel{width:min(100%,440px);padding:32px 25px;border-radius:22px;background:#0a2860;border:1px solid rgba(255,212,0,.55);box-shadow:0 22px 70px rgba(0,0,0,.45);text-align:center}
-#cbEntryGate .cb-entry-brand{color:#ffd400;font-size:27px;font-weight:900;letter-spacing:2px;margin-bottom:17px}
+#cbEntryGate .cb-entry-brand{display:flex;align-items:center;justify-content:center;margin-bottom:20px;min-height:90px}
+#cbEntryLogo{display:block;width:min(100%,270px);height:auto;max-height:160px;object-fit:contain}
 #cbEntryGate h2{font-size:23px;line-height:1.3;color:white;margin:0 0 10px}
 #cbEntryGate p{color:#dce7ff;font-size:14px;margin:0 0 24px}
 #cbEntryGate .cb-entry-choice{display:block;width:100%;padding:17px 15px;margin:12px 0;border:2px solid #ffd400;border-radius:12px;background:#ffd400;color:#061b4b;font-size:17px;font-weight:800;cursor:pointer}
@@ -833,7 +834,7 @@ body.cb-entry-locked{overflow:hidden}
 <!-- Tela inicial de escolha de perfil -->
 <div id="cbEntryGate" role="dialog" aria-modal="true" aria-labelledby="cbEntryHeading">
  <div class="cb-entry-panel">
-  <div class="cb-entry-brand">COPABET</div>
+  <div class="cb-entry-brand"><img id="cbEntryLogo" alt="Logo COPABET"></div>
   <h2 id="cbEntryHeading">Você é apostador ou cambista?</h2>
   <p>Selecione seu perfil para continuar.</p>
   <button id="cbEntryApostador" class="cb-entry-choice" type="button">SOU APOSTADOR</button>
@@ -846,6 +847,11 @@ body.cb-entry-locked{overflow:hidden}
  var apostador=document.getElementById("cbEntryApostador");
  var cambista=document.getElementById("cbEntryCambista");
  if(!gate||!apostador||!cambista)return;
+ document.addEventListener("DOMContentLoaded",function(){
+  var logo=document.getElementById("siteLogo");
+  var entryLogo=document.getElementById("cbEntryLogo");
+  if(logo&&entryLogo)entryLogo.src=logo.currentSrc||logo.src;
+ },{once:true});
  document.body.classList.add("cb-entry-locked");
  function dismiss(){
   gate.classList.add("cb-entry-dismissed");
