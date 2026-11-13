@@ -991,6 +991,7 @@ body.cb-entry-locked{overflow:hidden}
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbQrScanPane" aria-controls="cbQrScanPane" aria-pressed="false">📷 Escanear QR Code</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCashPane" aria-controls="cbCashPane" aria-pressed="false">Fluxo de Caixa</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaCreatePane" aria-controls="cbCambistaCreatePane" aria-pressed="false">Cadastrar Cambista</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaAdminPane" aria-controls="cbCambistaAdminPane" aria-pressed="false">Pesquisar Cambistas</button>
@@ -998,7 +999,13 @@ body.cb-entry-locked{overflow:hidden}
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
 
-   <section id="cbCambistaCreatePane" class="admin-pane hidden">
+   <section id="cbQrScanPane" class="admin-pane hidden">
+    <h3>📷 Escanear QR Code do bilhete</h3>
+    <p class="small">Leia o QR Code com a câmera ou informe o número do bilhete. Veja jogos apostados, acertos, erros, placares disponíveis e situação do pagamento.</p>
+    <iframe title="Consulta administrativa de QR Code COPABET" src="/consulta-bilhete.html" loading="lazy" allow="camera" style="width:100%;height:780px;max-height:calc(100vh - 150px);min-height:570px;border:1px solid #425977;border-radius:12px;background:#081b39"></iframe>
+    <p class="small"><a href="/consulta-bilhete.html" target="_blank" rel="noopener" style="color:#ffe167">Abrir leitor em tela cheia</a> (recomendado para escanear com o celular).</p>
+  </section>
+  <section id="cbCambistaCreatePane" class="admin-pane hidden">
 <h3>Cadastrar Cambista</h3>
 <p class="small">Cadastre nome, e-mail, senha e comissão. O login será criado no servidor para acesso imediato à aba Cambista.</p>
 <form id="cbCambistaCreateForm" class="cb-cambista-form card">
@@ -2517,7 +2524,8 @@ const matchesContainer = $("matches");
       "📎 Vou anexar o comprovante do Pix nesta conversa do WhatsApp.",
       "⚠️ O pagamento precisa ser conferido no recebimento bancário."
     ];
-    const whatsappUrl = "https://wa.me/5579996498111?text=" + encodeURIComponent(lines.join("\n"));
+    let whatsappUrl = "https://wa.me/5579996498111?text=" + encodeURIComponent(lines.join("\n"));
+    let publicTicketId = null;
     // Não faz upload do arquivo nem cria depósito/comprovante no painel. O cliente anexa o arquivo no WhatsApp.
     let historySaved = true;
     try {
@@ -2525,7 +2533,7 @@ const matchesContainer = $("matches");
         const guestCredential = await signInAnonymously(auth);
         currentUser = guestCredential.user;
       }
-      await addDoc(collection(db,"bets"), {
+      const newBet = await addDoc(collection(db,"bets"), {
         uid: currentUser.uid,
         bettorName: bettor.name,
         bettorPhone: bettor.phone,
@@ -2539,9 +2547,22 @@ const matchesContainer = $("matches");
         status: "pending",
         createdAt: serverTimestamp()
       });
+      publicTicketId = newBet.id;
+      const lookupUrl = new URL("/consulta-bilhete.html?id="+encodeURIComponent(publicTicketId),location.origin).href;
+      lines.push("🎫 Nº do bilhete: "+publicTicketId,"🔎 Consulte pelo QR Code/link: "+lookupUrl);
+      whatsappUrl="https://wa.me/5579996498111?text="+encodeURIComponent(lines.join("\n"));
     } catch(e) {
       historySaved = false;
       console.error("Falha ao salvar histórico da aposta:",e);
+    }
+    if(publicTicketId){
+      let qrPreview=document.getElementById("cbPublicTicketQr");
+      if(!qrPreview){qrPreview=document.createElement("div");qrPreview.id="cbPublicTicketQr";qrPreview.className="card";$("sendWhatsAppBtn").after(qrPreview)}
+      qrPreview.replaceChildren();
+      const title=document.createElement("p");title.textContent="QR Code do bilhete nº "+publicTicketId+" — salve uma imagem desta tela";qrPreview.append(title);
+      const url=new URL("/consulta-bilhete.html?id="+encodeURIComponent(publicTicketId),location.origin).href;
+      if(window.QRCode){const graphic=document.createElement("div");graphic.style.cssText="background:white;padding:8px;display:inline-block;border-radius:6px";qrPreview.append(graphic);new window.QRCode(graphic,{text:url,width:118,height:118,correctLevel:window.QRCode.CorrectLevel.M})}
+      else{const a=document.createElement("a");a.href=url;a.textContent="Abrir link do bilhete";a.style.color="#ffd400";qrPreview.append(a)}
     }
     // A abertura acontece após as operações assíncronas; se o navegador bloquear, encaminha na mesma aba.
     const whatsappWindow = window.open(whatsappUrl, "_blank");
