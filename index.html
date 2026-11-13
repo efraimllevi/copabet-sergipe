@@ -986,6 +986,7 @@ body.cb-entry-locked{overflow:hidden}
     <button type="button" class="admin-tab" data-admin-tab="cbCashPane" aria-controls="cbCashPane" aria-pressed="false">Fluxo de Caixa</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaCreatePane" aria-controls="cbCambistaCreatePane" aria-pressed="false">Cadastrar Cambista</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaAdminPane" aria-controls="cbCambistaAdminPane" aria-pressed="false">Pesquisar Cambistas</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbRankingPane" aria-controls="cbRankingPane" aria-pressed="false">Ranking de Cambistas</button>
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
 
@@ -1012,6 +1013,13 @@ body.cb-entry-locked{overflow:hidden}
 <div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
 <p id="cbCambistaListingStatus" class="small" role="status" aria-live="polite">O total de cambistas será confirmado ao consultar o Firebase.</p>
 <div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
+</section>
+<section id="cbRankingPane" class="admin-pane hidden">
+ <h3>Ranking de cambistas</h3>
+ <p class="small">Classificação por vendas brutas com pagamento confirmado. Bilhetes pendentes não são contabilizados.</p>
+ <button class="secondary" type="button" id="cbRankingRefresh">ATUALIZAR RANKING</button>
+ <p class="small" id="cbRankingStatus" role="status">Abra o ranking para consultar os dados.</p>
+ <div id="cbRankingRows" aria-live="polite"></div>
 </section>
 <div id="adminTicketSlot" hidden></div>
    <div id="adminTicketPane" class="admin-pane hidden">
@@ -3413,7 +3421,7 @@ async function loadAll(){
   if(listingStatus)listingStatus.textContent=rows.length
    ?rows.length+" cambista(s) encontrado(s) no banco. Digite o início do nome para localizar um registro."
    :"O Firebase retornou 0 cambistas. Nenhum cadastro foi localizado nesta coleção.";
-  render();
+  render();renderRanking();
  }catch(e){
   console.error("Falha na consulta de cambistas:",e);
   const reason=String(e.code||e.message||"erro desconhecido");
@@ -3421,6 +3429,27 @@ async function loadAll(){
   root.textContent="Não foi possível consultar os cambistas. Confira as regras de leitura do Firestore. Erro: "+reason;
  }
 }
+function renderRanking(){
+ const root=$("cbRankingRows"),status=$("cbRankingStatus");
+ if(!root||!status||!admin())return;
+ root.replaceChildren();
+ if(!ticketReadOk){status.textContent="Não foi possível consultar os bilhetes; o ranking financeiro está indisponível. "+ticketReadError;return;}
+ const ordered=[...rows].sort((a,b)=>b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"));
+ status.textContent=ordered.length+" cambista(s) no ranking. Classificado por valor bruto confirmado.";
+ if(!ordered.length){append(root,"p","Nenhum cambista cadastrado.");return;}
+ for(const [index,r] of ordered.entries()){
+  const card=append(root,"article","","cb-cambista-row");
+  append(card,"h4",(index+1)+"º — "+r.name+(r.active?"":" (inativo)"));
+  const details=append(card,"div","","cb-cambista-details");
+  tile(details,"Bruto confirmado",money(r.gross));
+  tile(details,"Bilhetes pagos",String(r.done));
+  tile(details,"Comissão",r.due===null?"A definir":money(r.due));
+  tile(details,"Bilhetes emitidos",String(r.issued));
+  tile(details,"Pendente",money(r.pending));
+ }
+}
+$("cbRankingRefresh")?.addEventListener("click",loadAll);
+document.querySelector('[data-admin-tab="cbRankingPane"]')?.addEventListener("click",()=>{renderRanking();loadAll();});
 // Pesquisa de prefixo, sem procurar letras soltas no meio do nome.
 const normalizeSearchText=value=>String(value??"").normalize("NFD")
  .replace(/[\u0300-\u036f]/g,"").trim().toLocaleLowerCase("pt-BR")
