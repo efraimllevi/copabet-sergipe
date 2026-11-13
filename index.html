@@ -526,11 +526,9 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   #cbPrintReceipt{display:block!important;position:static!important;box-sizing:border-box!important;width:100%!important;max-width:72mm!important;margin:0 auto!important;padding:0!important;color:#000!important;background:#fff!important;font:11px/1.35 Arial,sans-serif!important;overflow:visible!important}
   #cbPrintReceipt *{color:#000!important;background:transparent!important;box-shadow:none!important;text-shadow:none!important;box-sizing:border-box!important}
   #cbPrintReceipt h1{font-size:16px!important;text-align:center!important;margin:0 0 4px!important;letter-spacing:.5px!important}
-  /* Marca exclusiva do bilhete; restante do site permanece igual. */
-  #cbPrintReceipt .cb-print-brand{display:flex!important;justify-content:center!important;align-items:baseline!important;gap:0!important;width:100%!important;margin:0 auto 2px!important;padding:5px 0 0!important;background:#fff!important;font:900 29px/1 Arial,sans-serif!important;letter-spacing:-1px!important;white-space:nowrap!important}
-  #cbPrintReceipt .cb-print-brand-black{color:#111!important}
-  #cbPrintReceipt .cb-print-brand-yellow{color:#e1a900!important}
-  #cbPrintReceipt h1{font-size:12px!important;letter-spacing:3px!important}
+  /* Usa exatamente a imagem do cabeçalho no bilhete, apenas com cores adaptadas. */
+  #cbPrintReceipt .cb-print-logo{display:block!important;width:auto!important;max-width:56mm!important;max-height:33mm!important;object-fit:contain!important;margin:0 auto 5px!important;background:#fff!important}
+  #cbPrintReceipt h1{font-size:12px!important;letter-spacing:1px!important}
   #cbPrintReceipt .cb-print-center{text-align:center!important}
   #cbPrintReceipt .cb-print-small{font-size:10px!important}
   #cbPrintReceipt p{margin:3px 0!important;overflow-wrap:anywhere!important}
@@ -590,24 +588,50 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
     if(line)lines.push(line);
     return lines.length?lines:[''];
   }
-  function receiptLogoJpeg(){
-    // PDF: somente os bilhetes usam COPA preto, BET amarelo e fundo branco.
+  // Gera uma versão do logotipo original para papel branco, mantendo os mesmos
+  // traços, bola, símbolo CB, posições, letras e assinatura institucional.
+  // Somente tons neutros são invertidos (fundo preto => branco; letras brancas => preto).
+  // As partes amarelas mantêm o amarelo original da marca.
+  window.cbTicketLogoDataUrl=function(){
     try{
-      const width=380,height=96,canvas=document.createElement('canvas');
-      canvas.width=width;canvas.height=height;
-      const ctx=canvas.getContext('2d');
+      const img=document.getElementById('siteLogo');
+      if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight)return null;
+      if(img.dataset.cbTicketConvertedSrc===img.src && window.cbTicketLogoCache)return window.cbTicketLogoCache;
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
       if(!ctx)return null;
-      ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);
-      ctx.textBaseline='middle';
-      ctx.font='900 66px Arial, sans-serif';
-      const left='COPA',right='BET';
-      const w1=ctx.measureText(left).width,w2=ctx.measureText(right).width;
-      const x=(width-w1-w2)/2;
-      ctx.fillStyle='#101010';ctx.fillText(left,x,50);
-      ctx.fillStyle='#e1a900';ctx.fillText(right,x+w1,50);
-      const base64=canvas.toDataURL('image/jpeg',.95).split(',')[1];
-      return base64?{base64,width,height}:null;
-    }catch(error){console.warn('Marca do bilhete indisponível no PDF:',error);return null;}
+      ctx.drawImage(img,0,0);
+      const frame=ctx.getImageData(0,0,canvas.width,canvas.height),px=frame.data;
+      const w=canvas.width,h=canvas.height;
+      const ballX=w*0.469,ballY=h*0.319,ballRadius=w*0.113;
+      for(let y=0;y<h;y++){
+        for(let x=0;x<w;x++){
+          const i=(y*w+x)*4,red=px[i],green=px[i+1],blue=px[i+2];
+          const max=Math.max(red,green,blue),min=Math.min(red,green,blue);
+          const inBall=(x-ballX)**2+(y-ballY)**2<ballRadius**2;
+          // Preserva a bola de futebol em preto e branco, e os elementos amarelos.
+          if(!inBall && (max-min<45 || max<35)){
+            px[i]=255-red;px[i+1]=255-green;px[i+2]=255-blue;
+          }
+          px[i+3]=255;
+        }
+      }
+      ctx.putImageData(frame,0,0);
+      const url=canvas.toDataURL('image/jpeg',.95);
+      img.dataset.cbTicketConvertedSrc=img.src;
+      window.cbTicketLogoCache=url;
+      return url;
+    }catch(error){console.warn('Logotipo original indisponível no bilhete:',error);return null;}
+  };
+  function receiptLogoJpeg(){
+    try{
+      const src=window.cbTicketLogoDataUrl();
+      if(!src)return null;
+      const img=document.getElementById('siteLogo');
+      const width=img.naturalWidth,height=img.naturalHeight;
+      return {base64:src.split(',')[1],width,height};
+    }catch(error){console.warn('Logo indisponível no PDF:',error);return null;}
   }
   function buildPdf(inputLines){
     const logo=receiptLogoJpeg();
@@ -3015,13 +3039,13 @@ function receipt(t){
  let root=$("cbPrintReceipt");if(!root){root=element("section",null,"",document.body);root.id="cbPrintReceipt";}
  root.replaceChildren();
  const add=(tag,label,cls="",parent=root)=>element(tag,label,cls,parent);
- // Marca independente da logo no cabeçalho do site.
- const brand=element("div",null,"cb-print-brand",root);
- brand.setAttribute("role","img");
- brand.setAttribute("aria-label","COPABET, COPA preto e BET amarelo");
- element("span","COPA","cb-print-brand-black",brand);
- element("span","BET","cb-print-brand-yellow",brand);
- add("h1","SERGIPE");
+ // Mesma imagem do cabeçalho, sem redesenhar a tipografia ou o escudo CB.
+ const adjustedLogo=window.cbTicketLogoDataUrl?.();
+ if(adjustedLogo){
+  const logo=element("img",null,"cb-print-logo",root);
+  logo.src=adjustedLogo;logo.alt="Logomarca original COPABET, com COPA em preto e BET em amarelo";
+ }
+ add("h1","COPA BET SERGIPE");
  add("p",t.issuerRole==="cambista"?"BILHETE EMITIDO PELO CAMBISTA":"BILHETE EMITIDO PELO ADMINISTRADOR","cb-print-center");
  add("p",t.paymentStatus==="confirmed"?"PAGAMENTO CONFIRMADO":"PAGAMENTO PENDENTE DE CONFIRMAÇÃO","cb-print-center cb-print-small");
  add("p","Nº "+t.id,"cb-print-divider");
