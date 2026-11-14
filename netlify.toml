@@ -1,7 +1,12 @@
 [build]
-  command = "mkdir -p dist && cp index.html dist/index.html && cp -R assets dist/assets && cp manifest.webmanifest dist/manifest.webmanifest && cp consulta-bilhete.html dist/consulta-bilhete.html"
+  command = "mkdir -p dist && cp index.html dist/index.html && cp -R assets dist/assets && cp manifest.webmanifest dist/manifest.webmanifest && cp sw.js dist/sw.js && cp consulta-bilhete.html dist/consulta-bilhete.html"
   publish = "dist"
   functions = "netlify/functions"
 
 [functions]
   node_bundler = "esbuild"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
