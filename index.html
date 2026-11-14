@@ -3347,7 +3347,7 @@ async function issue(){
   if(Math.abs(Number(g.odds[p.side])-p.odd)>0.0001){selected.delete(p.id);render();alert("Cotação alterada. Selecione novamente: "+p.a+" × "+p.b);return;}
   if(p.source==="manual"&&Number.isFinite(g.maxStake)&&t.amount>g.maxStake){alert("Limite para "+g.a+" × "+g.b+": "+money(g.maxStake));return;}
  }
- if(!confirm("Registrar o bilhete de "+name+" no valor de "+money(t.amount)+" como PENDENTE?"))return;
+ if(!confirm("Confirmar que recebeu "+money(t.amount)+" de "+name+" e emitir o bilhete com PAGAMENTO CONFIRMADO?"))return;
  busy=true;const btn=$("adminTicketIssue");btn.disabled=true;btn.textContent="REGISTRANDO...";
  try{
   if(!active()||auth.currentUser?.uid!==user.uid)throw Error("Sessão de emissão indisponível.");
@@ -3370,15 +3370,45 @@ async function issue(){
    status:"pending",paymentStatus:"pending_confirmation",createdAt:serverTimestamp()
   });
   latest={id:snap.id,name,phone,issuerName,issuerRole:issuedAsAdmin?"admin":"cambista",issuerUid:user.uid,picks:list.map(p=>({...p})),amount:t.amount,combined:t.combined,payout:t.payout,paymentStatus:"pending_confirmation",date:new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit","second":"2-digit"})};
+  // O bilhete é criado uma única vez e depois confirmado pelo servidor autenticado.
+  // A função Netlify usa transação Firestore, evitando contabilizar duas vezes.
   $("adminTicketConfirmPayment").disabled=false;
   $("adminTicketConfirmPayment").textContent="CONFIRMAR PAGAMENTO DO BILHETE";
-  window.dispatchEvent(new Event("copabet:ticket-issued"));
-  $("adminTicketReprint").disabled=false;
-  $("adminTicketDownload").disabled=false;
-  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em SALVAR / IMPRIMIR BILHETE COM QR CODE e escolha Salvar como PDF no celular.":"Você pode baixar o PDF ou imprimir.");
+  $("adminTicketReprint").disabled=true;
+  $("adminTicketDownload").disabled=true;
   selected.clear();render();
+  let paymentConfirmed=false;
+  let confirmationError="";
+  try{
+    btn.textContent="CONFIRMANDO PAGAMENTO...";
+    const token=await auth.currentUser.getIdToken(true);
+    const response=await fetch("/.netlify/functions/confirmar-pagamento",{
+      method:"POST",cache:"no-store",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({betId:snap.id})
+    });
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok||payload?.success!==true)throw Error(payload?.message||"Falha no servidor (HTTP "+response.status+").");
+    paymentConfirmed=true;
+    latest.paymentStatus="confirmed";
+    $("adminTicketConfirmPayment").disabled=true;
+    $("adminTicketConfirmPayment").textContent="PAGAMENTO CONFIRMADO";
+    $("adminTicketReprint").disabled=false;
+    $("adminTicketDownload").disabled=false;
+    window.dispatchEvent(new Event("copabet:payment-confirmed"));
+  }catch(error){
+    confirmationError=String(error?.message||error);
+    console.error("Bilhete criado, porém pagamento não confirmado:",snap.id,error);
+  }
+  window.dispatchEvent(new Event("copabet:ticket-issued"));
+  if(!paymentConfirmed){
+    $("adminTicketResult").textContent="ATENÇÃO: bilhete nº "+snap.id+" salvo, mas pagamento NÃO confirmado. Use CONFIRMAR PAGAMENTO DO BILHETE para tentar novamente. NÃO emita outro bilhete.";
+    alert("Bilhete "+snap.id+" salvo, mas o pagamento ainda não foi confirmado: "+confirmationError+"\\nNão gere outro bilhete; tente confirmar o pagamento novamente.");
+    return;
+  }
+  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" emitido com PAGAMENTO CONFIRMADO. Valor incluído no bruto e na comissão. "+(window.cbIsMobileReceipt()?"Toque em SALVAR / IMPRIMIR BILHETE COM QR CODE para imprimir ou salvar.":"Você pode imprimir o comprovante.");
   const qrReady=await cbEnsureTicketQr();receipt(latest);
-  if(!qrReady)alert("Bilhete salvo, mas o QR Code não carregou. Verifique a conexão antes de imprimir.");
+  if(!qrReady)alert("Pagamento confirmado, mas o QR Code não carregou. Verifique a conexão antes de imprimir.");
   if(!window.cbIsMobileReceipt() && qrReady && typeof window.print==="function")window.print();
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete neste momento. Tente novamente ou contate o responsável.");}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
@@ -3401,6 +3431,9 @@ async function confirmLatestTicketPayment(){
   if(auth.currentUser?.uid!==uid||!latest||latest.id!==betId)return;
   latest.paymentStatus="confirmed";
   btn.textContent="PAGAMENTO CONFIRMADO";
+  btn.disabled=true;
+  $("adminTicketDownload").disabled=false;
+  $("adminTicketReprint").disabled=false;
   receipt(latest);
   $("adminTicketResult").textContent="Pagamento do bilhete nº "+betId+" confirmado. Incluído no bruto e na comissão.";
   window.dispatchEvent(new Event("copabet:payment-confirmed"));
