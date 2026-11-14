@@ -837,6 +837,51 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 #cbEntryGate .cb-entry-choice:focus-visible{outline:3px solid #fff;outline-offset:3px}
 body.cb-entry-locked{overflow:hidden}
 </style>
+
+<style id="copabet-responsive-mobile-2026">
+/* Layout responsivo sem alterar autenticação, dados financeiros ou a impressão térmica. */
+html,body{max-width:100%;overflow-x:clip}
+*,*::before,*::after{box-sizing:border-box}
+img,video,canvas,svg{max-width:100%}
+#publicView,#adminView,#cambistaView,.site-layout,.champ-main,#sportsapiPanel,
+#adminTicketPane,.card,.modalbox,.account-modal{min-width:0;max-width:100%}
+#adminView .admin-tabbar{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+#adminView .admin-tab{overflow-wrap:anywhere}
+#adminTicketPane .cb-t-pick{min-width:0;flex-wrap:wrap}
+#adminTicketPane .cb-t-pick>*{min-width:0;overflow-wrap:anywhere}
+#adminTicketPane .cb-t-odds button{white-space:normal;overflow-wrap:anywhere;min-height:42px}
+#adminTicketPane input,#adminTicketPane select,#adminTicketPane button{max-width:100%}
+#adminView table,#cambistaView table{max-width:100%}
+#adminView .card,#cambistaView .card{overflow-wrap:anywhere}
+@media(max-width:760px){
+  .header-content{width:100%;max-width:100%;padding-inline:12px;flex-wrap:wrap}
+  #siteLogo{max-width:min(245px,72vw);height:auto}
+  .site-layout{width:100%;grid-template-columns:minmax(0,1fr)!important;padding-inline:10px!important;gap:10px}
+  .champ-main{width:100%;min-width:0}
+  .champ-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #sportsapiPanel{padding:10px!important}
+  #adminView,#cambistaView{width:100%;padding-inline:10px;margin-inline:auto}
+  #adminView .admin-tabbar{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  #adminView .admin-tab{width:100%;min-width:0;font-size:12px;line-height:1.3}
+  #adminTicketGames,#adminTicketPane .cb-ticket-fields{grid-template-columns:minmax(0,1fr)!important}
+  #adminTicketGames{max-height:none}
+  #adminTicketSummary{position:static!important;max-height:none!important;overflow:visible!important}
+  #adminLogin .modalbox,.account-modal{width:min(100%,480px);max-height:calc(100dvh - 24px);overflow-y:auto}
+  input,select,textarea{max-width:100%;font-size:16px}
+  button,.btn{touch-action:manipulation}
+  #floatingBetSlip{max-width:100vw;left:0;right:0}
+}
+@media(max-width:390px){
+  .champ-list{grid-template-columns:minmax(0,1fr)}
+  #adminView .admin-tabbar{grid-template-columns:minmax(0,1fr)}
+  #adminTicketPane .cb-t-odds{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  #adminTicketPane .cb-t-odds button{font-size:11px;padding:8px 2px}
+}
+@media print{
+  /* Não aplicar limitações de tela ao cupom impresso. */
+  html,body{overflow:visible!important;max-width:none!important}
+}
+</style>
 </head>
 <body>
 
@@ -3240,17 +3285,6 @@ async function cbEnsureTicketQr(){
  }
  return false;
 }
-function cbShowTicketPreview(){
- const receipt=document.getElementById("cbPrintReceipt"),pane=document.getElementById("adminTicketPane");
- if(!receipt||!pane)return;
- let preview=document.getElementById("cbMobileReceiptPreview");
- if(!preview){preview=document.createElement("section");preview.id="cbMobileReceiptPreview";preview.style.cssText="margin:14px 0;padding:14px;background:#fff;color:#111;border-radius:10px;max-width:350px;overflow-wrap:anywhere";pane.appendChild(preview)}
- preview.replaceChildren();const heading=document.createElement("strong");heading.textContent="PRÉVIA DO BILHETE COM QR CODE";preview.appendChild(heading);
- const copy=receipt.cloneNode(true);copy.removeAttribute("id");copy.style.cssText="display:block!important;background:#fff!important;color:#111!important;font:12px/1.4 Arial,sans-serif";
- copy.querySelectorAll("canvas").forEach(canvas=>{try{const img=document.createElement("img");img.src=canvas.toDataURL("image/png");img.alt="QR Code de consulta do bilhete";img.style.cssText="display:block;width:145px;height:145px;max-width:100%;margin:auto";canvas.replaceWith(img)}catch(e){console.warn("Prévia QR:",e)}});
- copy.querySelectorAll("img").forEach(img=>{if(img.style.display==="none")img.remove()});
- preview.appendChild(copy);
-}
 function receipt(t){
  let root=$("cbPrintReceipt");if(!root){root=element("section",null,"",document.body);root.id="cbPrintReceipt";}
  root.replaceChildren();
@@ -3343,7 +3377,7 @@ async function issue(){
   $("adminTicketDownload").disabled=false;
   $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em SALVAR / IMPRIMIR BILHETE COM QR CODE e escolha Salvar como PDF no celular.":"Você pode baixar o PDF ou imprimir.");
   selected.clear();render();
-  const qrReady=await cbEnsureTicketQr();receipt(latest);cbShowTicketPreview();
+  const qrReady=await cbEnsureTicketQr();receipt(latest);
   if(!qrReady)alert("Bilhete salvo, mas o QR Code não carregou. Verifique a conexão antes de imprimir.");
   if(!window.cbIsMobileReceipt() && qrReady && typeof window.print==="function")window.print();
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete neste momento. Tente novamente ou contate o responsável.");}
@@ -3367,7 +3401,7 @@ async function confirmLatestTicketPayment(){
   if(auth.currentUser?.uid!==uid||!latest||latest.id!==betId)return;
   latest.paymentStatus="confirmed";
   btn.textContent="PAGAMENTO CONFIRMADO";
-  receipt(latest);cbShowTicketPreview();
+  receipt(latest);
   $("adminTicketResult").textContent="Pagamento do bilhete nº "+betId+" confirmado. Incluído no bruto e na comissão.";
   window.dispatchEvent(new Event("copabet:payment-confirmed"));
  }catch(error){
@@ -3384,7 +3418,7 @@ $("adminTicketIssue").addEventListener("click",issue);
 $("adminTicketDownload").textContent="SALVAR / IMPRIMIR BILHETE COM QR CODE";
 $("adminTicketDownload").addEventListener("click",async()=>{
  if(!active()||!latest)return;
- const ready=await cbEnsureTicketQr();receipt(latest);cbShowTicketPreview();
+ const ready=await cbEnsureTicketQr();receipt(latest);
  if(!ready){alert("Não foi possível carregar o QR Code. Não imprima um bilhete sem o código.");return;}
  window.print(); // O menu de impressão do celular permite salvar como PDF mantendo a imagem do QR.
 });
