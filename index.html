@@ -538,6 +538,7 @@ input:focus,select:focus,textarea:focus {border-color:#4da8ff!important;box-shad
   #cbPrintReceipt .cb-print-logo{display:block!important;width:auto!important;max-width:56mm!important;max-height:33mm!important;object-fit:contain!important;margin:0 auto 5px!important;background:#fff!important}
   #cbPrintReceipt h1{font-size:12px!important;letter-spacing:1px!important}
   #cbPrintReceipt .cb-print-center{text-align:center!important}
+  #cbPrintReceipt .cb-print-center canvas,#cbPrintReceipt .cb-print-center img{display:block!important;visibility:visible!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   #cbPrintReceipt .cb-print-small{font-size:10px!important}
   #cbPrintReceipt p{margin:3px 0!important;overflow-wrap:anywhere!important}
   #cbPrintReceipt .cb-print-divider{border-top:1px dashed #222!important;padding-top:7px!important;margin-top:7px!important}
@@ -3232,6 +3233,24 @@ function render(){
  }
  summary();
 }
+async function cbEnsureTicketQr(){
+ if(typeof window.QRCode==="function")return true;
+ for(const src of ["https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js","https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js"]){
+  try{await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});if(typeof window.QRCode==="function")return true}catch(e){console.warn("Falha ao carregar gerador de QR:",src,e)}
+ }
+ return false;
+}
+function cbShowTicketPreview(){
+ const receipt=document.getElementById("cbPrintReceipt"),pane=document.getElementById("adminTicketPane");
+ if(!receipt||!pane)return;
+ let preview=document.getElementById("cbMobileReceiptPreview");
+ if(!preview){preview=document.createElement("section");preview.id="cbMobileReceiptPreview";preview.style.cssText="margin:14px 0;padding:14px;background:#fff;color:#111;border-radius:10px;max-width:350px;overflow-wrap:anywhere";pane.appendChild(preview)}
+ preview.replaceChildren();const heading=document.createElement("strong");heading.textContent="PRÉVIA DO BILHETE COM QR CODE";preview.appendChild(heading);
+ const copy=receipt.cloneNode(true);copy.removeAttribute("id");copy.style.cssText="display:block!important;background:#fff!important;color:#111!important;font:12px/1.4 Arial,sans-serif";
+ copy.querySelectorAll("canvas").forEach(canvas=>{try{const img=document.createElement("img");img.src=canvas.toDataURL("image/png");img.alt="QR Code de consulta do bilhete";img.style.cssText="display:block;width:145px;height:145px;max-width:100%;margin:auto";canvas.replaceWith(img)}catch(e){console.warn("Prévia QR:",e)}});
+ copy.querySelectorAll("img").forEach(img=>{if(img.style.display==="none")img.remove()});
+ preview.appendChild(copy);
+}
 function receipt(t){
  let root=$("cbPrintReceipt");if(!root){root=element("section",null,"",document.body);root.id="cbPrintReceipt";}
  root.replaceChildren();
@@ -3322,9 +3341,11 @@ async function issue(){
   window.dispatchEvent(new Event("copabet:ticket-issued"));
   $("adminTicketReprint").disabled=false;
   $("adminTicketDownload").disabled=false;
-  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em BAIXAR BILHETE EM PDF para salvar ou imprimir no celular.":"Você pode baixar o PDF ou imprimir.");
-  selected.clear();render();receipt(latest);
-  if(!window.cbIsMobileReceipt() && typeof window.print==="function")window.print();
+  $("adminTicketResult").textContent="Bilhete nº "+snap.id+" registrado como pendente. "+(window.cbIsMobileReceipt()?"Toque em SALVAR / IMPRIMIR BILHETE COM QR CODE e escolha Salvar como PDF no celular.":"Você pode baixar o PDF ou imprimir.");
+  selected.clear();render();
+  const qrReady=await cbEnsureTicketQr();receipt(latest);cbShowTicketPreview();
+  if(!qrReady)alert("Bilhete salvo, mas o QR Code não carregou. Verifique a conexão antes de imprimir.");
+  if(!window.cbIsMobileReceipt() && qrReady && typeof window.print==="function")window.print();
  }catch(error){console.error("Falha na emissão:",error);alert("Não foi possível registrar o bilhete neste momento. Tente novamente ou contate o responsável.");}
  finally{busy=false;btn.disabled=false;btn.textContent="GERAR BILHETE";}
 }
@@ -3346,7 +3367,7 @@ async function confirmLatestTicketPayment(){
   if(auth.currentUser?.uid!==uid||!latest||latest.id!==betId)return;
   latest.paymentStatus="confirmed";
   btn.textContent="PAGAMENTO CONFIRMADO";
-  receipt(latest);
+  receipt(latest);cbShowTicketPreview();
   $("adminTicketResult").textContent="Pagamento do bilhete nº "+betId+" confirmado. Incluído no bruto e na comissão.";
   window.dispatchEvent(new Event("copabet:payment-confirmed"));
  }catch(error){
@@ -3360,16 +3381,16 @@ $("adminTicketSearch").addEventListener("input",render);
 $("adminTicketAmount").addEventListener("input",summary);
 $("adminTicketRefresh").addEventListener("click",render);
 $("adminTicketIssue").addEventListener("click",issue);
-$("adminTicketDownload").addEventListener("click",()=>{
+$("adminTicketDownload").textContent="SALVAR / IMPRIMIR BILHETE COM QR CODE";
+$("adminTicketDownload").addEventListener("click",async()=>{
  if(!active()||!latest)return;
- receipt(latest);
- window.cbDownloadReceiptPdf(document.getElementById("cbPrintReceipt"),"copabet-bilhete-"+String(latest.id).slice(0,24)+".pdf","adminTicketPdfFallback");
+ const ready=await cbEnsureTicketQr();receipt(latest);cbShowTicketPreview();
+ if(!ready){alert("Não foi possível carregar o QR Code. Não imprima um bilhete sem o código.");return;}
+ window.print(); // O menu de impressão do celular permite salvar como PDF mantendo a imagem do QR.
 });
 $("adminTicketReprint").addEventListener("click",()=>{
  if(!active()||!latest)return;
- receipt(latest);
- if(window.cbIsMobileReceipt())$("adminTicketDownload").click();
- else window.print();
+ $("adminTicketDownload").click();
 });
 document.querySelector('[data-admin-tab="adminTicketPane"]')?.addEventListener("click",render);
 window.addEventListener("copabet:api-games-updated",()=>{if(active())render();});
