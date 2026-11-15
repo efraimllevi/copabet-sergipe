@@ -20,6 +20,35 @@ class OddsPapiImportTests(unittest.TestCase):
         ]
         self.assertEqual({x["tournamentId"] for x in api.pick_tournaments(data)}, {7, 44, 90})
 
+    def test_only_primary_competitions(self):
+        data = [
+            {"tournamentId": 8, "tournamentSlug": "uefa-champions-league-women",
+             "categorySlug": "international-clubs"},
+            {"tournamentId": 9, "tournamentSlug": "uefa-champions-league-srl",
+             "categorySlug": "international-clubs"},
+            {"tournamentId": 11, "tournamentSlug": "uefa-nations-league-srl",
+             "categorySlug": "international"},
+            {"tournamentId": 21, "tournamentSlug": "uefa-champions-league",
+             "categorySlug": "international-clubs"},
+            {"tournamentId": 33, "tournamentSlug": "uefa-nations-league",
+             "categorySlug": "international"},
+            {"tournamentId": 47, "tournamentSlug": "serie-a", "categorySlug": "italy"},
+            {"tournamentId": 50, "tournamentSlug": "serie-a", "categorySlug": "brazil"},
+            {"tournamentId": 51, "tournamentSlug": "brasileiro-serie-a",
+             "categorySlug": "brazil"},
+            {"tournamentId": 52, "tournamentSlug": "paulista-serie-a1",
+             "categorySlug": "brazil"},
+        ]
+        self.assertEqual({t["tournamentId"] for t in api.pick_tournaments(data)}, {21, 33, 51})
+
+    def test_no_fixtures_404_returns_empty(self):
+        from unittest.mock import Mock, patch
+        response = Mock()
+        response.status_code = 404
+        with patch.object(api.session, "get", return_value=response):
+            self.assertEqual(api.fetch("/odds-by-tournaments",
+                                       {"bookmaker": "pinnacle", "tournamentIds": "21"}), [])
+
     def test_extract_real_prices_from_active_market(self):
         fixture = {
             "bookmakerOdds": {

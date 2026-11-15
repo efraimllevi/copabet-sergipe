@@ -961,9 +961,9 @@ img,video,canvas,svg{max-width:100%}
 </div>
 
 <div class="site-layout cb-api-mode" id="cbGamesLayout">
- <aside class="champ-sidebar" id="cbSocietySidebar" aria-label="Campeonatos estaduais de society">
-  <h3>CAMPEONATOS DE SOCIETY</h3>
-  <p class="small">Escolha uma competição para filtrar os jogos manuais de society.</p>
+ <aside class="champ-sidebar" id="cbSocietySidebar" aria-label="Campeonatos cadastrados e importados">
+  <h3>CAMPEONATOS</h3>
+  <p class="small">Escolha uma competição para acompanhar os jogos disponíveis.</p>
   <div id="championshipTabs" class="champ-list"><button class="champ-tab active" data-cup-filter="__all">Todos os campeonatos</button></div>
  </aside>
  <main class="container champ-main">
@@ -994,15 +994,15 @@ img,video,canvas,svg{max-width:100%}
    <h2>JOGOS ESTADUAIS</h2>
   </div>
   <p class="small">Escolha suas cotações e monte seu bilhete com quantos jogos desejar.</p>
-<section id="sportsapiPanel" aria-label="Jogos de futebol e cotações" hidden>
+<section id="sportsapiPanel" aria-label="Jogos de futebol e cotações">
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span><button id="cbRefreshGames" class="secondary" type="button" style="padding:8px 11px">Atualizar partidas</button></div>
   <p class="small">Escolha Casa, Empate ou Fora e adicione quantas partidas quiser ao mesmo bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
-    <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
+    <button type="button" data-filter="all" aria-pressed="false">Futebol em Destaque</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
-    <button type="button" data-filter="society" aria-pressed="false">Jogos Estaduais</button>
+    <button type="button" data-filter="society" aria-pressed="true">Jogos Estaduais</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
@@ -1941,14 +1941,51 @@ img,video,canvas,svg{max-width:100%}
   });
 
 
-  $("championshipTabs")?.addEventListener("click",e=>{const btn=e.target.closest("[data-cup-filter]");if(!btn)return;selectedCupFilter=btn.dataset.cupFilter;renderChampionshipTabs();window.render();});
+  const manualPublicMatches=()=>{
+    const now=getBrasiliaTime();
+    return (window.matches||[]).filter(m=>{
+      const status=String(m.status||"").toLowerCase();
+      if(["ended","finished","completed","cancelled","canceled","abandoned"].includes(status))return false;
+      const kickoff=m.datetime?new Date(m.datetime):null;
+      return !kickoff || !Number.isFinite(kickoff.getTime()) || now-kickoff<4*60*60*1000;
+    });
+  };
+  $("championshipTabs")?.addEventListener("click",e=>{
+    const btn=e.target.closest("[data-api-cup],[data-cup-filter]");
+    if(!btn)return;
+    if(btn.hasAttribute("data-api-cup")){
+      if(typeof window.copabetChooseApiChampionship==="function"){
+        window.copabetChooseApiChampionship(btn.dataset.apiCup);
+      }
+    }else{
+      selectedCupFilter=btn.dataset.cupFilter;
+      window.copabetShowManualChampionship?.();
+      window.render();
+    }
+    renderChampionshipTabs();
+  });
   function renderChampionshipTabs(){
     const box=$("championshipTabs");if(!box)return;
-    const matchCups=(window.matches||[]).map(m=>String(m.cup||"Copa")).filter(Boolean);
-    const cups=[...new Set([...registeredLeagues.map(l=>String(l.name||"")),...matchCups].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    const manual=manualPublicMatches();
+    const matchCups=manual.map(m=>String(m.cup||"Copa")).filter(Boolean);
+    const cups=[...new Set([...registeredLeagues.map(l=>String(l.name||"")),...matchCups].filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b,"pt-BR"));
     if(selectedCupFilter!=="__all"&&!cups.includes(selectedCupFilter))selectedCupFilter="__all";
-    box.innerHTML=`<button class="champ-tab ${selectedCupFilter==="__all"?"active":""}" data-cup-filter="__all">Todos os campeonatos (${(window.matches||[]).length})</button>`+cups.map(c=>`<button class="champ-tab ${selectedCupFilter===c?"active":""}" data-cup-filter="${esc(c)}">${esc(c)} (${(window.matches||[]).filter(m=>String(m.cup||"Copa")===c).length})</button>`).join("");
+    const imported=typeof window.copabetApiChampionships==="function"
+      ? window.copabetApiChampionships():[];
+    const apiChoice=typeof window.copabetCurrentApiChampionship==="function"
+      ? window.copabetCurrentApiChampionship():null;
+    const currentGroup=typeof window.copabetCurrentGameGroup==="function"
+      ? window.copabetCurrentGameGroup():"society";
+    const localButtons=`<button class="champ-tab ${currentGroup==="society"&&selectedCupFilter==="__all"?"active":""}" data-cup-filter="__all">Todos os estaduais (${manual.length})</button>`+
+      cups.map(c=>`<button class="champ-tab ${currentGroup==="society"&&selectedCupFilter===c?"active":""}" data-cup-filter="${esc(c)}">${esc(c)} (${manual.filter(m=>String(m.cup||"Copa")===c).length})</button>`).join("");
+    const importedButtons=`<button class="champ-tab ${currentGroup!=="society"&&!apiChoice?"active":""}" data-api-cup="__all">Todos os jogos importados</button>`+
+      imported.map(c=>`<button class="champ-tab ${currentGroup!=="society"&&apiChoice===c.name?"active":""}" data-api-cup="${esc(c.name)}">${esc(c.name)} (${Number(c.count)||0})</button>`).join("");
+    box.innerHTML='<p class="small">Ligas cadastradas</p>'+localButtons+
+      '<p class="small" style="margin:12px 0 6px">Campeonatos nacionais e internacionais</p>'+importedButtons;
   }
+  window.addEventListener("copabet:api-games-updated",()=>renderChampionshipTabs());
+  setInterval(()=>{if(!document.hidden&&typeof window.render==="function")window.render();},60000);
 
   const formatOdds = n => Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -2014,8 +2051,9 @@ img,video,canvas,svg{max-width:100%}
     const nowBrasilia = getBrasiliaTime();
     
     renderChampionshipTabs();
-    const visibleMatches=(window.matches||[]).filter(m=>selectedCupFilter==="__all"||String(m.cup||"Copa")===selectedCupFilter);
-    if (!window.matches || window.matches.length === 0) {
+    const openMatches=manualPublicMatches();
+    const visibleMatches=openMatches.filter(m=>selectedCupFilter==="__all"||String(m.cup||"Copa")===selectedCupFilter);
+    if (!openMatches.length) {
       container.innerHTML = `<div class="card"><p>Nenhuma partida publicada no momento.</p><p class="small">O administrador pode adicionar partidas pelo cadeado.</p></div>`;
       renderPicks();
       renderAdminMatches();
@@ -2771,7 +2809,7 @@ const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 const societyRoot=document.getElementById("cbSocietyGames");
 const societySidebar=document.getElementById("cbSocietySidebar");
 const gamesLayout=document.getElementById("cbGamesLayout");
-let games = [], filter="society", renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
+let games = [], filter="society", selectedApiCup=null, renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
 const oddsCache=new WeakMap();
 function cachedOdds(g){
  if(oddsCache.has(g))return oddsCache.get(g);
@@ -2788,8 +2826,9 @@ function syncGameSections(){
  const society=filter==="society";
  if(root)root.hidden=society;
  if(societyRoot)societyRoot.hidden=!society;
- if(societySidebar)societySidebar.hidden=!society;
- if(gamesLayout)gamesLayout.classList.toggle("cb-api-mode",!society);
+ // A barra "Campeonatos" reúne jogos manuais e importados.
+ if(societySidebar)societySidebar.hidden=false;
+ if(gamesLayout)gamesLayout.classList.remove("cb-api-mode");
  if(statusEl)statusEl.hidden=society;
 }
 const pickedSports=new Map();
@@ -2800,6 +2839,28 @@ const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortN
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","playing"].includes(asText(g.status).toLowerCase());
 const competitionOf = g => name(first(g.competition,g.league,g.tournament,g.championship));
+window.copabetCurrentGameGroup=()=>filter;
+window.copabetCurrentApiChampionship=()=>selectedApiCup;
+window.copabetApiChampionships=()=>{
+ const counts=new Map();
+ for(const g of games){
+  if(!football(g)||!isAvailableApiGame(g))continue;
+  const c=competitionOf(g);
+  if(c)counts.set(c,(counts.get(c)||0)+1);
+ }
+ return [...counts].map(([name,count])=>({name,count})).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+};
+window.copabetShowManualChampionship=()=>{
+ selectedApiCup=null;filter="society";
+ buttons.forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.filter==="society")));
+ syncGameSections();render();
+};
+window.copabetChooseApiChampionship=competition=>{
+ selectedApiCup=competition==="__all"?null:String(competition||"");
+ filter="all";renderLimit=36;
+ buttons.forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.filter==="all")));
+ syncGameSections();render();
+};
 
 /*
  * Somente partidas profissionais da API.
@@ -2920,7 +2981,8 @@ const startTimestamp=g=>{
 };
 // Apenas jogos da API: nunca alterar ou filtrar os jogos manuais.
 // Jogos antigos/agendados, encerrados ou cancelados nao devem aparecer.
-// Partidas explicitamente AO VIVO permanecem por no maximo 4h apos o inicio.
+// Jogos iniciados permanecem visíveis até o status final ou, no máximo, 4h após o início;
+// apostas fecham no horário previsto. Nunca expor jogo encerrado para novas apostas.
 function isAvailableApiGame(g){
  if(isYouthApiGame(g))return false;
  const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
@@ -2928,7 +2990,7 @@ function isAvailableApiGame(g){
  const ts=startTimestamp(g);
  if(ts===Number.MAX_SAFE_INTEGER)return false; // Data desconhecida: não tratar jogo sem horário como futuro.
  const now=Date.now();
- return ts>now || (isLive(g) && now-ts<=4*60*60*1000);
+ return ts>now || (now-ts<=4*60*60*1000);
 }
 function relevance(g){
  const [a,b]=teams(g);const known=n=>majorClubs.some(c=>n===c||n.startsWith(c+" "));
@@ -2955,7 +3017,7 @@ window.copabetAdminApiGames=function(){
 function render(){
  if(filter==="society"||!root)return;
  const availableGames=games.filter(isAvailableApiGame);
- const list=availableGames.filter(g=>{try{return football(g) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
+ const list=availableGames.filter(g=>{try{return football(g) && (!selectedApiCup||competitionOf(g)===selectedApiCup) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
  if(!list.length){
   const message=!apiDataConfirmed
@@ -2986,6 +3048,10 @@ function render(){
   if(ts!==Number.MAX_SAFE_INTEGER && Number.isFinite(ts) && Math.abs(ts)<=8.64e15){
    try{card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"))}catch(error){console.warn("Horário inválido ignorado:",error)}
   }
+  const beforeKickoff=startTimestamp(g)>Date.now()&&!isLive(g);
+  if(!beforeKickoff){
+    card.append(node("p","Jogo iniciado · apostas encerradas","small"));
+  }
   const result=cachedOdds(g);
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
@@ -2997,12 +3063,12 @@ function render(){
     box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
-      const btn=node("button",apiDataConfirmed?(selected?"✓ Selecionado":"Selecionar"):"Atualizando","secondary");
-      btn.type="button";btn.disabled=!apiDataConfirmed;
+      const btn=node("button",!beforeKickoff?"Apostas encerradas":apiDataConfirmed?(selected?"✓ Selecionado":"Selecionar"):"Atualizando","secondary");
+      btn.type="button";btn.disabled=!apiDataConfirmed||!beforeKickoff;
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
-        if(!isAvailableApiGame(g)){render();alert("Esta partida já começou ou foi encerrada.");return}
+        if(!isAvailableApiGame(g)||startTimestamp(g)<=Date.now()||isLive(g)){render();alert("As apostas desta partida já foram encerradas.");return}
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
           market:"Resultado final (1X2)",selection:side,
@@ -3096,12 +3162,14 @@ function savePreview(){
  }catch(error){console.info("Cache local não disponível:",error)}
 }
 buttons.forEach(b=>b.addEventListener("click",()=>{
- filter=b.dataset.filter;renderLimit=36;
+ filter=b.dataset.filter;selectedApiCup=null;renderLimit=36;
  buttons.forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
  syncGameSections();render();
+ window.dispatchEvent(new Event("copabet:api-games-updated"));
 }));
 syncGameSections();
 loadPreview();
+setInterval(()=>{if(!document.hidden)render();},60000);
 function displayGamesFromSnapshot(snapshot,source){
  if(!snapshot)return;
  // Não esconder jogos já visíveis durante uma resposta vazia apenas do cache local.
