@@ -131,9 +131,13 @@ def main():
     logging.info("Torneios identificados: %s", ", ".join(
         str(t.get("tournamentName", t["tournamentId"])) for t in targets
     ))
+    # Metadados de participantes e mercados são compartilhados entre os torneios.
+    # Requisições diretas são limitadas pela cota do plano contratado.
+    time.sleep(1.1)
     participants = fetch("/participants", {"sportId": SPORT_ID, "language": "en"})
     if not isinstance(participants, dict):
         raise RuntimeError("Participantes em formato inesperado.")
+    time.sleep(1.1)
     markets_meta_raw = fetch("/markets", {"language": "en"})
     market_meta = {
         str(m.get("marketId")): m for m in markets_meta_raw
@@ -145,6 +149,7 @@ def main():
     now = datetime.now(timezone.utc)
     deadline = now + HORIZON
     written = 0
+    time.sleep(1.1)
     for i in range(0, len(ids), BATCH_SIZE):
         # Documentação: máximo de 3 torneios em cada requisição.
         fixtures = fetch("/odds-by-tournaments", {
@@ -161,7 +166,7 @@ def main():
             if not isinstance(g, dict):
                 continue
             fid = str(g.get("fixtureId") or "")
-            if not fid or int(g.get("statusId", -1)) not in (0, 1):
+            if not fid or str(g.get("statusId", "")) not in ("0", "1"):
                 continue  # apenas partidas pré-jogo, nunca aceitar evento iniciado
             try:
                 start = datetime.fromisoformat(str(g.get("startTime")).replace("Z", "+00:00"))
