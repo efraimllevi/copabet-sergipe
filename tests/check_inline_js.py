@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 html = (Path(__file__).parents[1] / "index.html").read_text(encoding="utf-8")
-scripts = re.findall(r"<script\\b([^>]*)>(.*?)</script\\s*>", html, flags=re.I | re.S)
+scripts = re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", html, flags=re.I | re.S)
 targets = []
 for attrs, source in scripts:
     if 'id="copabet-sportsapi-reader"' in attrs or (
