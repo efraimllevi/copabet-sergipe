@@ -17,8 +17,7 @@ import requests
 from firebase_admin import credentials, firestore
 
 API_BASE = "https://api.oddspapi.io/v4"
-KEY = os.environ["ODDSPAPI_API_KEY"]
-SERVICE_ACCOUNT = json.loads(os.environ["FIREBASE_SERVICE_ACCOUNT"])
+KEY = ""
 BOOKMAKER = os.getenv("ODDSPAPI_BOOKMAKER", "pinnacle").strip() or "pinnacle"
 SPORT_ID = 10  # football, documentado pela OddsPapi
 HORIZON = timedelta(days=30)
@@ -26,9 +25,7 @@ BATCH_SIZE = 3  # limite documentado de tournamentIds
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 session = requests.Session()
 
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(credentials.Certificate(SERVICE_ACCOUNT))
-db = firestore.client()
+db = None  # inicializado apenas na execução, permitindo testes sem credenciais
 
 
 def fetch(endpoint, params=None):
@@ -124,6 +121,14 @@ def odds_for_fixture(fixture):
 
 
 def main():
+    global KEY, db
+    KEY = os.environ.get("ODDSPAPI_API_KEY", "").strip()
+    service_account = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
+    if not KEY or not service_account:
+        raise RuntimeError("Configurar ODDSPAPI_API_KEY e FIREBASE_SERVICE_ACCOUNT nos segredos do GitHub.")
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(credentials.Certificate(json.loads(service_account)))
+    db = firestore.client()
     tournaments = fetch("/tournaments", {"sportId": SPORT_ID, "language": "en"})
     targets = pick_tournaments(tournaments)
     if not targets:
