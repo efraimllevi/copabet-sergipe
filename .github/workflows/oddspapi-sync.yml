@@ -2,6 +2,12 @@ name: Atualizar jogos OddsPapi COPABET
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/oddspapi_import.py'
+      - 'tests/test_oddspapi.py'
+      - '.github/workflows/oddspapi-sync.yml'
   pull_request:
     paths:
       - 'scripts/oddspapi_import.py'
