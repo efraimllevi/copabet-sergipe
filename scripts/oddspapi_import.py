@@ -55,7 +55,8 @@ def fetch(endpoint, params=None):
         except requests.HTTPError as err:
             # Nunca incluir a URL completa em logs: contém a chave.
             raise RuntimeError("Erro HTTP na OddsPapi: " + str(err.response.status_code)) from None
-    # Não anexar exceções de requests: podem conter URL com apiKey como query string.\n    raise RuntimeError("Falha temporária consultando " + endpoint) from None
+    # Não anexar exceções de requests: podem conter URL com apiKey como query string.
+    raise RuntimeError("Falha temporária consultando " + endpoint) from None
 
 
 def normalize(text):
