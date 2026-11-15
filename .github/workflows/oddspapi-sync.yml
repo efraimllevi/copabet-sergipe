@@ -3,7 +3,7 @@ name: Atualizar jogos OddsPapi COPABET
 on:
   workflow_dispatch:
   schedule:
-    - cron: '8,38 * * * *'
+    - cron: '17 11 * * *'
 
 permissions:
   contents: read
@@ -17,6 +17,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check requests firebase-admin
+      - name: Compilar importador Python
+        run: python -m py_compile scripts/oddspapi_import.py
       - name: Sincronizar OddsPapi para Firestore
         env:
           ODDSPAPI_API_KEY: ${{ secrets.ODDSPAPI_API_KEY }}
