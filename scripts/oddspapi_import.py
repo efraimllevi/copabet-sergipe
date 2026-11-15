@@ -47,6 +47,9 @@ def fetch(endpoint, params=None):
                 raise RuntimeError(
                     "OddsPapi negou acesso. Confirme a chave, a assinatura e os torneios."
                 )
+            if response.status_code == 404 and endpoint == "/odds-by-tournaments":
+                logging.warning("Sem partidas/odds para este grupo de torneios (HTTP 404).")
+                return []
             response.raise_for_status()
             return response.json()
         except (requests.Timeout, requests.ConnectionError) as err:
@@ -64,27 +67,29 @@ def normalize(text):
 
 
 def pick_tournaments(items):
-    """Não confundir Brasileiro Série A com Série B, sub-20 ou outros países."""
-    selected = []
+    """Seleciona somente as três ligas principais; exclui mulheres, SRL, base e classificatórias."""
+    found = {}
     for t in items if isinstance(items, list) else []:
-        category = normalize(t.get("categorySlug") or t.get("categoryName", ""))
+        if not isinstance(t, dict) or t.get("tournamentId") is None:
+            continue
         slug = normalize(t.get("tournamentSlug") or t.get("tournamentName", ""))
-        name = normalize(t.get("tournamentName") or slug)
-        brazil = category in ("brazil", "brasil") or "brazil" in category
-        serie_a = (
-            slug in ("brasileiro-serie-a", "brazilian-serie-a", "serie-a", "brasileirao-serie-a")
-            or (brazil and ("serie-a" in slug or "brasileirao" in slug) and
-                not any(x in slug for x in ("serie-b", "serie-c", "serie-d", "women", "femin", "u17", "u20", "u23")))
-        )
-        champions = "uefa-champions-league" in slug or (
-            "champions-league" in slug and "uefa" in slug
-        )
-        nations = "uefa-nations-league" in slug or (
-            "nations-league" in slug and "uefa" in slug
-        )
-        if serie_a or champions or nations:
-            selected.append(t)
-    return list({str(t["tournamentId"]): t for t in selected}.values())
+        name = normalize(t.get("tournamentName") or "")
+        category = normalize(t.get("categorySlug") or t.get("categoryName") or "")
+        candidates = {slug, name}
+        if "uefa-champions-league" in candidates:
+            key, priority = "champions", 1
+        elif "uefa-nations-league" in candidates:
+            key, priority = "nations", 1
+        elif category in ("brazil", "brasil") and candidates.intersection({
+            "brasileiro-serie-a", "brasileirao-serie-a", "brazilian-serie-a", "serie-a"
+        }):
+            key = "brasileirao"
+            priority = 2 if "brasileiro-serie-a" in candidates else 1
+        else:
+            continue
+        if key not in found or priority > found[key][0]:
+            found[key] = (priority, t)
+    return [entry[1] for entry in found.values()]
 
 
 def odds_for_fixture(fixture):
@@ -172,7 +177,7 @@ def main():
             if not isinstance(g, dict):
                 continue
             fid = str(g.get("fixtureId") or "")
-            if not fid or str(g.get("statusId", "")) not in ("0", "1"):
+            if not fid or str(g.get("statusId", "")) != "0":
                 continue  # apenas partidas pré-jogo, nunca aceitar evento iniciado
             try:
                 start = datetime.fromisoformat(str(g.get("startTime")).replace("Z", "+00:00"))
