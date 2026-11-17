@@ -4341,6 +4341,7 @@ async function createCambista(event){
 async function loadPersonal(){
  if(!cambista())return;
  const user=auth.currentUser,root=$("cbCambistaPersonalTotals");root.textContent="Carregando...";
+  $("cbCambistaPersonalRates")?.replaceChildren();
  try{
   const [p,bets]=await Promise.all([getDoc(doc(db,"cambistas",user.uid)),getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))]);
   if(!cambista()||auth.currentUser.uid!==user.uid)return;
