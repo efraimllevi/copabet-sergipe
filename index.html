@@ -918,6 +918,36 @@ header{background:linear-gradient(110deg,#0b1b31,#174573 58%,#0a1e37)!important;
 #sportsapiPanel .cb-live-game{padding:10px!important}#sportsapiPanel .cb-odd{padding:8px 3px!important}
 #cbMarketsModal{padding:0;align-items:stretch}.cb-markets-panel{height:100dvh;max-height:100dvh;width:100%;border-radius:0;padding:13px}.cb-markets-header{top:-13px}.cb-market-picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
+
+<style id="copabet-graphite-lime">
+:root{--cb-blue:#26bf98!important;--cb-yellow:#ffdc5c!important;--orange:#f3c74f}
+body{background:radial-gradient(ellipse at 0% 0%,#183f36 0,transparent 37%),radial-gradient(ellipse at 95% 0%,#30281c 0,transparent 33%),#0c1112!important;color:#edf7f2!important}
+header{background:linear-gradient(105deg,#0c1717,#1c302b 55%,#181a18)!important;border-bottom:1px solid #3f7564!important;box-shadow:0 8px 30px #0007!important}
+.banner-carousel{border-color:#365749!important}
+.banner-slide{background:linear-gradient(125deg,#14241f,#345044,#1a2520)!important}
+#sportsapiPanel,.card:not(.cb-live-game){background:linear-gradient(145deg,#172520,#111a19)!important;border-color:#365449!important}
+#sportsapiPanel{box-shadow:0 18px 45px #0008!important}
+#sportsapiPanel .cb-live-head{border-color:#345b4c!important}
+.cb-live-game{background:linear-gradient(145deg,#1a302a,#121f1d)!important;border:1px solid #406659!important;box-shadow:0 10px 24px #0005!important}
+.cb-live-game:hover{border-color:#55dfa9!important}
+.cb-live-game-top,.cb-match-time{color:#c7dcd2!important}
+.cb-live-score{border:1px solid #477f68;background:#153e31;border-radius:10px;padding:10px 13px;font-size:20px!important;color:#a7ffd2!important}
+.cb-odd{background:linear-gradient(145deg,#1c4032,#143227)!important;border-color:#437663!important}
+.cb-odd strong{color:#e9fbef!important}
+.cb-odd.is-picked,.cb-odd.is-picked strong{background:#ffdc5c!important;color:#171d17!important}
+.cb-more-market-btn{background:linear-gradient(100deg,#18553c,#22805f)!important;border-color:#55cc9d!important}
+.cb-markets-panel{background:linear-gradient(150deg,#192b24,#101a18)!important;border-color:#4c9d76!important}
+.cb-markets-header{background:#17271f!important;border-color:#49775b!important}
+#cbMarketsClose,.cb-market-picks button{background:#204d38!important;border-color:#49886a!important}
+.cb-market-card{background:#1c3027!important;border-color:#446a53!important}
+.cb-market-group h3{color:#85e5b4!important}
+.cb-market-picks button strong{color:#f8d66a!important}
+.cb-market-picks button.is-picked,.cb-market-picks button.is-picked strong{background:#ffdc5c!important;color:#121a16!important}
+#cbSportFilters button[aria-pressed="true"]{background:#ffdc5c!important;color:#111a16!important;border-color:#ffeb9c!important}
+#cbSportFilters button{border-color:#457c60!important}
+button:focus-visible,a:focus-visible{outline:3px solid #ffdc5c!important;outline-offset:2px}
+@media(max-width:699px){.cb-live-score{font-size:16px!important}.cb-live-game{border-radius:12px!important}.cb-more-market-btn{min-height:44px}}
+</style>
 </head>
 <body>
 
@@ -2883,9 +2913,66 @@ window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;e.det
 const asText = x => String(x ?? "").trim();
 const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="");
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
+
+const ptClub=value=>{
+ const t=name(value),key=t.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const names={
+  "bayern munich":"Bayern de Munique","bayern munchen":"Bayern de Munique",
+  "inter milan":"Inter de Milão","internazionale milano":"Inter de Milão",
+  "atletico madrid":"Atlético de Madrid","atletico mineiro":"Atlético-MG",
+  "atletico goianiense":"Atlético-GO","america mineiro":"América-MG",
+  "sao paulo":"São Paulo","gremio":"Grêmio","vitoria":"Vitória",
+  "ceara":"Ceará","avai":"Avaí","sport recife":"Sport Recife",
+  "brazil":"Brasil","germany":"Alemanha","spain":"Espanha",
+  "england":"Inglaterra","italy":"Itália","france":"França",
+  "netherlands":"Holanda","switzerland":"Suíça","croatia":"Croácia",
+  "poland":"Polônia","denmark":"Dinamarca","sweden":"Suécia",
+  "norway":"Noruega","scotland":"Escócia","wales":"País de Gales",
+  "united states":"Estados Unidos","south korea":"Coreia do Sul",
+  "ivory coast":"Costa do Marfim","morocco":"Marrocos",
+  "egypt":"Egito","japan":"Japão","turkey":"Turquia",
+  "czech republic":"República Tcheca","serbia":"Sérvia","austria":"Áustria",
+  "greece":"Grécia","ukraine":"Ucrânia","hungary":"Hungria","romania":"Romênia",
+  "belgium":"Bélgica","switzerland":"Suíça","argentina":"Argentina"
+ };
+ return names[key]||t;
+};
+const ptCompetition=value=>{
+ const t=name(value),key=t.toLowerCase().trim();
+ const names={
+  "premier league":"Campeonato Inglês","english premier league":"Campeonato Inglês",
+  "la liga":"Campeonato Espanhol","laliga":"Campeonato Espanhol",
+  "bundesliga":"Campeonato Alemão","ligue 1":"Campeonato Francês",
+  "italian serie a":"Campeonato Italiano",
+  "champions league":"Liga dos Campeões","uefa champions league":"Liga dos Campeões",
+  "europa league":"Liga Europa","uefa europa league":"Liga Europa",
+  "conference league":"Liga Conferência","uefa conference league":"Liga Conferência",
+  "uefa nations league":"Liga das Nações","nations league":"Liga das Nações",
+  "brazil serie a":"Brasileirão Série A","brazil serie b":"Brasileirão Série B",
+  "brazilian serie a":"Brasileirão Série A","brazilian serie b":"Brasileirão Série B",
+  "brazil cup":"Copa do Brasil","world cup":"Copa do Mundo","friendlies":"Amistosos"};
+ return names[key]||t;
+};
+const ptMarket=value=>{
+ let t=name(value);
+ for(const [regex,pt] of [
+  [/\bboth teams to score\b/gi,"Ambos marcam"],[/\btotal goals\b/gi,"Total de gols"],
+  [/\btotal corners\b/gi,"Total de escanteios"],[/\btotal cards\b/gi,"Total de cartões"],
+  [/\bfirst half\b/gi,"Primeiro tempo"],[/\bsecond half\b/gi,"Segundo tempo"],
+  [/\bfull time\b/gi,"Tempo regulamentar"],[/\bmatch result\b/gi,"Resultado final"],
+  [/\bdouble chance\b/gi,"Dupla chance"],[/\bcorrect score\b/gi,"Placar exato"],
+  [/\bdraw no bet\b/gi,"Empate anula aposta"],[/\bhome team\b/gi,"Mandante"],
+  [/\baway team\b/gi,"Visitante"],[/\bover\b/gi,"Mais de"],
+  [/\bunder\b/gi,"Menos de"],[/\bgoals\b/gi,"Gols"],
+  [/\bgoal\b/gi,"Gol"],[/\bcorners\b/gi,"Escanteios"],
+  [/\bcards\b/gi,"Cartões"],[/\bpenalties\b/gi,"Pênaltis"],
+  [/\bpenalty\b/gi,"Pênalti"],[/\byes\b/gi,"Sim"],
+  [/\bno\b/gi,"Não"],[/\bdraw\b/gi,"Empate"]])t=t.replace(regex,pt);
+ return t;
+};
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","half_time","playing","started","first_half","second_half"].includes(asText(g.status).toLowerCase().replace(/[\s-]+/g,"_"));
-const competitionOf = g => name(first(g.competition,g.league,g.tournament,g.championship));
+const competitionOf = g => ptCompetition(first(g.competition,g.league,g.tournament,g.championship));
 window.copabetCurrentGameGroup=()=>filter;
 window.copabetCurrentApiChampionship=()=>selectedApiCup;
 window.copabetApiChampionships=()=>{
@@ -3050,16 +3137,16 @@ function renderMarketsModal(){
  for(const [category,items] of grouped){
   const group=node("section","","cb-market-group");group.append(node("h3",category));
   for(const m of items){
-   const card=node("div","","cb-market-card");card.append(node("h4",m.name));
+   const card=node("div","","cb-market-card");card.append(node("h4",ptMarket(m.name)));
    const grid=node("div","","cb-market-picks");
    for(const p of m.outcomes){
-    const btn=node("button",p.name),key=m.id+"|"+p.id,chosen=pickedSports.get(activeModalId)===key;
+    const btn=node("button",ptMarket(p.name)),key=m.id+"|"+p.id,chosen=pickedSports.get(activeModalId)===key;
     btn.type="button";btn.disabled=!canBetApi(g);btn.setAttribute("aria-pressed",String(chosen));
     if(chosen)btn.classList.add("is-picked");
     btn.append(node("strong",fmt(p.odd)));
     btn.addEventListener("click",()=>{
      if(!canBetApi(g)){alert("Apostas indisponíveis nesta partida.");return}
-     window.copabetSelectSportsOdd?.({gameId:activeModalId,odd:p.odd,marketId:m.id,outcomeId:p.id,market:m.name,selection:p.name,competition:competitionOf(g),home,away});
+     window.copabetSelectSportsOdd?.({gameId:activeModalId,odd:p.odd,marketId:m.id,outcomeId:p.id,market:ptMarket(m.name),selection:ptMarket(p.name),competition:competitionOf(g),home,away});
     });
     grid.append(btn);
    }
@@ -3083,13 +3170,22 @@ window.copabetValidateApiPicks=items=>{
  return "";
 };
 function apiScore(g){
- const n=x=>{const v=Number(x);return x!==null&&x!==undefined&&String(x).trim()!==""&&Number.isInteger(v)&&v>=0&&v<=99?v:null};
- const scores=g.score?.fullTime||g.score?.current||{};
- const home=n(first(g.homeScore,g.scoreHome,g.home_score,g.score?.home,g.goals?.home,scores.home,g.scores?.home));
- const away=n(first(g.awayScore,g.scoreAway,g.away_score,g.score?.away,g.goals?.away,scores.away,g.scores?.away));
- return home!==null&&away!==null?home+" × "+away:null;
+ const numeric=x=>{const n=Number(x);return x!==undefined&&x!==null&&String(x).trim()!==""&&Number.isInteger(n)&&n>=0&&n<=99?n:null};
+ const scores=g.score?.current||g.score?.fullTime||g.scores?.current||g.result||{};
+ const h=numeric(first(g.homeScore,g.scoreHome,g.home_score,g.homeTeamScore,g.homeGoals,g.goalsHome,g.score?.home,g.goals?.home,scores.home,scores.homeScore,g.scores?.home,g.fixture?.goals?.home));
+ const a=numeric(first(g.awayScore,g.scoreAway,g.away_score,g.awayTeamScore,g.awayGoals,g.goalsAway,g.score?.away,g.goals?.away,scores.away,scores.awayScore,g.scores?.away,g.fixture?.goals?.away));
+ if(h!==null&&a!==null)return h+" × "+a;
+ const raw=first(g.score?.display,g.scores?.display,g.result?.score);
+ const str=typeof raw==="string"?raw.trim():"";
+ return /^\d{1,2}\s*[-:×x]\s*\d{1,2}$/.test(str)?str.replace(/\s*[-:x]\s*/," × "):null;
 }
-
+function apiMinute(g){
+ const value=first(g.elapsed,g.elapsedTime,g.minute,g.currentMinute,g.matchMinute,g.match_minute,g.timer?.minute,g.clock?.minute,g.fixture?.status?.elapsed,g.status?.elapsed,g.gameTime?.minute);
+ if(value===null||value===undefined)return null;
+ const v=typeof value==="object"?first(value.minute,value.elapsed):value;
+ if(typeof v==="string"&&/^\d{1,3}\+\d{1,2}$/.test(v.trim()))return v.trim()+"'";
+ const n=Number(v);return Number.isInteger(n)&&n>=0&&n<=130?n+"'":null;
+}
 // Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
 const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg","america pernambuco","america de pernambuco","america-pe","guarani"];
@@ -3197,11 +3293,11 @@ function render(){
   try{
   const card=node("article","","cb-live-game");
   const top=node("div","","cb-live-game-top");
-  top.append(node("span",name(first(g.competition,g.league,g.tournament,g.championship))||"Competição não informada"));
+  top.append(node("span",competitionOf(g)||"Competição não informada"));
   top.append(node("span",isLive(g)?"● AO VIVO":({scheduled:"Agendado",upcoming:"Em breve",not_started:"Agendado",finished:"Encerrado",ended:"Encerrado",postponed:"Adiado",cancelled:"Cancelado"}[asText(g.status).toLowerCase()]||"")));
   card.append(top);
-  const a=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home));
-  const b=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away));
+  const a=ptClub(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home));
+  const b=ptClub(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away));
   card.append(node("div",(a||"Mandante não informado")+" × "+(b||"Visitante não informado"),"cb-live-match"));
   const date=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);
   const ts=startTimestamp(g);
@@ -3232,7 +3328,7 @@ function render(){
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
           market:"Resultado final (1X2)",marketId:"1x2",outcomeId:side,selection:side,
-          competition:name(first(g.competition,g.league,g.tournament,g.championship)),home:a,away:b});
+          competition:competitionOf(g),home:a,away:b});
       });box.append(btn);
     }
     grid.append(box);
@@ -3241,7 +3337,7 @@ function render(){
    const more=node("button",moreMarkets.length?"Mais opções · "+moreMarkets.length:"Mais opções de aposta","cb-more-market-btn");
    more.type="button";more.addEventListener("click",()=>openMarkets(g));card.append(more);
    const score=apiScore(g);
-   if(score&&(isLive(g)||startTimestamp(g)<=Date.now()))card.append(node("div","Placar: "+score,"cb-live-score"));
+   if(isLive(g)){const minute=apiMinute(g),label=score?"⚽ "+score:"Placar não informado",line=minute?label+" · "+minute:label+" · Minuto não informado";card.append(node("div",line,"cb-live-score"))}
    const timeRow=card.querySelector(".cb-match-time");
   if(timeRow)card.insertBefore(grid,timeRow);
   else card.append(grid);
