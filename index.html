@@ -3170,7 +3170,7 @@ const ptMarket=value=>{
  t=t.replace(/\b(\d+)\.(\d+)\b/g,"$1,$2")
     .replace(/\s*[-–]\s*/g," — ").replace(/\s+/g," ").trim()
     .replace(/^(Jogo inteiro|Primeiro tempo|Segundo tempo)\s+(.+)$/i,(_,periodo,mercado)=>mercado+" no "+periodo.toLowerCase())
-    .replace(/^(.+?)\s+(Jogo inteiro|Primeiro tempo|Segundo tempo)$/i,(_,mercado,periodo)=>mercado+" no "+periodo.toLowerCase());
+    .replace(/^(.+?)\s+(Jogo inteiro|Primeiro tempo|Segundo tempo)$/i,(_,mercado,periodo)=>mercado.replace(/\bno$/i,"").trim()+" no "+periodo.toLowerCase());
  const words=t.match(/[A-Za-zÀ-ÿ]+/g)||[];
  const allowed=new Set(("ambos os as times time marcam total de da do no na dos das cartões amarelos vermelhos "+
  "gols gol escanteios escanteio jogo inteiro primeiro primeira segunda segundo tempo tempos período "+
