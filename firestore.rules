@@ -68,6 +68,16 @@ service cloud.firestore {
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.picks is list
+        && request.resource.data.picks.size() > 0
+        && request.resource.data.combined is number
+        && request.resource.data.combined > 1
+        // Prêmio máximo por bilhete: R$ 10.000,00. Vale para apostador, ADM e cambista.
+        // Valida também consistência com valor * cotação, tolerando o arredondamento de centavos.
+        && request.resource.data.payout is number
+        && request.resource.data.payout > 0
+        && request.resource.data.payout <= 10000
+        && request.resource.data.payout >= (request.resource.data.amount * request.resource.data.combined) - 0.01
+        && request.resource.data.payout <= (request.resource.data.amount * request.resource.data.combined) + 0.01
         && request.resource.data.status == 'pending';
       allow update, delete: if isAdmin();
     }
