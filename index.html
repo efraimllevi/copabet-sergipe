@@ -1986,9 +1986,9 @@ header{background:linear-gradient(110deg,#0b1b31,#174573 58%,#0a1e37)!important;
     const now=getBrasiliaTime();
     return (window.matches||[]).filter(m=>{
       const status=String(m.status||"").toLowerCase();
-      if(["ended","finished","completed","cancelled","canceled","abandoned"].includes(status))return false;
+      if(["live","started","playing","ended","finished","completed","cancelled","canceled","abandoned","postponed"].includes(status))return false;
       const kickoff=m.datetime?new Date(m.datetime):null;
-      return !kickoff || !Number.isFinite(kickoff.getTime()) || now-kickoff<4*60*60*1000;
+      return !kickoff || !Number.isFinite(kickoff.getTime()) || kickoff>now;
     });
   };
   $("championshipTabs")?.addEventListener("click",e=>{
@@ -2062,7 +2062,7 @@ header{background:linear-gradient(110deg,#0b1b31,#174573 58%,#0a1e37)!important;
       const diff = matchTime - nowBrasilia;
 
       if (diff <= 0) {
-        timerEl.innerHTML = `<span class="badge-status badge-live">🔴 Jogo Iniciado</span>`;
+        cardEl.remove();
         
         if (picks.some(p => String(p.id) === String(m.id))) {
           picks = picks.filter(p => String(p.id) !== String(m.id));
@@ -2884,7 +2884,7 @@ const asText = x => String(x ?? "").trim();
 const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="");
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
-const isLive = g => ["live","inplay","in_play","1h","2h","ht","playing"].includes(asText(g.status).toLowerCase());
+const isLive = g => ["live","inplay","in_play","1h","2h","ht","half_time","playing","started","first_half","second_half"].includes(asText(g.status).toLowerCase().replace(/[\s-]+/g,"_"));
 const competitionOf = g => name(first(g.competition,g.league,g.tournament,g.championship));
 window.copabetCurrentGameGroup=()=>filter;
 window.copabetCurrentApiChampionship=()=>selectedApiCup;
@@ -3025,7 +3025,7 @@ const marketCategory=s=>{
  return "Outros mercados";
 };
 const endedApi=g=>/^(finished|ended|completed|final|full_time|ft|aet|after_extra_time|after_penalties|pen|cancelled|canceled|postponed|abandoned|suspended)$/.test(asText(g.status).toLowerCase().replace(/[\s-]+/g,"_"));
-const canBetApi=g=>apiDataConfirmed&&!endedApi(g)&&!isLive(g)&&startTimestamp(g)>Date.now();
+const canBetApi=g=>apiDataConfirmed&&!endedApi(g)&&(isLive(g)?isEligibleLiveGame(g):isAvailableApiGame(g));
 const marketsOverlay=document.getElementById("cbMarketsModal");
 let activeModalId=null;
 function closeMarkets(){activeModalId=null;marketsOverlay?.classList.add("hidden")}
@@ -3036,7 +3036,7 @@ function openMarkets(g){activeModalId=String(g.sportsApiId||g.id);marketsOverlay
 function renderMarketsModal(){
  if(activeModalId===null)return;
  const g=games.find(x=>String(x.sportsApiId||x.id)===activeModalId);
- if(!g||endedApi(g)){closeMarkets();return}
+ if(!g||!canBetApi(g)){closeMarkets();return}
  const home=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
  const away=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
  document.getElementById("cbMarketsTitle").textContent=home+" × "+away;
@@ -3134,17 +3134,23 @@ const startTimestamp=g=>{
  return Number.MAX_SAFE_INTEGER;
 };
 // Apenas jogos da API: nunca alterar ou filtrar os jogos manuais.
-// Jogos antigos/agendados, encerrados ou cancelados nao devem aparecer.
-// Jogos iniciados permanecem visíveis até o status final ou, no máximo, 4h após o início;
-// apostas fecham no horário previsto. Nunca expor jogo encerrado para novas apostas.
+// A vitrine principal mostra somente jogos futuros; a aba ao vivo só mostra odds recentes.
 function isAvailableApiGame(g){
- if(isYouthApiGame(g))return false;
- const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
- if(endedApi(g))return false;
+ if(isYouthApiGame(g)||endedApi(g)||isLive(g))return false;
  const ts=startTimestamp(g);
- if(ts===Number.MAX_SAFE_INTEGER)return false; // Data desconhecida: não tratar jogo sem horário como futuro.
- const now=Date.now();
- return ts>now || (now-ts<=4*60*60*1000);
+ return ts!==Number.MAX_SAFE_INTEGER && ts>Date.now();
+}
+function isEligibleLiveGame(g){
+ if(isYouthApiGame(g)||endedApi(g)||!isLive(g))return false;
+ const v=g.oddsAtualizadasEm;
+ let updated=NaN;
+ if(v&&typeof v.toMillis==="function")updated=v.toMillis();
+ else if(v&&Number.isFinite(v.seconds))updated=v.seconds*1000;
+ else if(typeof v==="number")updated=v>1e12?v:v*1000;
+ else if(typeof v==="string")updated=Date.parse(v);
+ if(!Number.isFinite(updated)||updated>Date.now()+60000||Date.now()-updated>20*60000)return false;
+ const odds=cachedOdds(g).values;
+ return ["Casa","Empate","Fora"].some(k=>Number(odds.get(k))>1)||additionalMarkets(g).length>0;
 }
 function relevance(g){
  const [a,b]=teams(g);const known=n=>majorClubs.some(c=>n===c||n.startsWith(c+" "));
@@ -3170,8 +3176,8 @@ window.copabetAdminApiGames=function(){
 };
 function render(){
  if(filter==="society"||!root)return;
- const availableGames=games.filter(isAvailableApiGame);
- const list=availableGames.filter(g=>{try{return football(g) && (!selectedApiCup||competitionOf(g)===selectedApiCup) && (filter!=="live" || isLive(g)) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
+ const availableGames=games.filter(g=>filter==="live"?isEligibleLiveGame(g):isAvailableApiGame(g));
+ const list=availableGames.filter(g=>{try{return football(g) && (!selectedApiCup||competitionOf(g)===selectedApiCup) && (filter!=="brazil" || brazilCompetition(g)) && (filter!=="international" || !brazilCompetition(g))}catch(error){console.warn("Filtro ignorou uma partida inválida:",error);return false}})
   .sort((a,b)=>{try{return relevance(b)-relevance(a) || startTimestamp(a)-startTimestamp(b)}catch(error){console.warn("Não foi possível ordenar uma partida:",error);return 0}});
  if(!list.length){
   const message=!apiDataConfirmed
@@ -3181,7 +3187,7 @@ function render(){
     : !games.some(g=>football(g))
      ? "Nenhuma partida de futebol disponível neste momento."
      : !availableGames.length
-      ? "Ainda não há partidas futuras disponíveis."
+      ? (filter==="live"?"Não há partidas ao vivo com odds atualizadas disponíveis agora.":"Ainda não há partidas futuras disponíveis.")
       : "Nenhuma partida disponível para este filtro. Experimente Futebol em Destaque.";
   root.replaceChildren(node("p",message,"small"));
   return;
@@ -3217,12 +3223,12 @@ function render(){
     box.append(node("small",label));
     box.append(node("strong",value?fmt(value):"Indisponível"));
     if(value){
-      const btn=node("button",!beforeKickoff?"Apostas encerradas":apiDataConfirmed?(selected?"✓ Selecionado":"Selecionar"):"Atualizando","secondary");
+      const btn=node("button",apiDataConfirmed&&beforeKickoff?(selected?"✓ Selecionado":"Selecionar"):"Atualizando","secondary");
       btn.type="button";btn.disabled=!apiDataConfirmed||!beforeKickoff;
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
-        if(!isAvailableApiGame(g)||startTimestamp(g)<=Date.now()||isLive(g)){render();alert("As apostas desta partida já foram encerradas.");return}
+        if(!canBetApi(g)){render();alert("As odds deste jogo não estão disponíveis agora.");return}
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
           market:"Resultado final (1X2)",marketId:"1x2",outcomeId:side,selection:side,
@@ -3328,7 +3334,7 @@ buttons.forEach(b=>b.addEventListener("click",()=>{
 }));
 syncGameSections();
 loadPreview();
-setInterval(()=>{if(!document.hidden)render();},60000);
+setInterval(()=>{if(!document.hidden){render();if(activeModalId!==null)renderMarketsModal()}},15000);
 function displayGamesFromSnapshot(snapshot,source){
  if(!snapshot)return;
  // Não esconder jogos já visíveis durante uma resposta vazia apenas do cache local.
@@ -3345,12 +3351,12 @@ function displayGamesFromSnapshot(snapshot,source){
   if(statusEl && filter!=="society"){
    const total=games.length;
    const footballGames=games.filter(football);
-   const visible=footballGames.filter(isAvailableApiGame).length;
+   const visible=footballGames.filter(g=>filter==="live"?isEligibleLiveGame(g):isAvailableApiGame(g)).length;
    const knownDates=footballGames.map(startTimestamp).filter(t=>t!==Number.MAX_SAFE_INTEGER);
    const latest=knownDates.length?Math.max(...knownDates):null;
    const last=latest?new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(latest)):"sem data identificável";
    statusEl.textContent=apiDataConfirmed
-    ? (visible ? "Partidas disponíveis" : "Sem partidas futuras disponíveis")
+    ? (visible ? (filter==="live"?"Jogos ao vivo com odds disponíveis":"Partidas disponíveis") : (filter==="live"?"Sem partidas ao vivo com odds disponíveis":"Sem partidas futuras disponíveis"))
     : "Atualizando partidas...";
   }
  }catch(error){
