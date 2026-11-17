@@ -2,6 +2,24 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<script>
+/* Tradução apenas para exibição: os códigos originais continuam no Firebase e na API. */
+window.copabetTraduzirSituacao=function(valor){
+ const chave=String(valor??"").trim().toLowerCase();
+ const nomes={
+  pending:"Aguardando",scheduled:"Agendado",upcoming:"Em breve",not_started:"Não iniciado",
+  live:"Ao vivo",inplay:"Ao vivo",in_play:"Ao vivo",started:"Iniciado",playing:"Em andamento",
+  ended:"Encerrado",finished:"Encerrado",completed:"Concluído",final:"Encerrado",
+  postponed:"Adiado",canceled:"Cancelado",cancelled:"Cancelado",abandoned:"Abandonado",suspended:"Suspenso",
+  accepted:"Aprovado",confirmed:"Confirmado",won:"Vencedora",lost:"Não vencedora",
+  rejected:"Rejeitado",sent:"Enviado",failed:"Falha",inactive:"Inativo",active:"Ativo",
+  pending_confirmation:"Aguardando confirmação",paid:"Pago",refunded:"Reembolsado",
+  processing:"Em processamento",open:"Aberto",closed:"Fechado"
+ };
+ return nomes[chave]||"Situação não informada";
+};
+</script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.webmanifest?v=3">
 <script src="/assets/copabet-install.js?v=1" defer></script>
@@ -1231,11 +1249,11 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
     <button type="button" class="admin-tab" data-admin-tab="leaguesPane">Ligas / Copas</button>
     <button type="button" class="admin-tab" data-admin-tab="settlementPane">Auditoria</button>
     <button type="button" class="admin-tab" data-admin-tab="paymentsPane">Confirmação de Bilhetes</button>
-    <button type="button" class="admin-tab" data-admin-tab="cbQrScanPane" aria-controls="cbQrScanPane" aria-pressed="false">📷 Escanear QR Code</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbQrScanPane" aria-controls="cbQrScanPane" aria-pressed="false">📷 Ler código QR</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCashPane" aria-controls="cbCashPane" aria-pressed="false">Fluxo de Caixa</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaCreatePane" aria-controls="cbCambistaCreatePane" aria-pressed="false">Cadastrar Cambista</button>
     <button type="button" class="admin-tab" data-admin-tab="cbCambistaAdminPane" aria-controls="cbCambistaAdminPane" aria-pressed="false">Pesquisar Cambistas</button>
-    <button type="button" class="admin-tab" data-admin-tab="cbRankingPane" aria-controls="cbRankingPane" aria-pressed="false">Ranking de Cambistas</button>
+    <button type="button" class="admin-tab" data-admin-tab="cbRankingPane" aria-controls="cbRankingPane" aria-pressed="false">Classificação de cambistas</button>
     <button type="button" class="admin-tab" data-admin-tab="adminTicketPane" aria-controls="adminTicketPane" aria-pressed="false">🖨️ Gerar / imprimir bilhetes</button>
    </div>
 
@@ -1247,7 +1265,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
   </section>
   <section id="cbCambistaCreatePane" class="admin-pane hidden">
 <h3>Cadastrar Cambista</h3>
-<p class="small">Cadastre nome, e-mail, senha e comissão. O login será criado no servidor para acesso imediato à aba Cambista.</p>
+<p class="small">Cadastre nome, e-mail, senha e comissão. O acesso será criado no servidor para acesso imediato à aba Cambista.</p>
 <form id="cbCambistaCreateForm" class="cb-cambista-form card">
 <div><label for="cbCambistaName">Nome completo</label><input id="cbCambistaName" type="text" required minlength="2" maxlength="100" autocomplete="off"></div>
 <div><label for="cbCambistaEmail">E-mail de acesso</label><input id="cbCambistaEmail" type="email" required autocomplete="off"></div>
@@ -1270,10 +1288,10 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 <div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
 </section>
 <section id="cbRankingPane" class="admin-pane hidden">
- <h3>Ranking de cambistas</h3>
+ <h3>Classificação de cambistas</h3>
  <p class="small">Classificação por vendas brutas com pagamento confirmado. Bilhetes pendentes não são contabilizados.</p>
- <button class="secondary" type="button" id="cbRankingRefresh">ATUALIZAR RANKING</button>
- <p class="small" id="cbRankingStatus" role="status">Abra o ranking para consultar os dados.</p>
+ <button class="secondary" type="button" id="cbRankingRefresh">ATUALIZAR CLASSIFICAÇÃO</button>
+ <p class="small" id="cbRankingStatus" role="status">Abra a classificação para consultar os dados.</p>
  <div id="cbRankingRows" aria-live="polite"></div>
 </section>
 <div id="adminTicketSlot" hidden></div>
@@ -1355,7 +1373,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
     <div><label>Gols Casa (Placar)</label><input id="scoreA" type="number" min="0" placeholder="0"></div>
     <div><label>Gols Visitante (Placar)</label><input id="scoreB" type="number" min="0" placeholder="0"></div>
     <div>
-     <label>Status do Jogo</label>
+     <label>Situação da partida</label>
      <select id="matchStatus">
       <option value="pending">Agendado / Aberto</option>
       <option value="live">Ao Vivo</option>
@@ -1688,7 +1706,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
       const pending = rows.filter(b=>!["accepted","won","lost","cancelled"].includes(String(b.status||"").toLowerCase()));
       const renderBet = (b, canRequest) => {
         const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${esc(p.cup||"")}: ${esc(p.a||"")} x ${esc(p.b||"")} — ${esc((p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"Palpite"))}`).join(" · ");
-        return `<div style="padding:8px 0;border-bottom:1px solid #292929"><div class="row" style="gap:8px"><b>${accountMoney(b.amount)}</b><span class="small">${esc(({accepted:"Validada",won:"Vencedora",lost:"Não vencedora",pending:"Aguardando validação"})[b.status]||b.status||"Aguardando validação")}</span></div>${details?`<p class="small" style="margin:5px 0">${details}</p>`:""}${canRequest?`<button type="button" class="secondary" data-withdraw-bet="${esc(b.id)}" style="width:100%;margin-top:5px">SOLICITAR RETIRADA PELO WHATSAPP</button>`:""}</div>`;
+        return `<div style="padding:8px 0;border-bottom:1px solid #292929"><div class="row" style="gap:8px"><b>${accountMoney(b.amount)}</b><span class="small">${esc(({accepted:"Validada",won:"Vencedora",lost:"Não vencedora",pending:"Aguardando validação"})[b.status]||window.copabetTraduzirSituacao(b.status))}</span></div>${details?`<p class="small" style="margin:5px 0">${details}</p>`:""}${canRequest?`<button type="button" class="secondary" data-withdraw-bet="${esc(b.id)}" style="width:100%;margin-top:5px">SOLICITAR RETIRADA PELO WHATSAPP</button>`:""}</div>`;
       };
       $("myValidatedBets").innerHTML=validated.length?validated.map(b=>renderBet(b,true)).join(""):'<p class="small">Nenhuma aposta validada.</p>';
       $("myPendingBets").innerHTML=pending.length?pending.map(b=>renderBet(b,false)).join(""):'<p class="small">Nenhuma aposta aguardando validação.</p>';
@@ -1698,7 +1716,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
     if(unsubscribeAdminDeposits) unsubscribeAdminDeposits();
     unsubscribeAdminDeposits = onSnapshot(collection(db,"deposits"), snap => {
       const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-      $("adminDeposits").innerHTML=rows.length?rows.map(d=>`<div class="card"><b>${accountMoney(d.amount)}</b><p class="small">${esc(d.email||"")} · Código da conta: ${esc(d.accountCode||"")}<br>Solicitação: ${esc(d.id)} · Status: ${esc(d.status||"pending")}<br>Enviado em: ${d.createdAt?.toDate?esc(d.createdAt.toDate().toLocaleString("pt-BR")):"—"}</p>${d.proofURL?`<p><a href="${esc(d.proofURL)}" target="_blank" rel="noopener noreferrer" style="color:#f5c400;font-weight:bold">📎 ABRIR COMPROVANTE ENVIADO</a></p>`:'<p class="small">Nenhum comprovante anexado.</p>'}<p class="small"><b>Antes de aprovar:</b> confira o extrato bancário e confirme que o valor entrou e está disponível. Comprovante não é prova de crédito; recuse Pix agendado, cancelado ou comprovante suspeito.</p>${d.status==="pending"?`<div class="row"><button class="btn" data-deposit-action="approve" data-deposit-id="${esc(d.id)}" data-deposit-uid="${esc(d.uid)}" data-deposit-amount="${Number(d.amount)||0}">CONFIRMEI NA CONTA — APROVAR</button><button class="secondary" data-deposit-action="reject" data-deposit-id="${esc(d.id)}">RECUSAR</button></div>`:""}</div>`).join(""):'<p class="small">Nenhuma solicitação de depósito.</p>';
+      $("adminDeposits").innerHTML=rows.length?rows.map(d=>`<div class="card"><b>${accountMoney(d.amount)}</b><p class="small">${esc(d.email||"")} · Código da conta: ${esc(d.accountCode||"")}<br>Solicitação: ${esc(d.id)} · Situação: ${esc(window.copabetTraduzirSituacao(d.status||"pending"))}<br>Enviado em: ${d.createdAt?.toDate?esc(d.createdAt.toDate().toLocaleString("pt-BR")):"—"}</p>${d.proofURL?`<p><a href="${esc(d.proofURL)}" target="_blank" rel="noopener noreferrer" style="color:#f5c400;font-weight:bold">📎 ABRIR COMPROVANTE ENVIADO</a></p>`:'<p class="small">Nenhum comprovante anexado.</p>'}<p class="small"><b>Antes de aprovar:</b> confira o extrato bancário e confirme que o valor entrou e está disponível. Comprovante não é prova de crédito; recuse Pix agendado, cancelado ou comprovante suspeito.</p>${d.status==="pending"?`<div class="row"><button class="btn" data-deposit-action="approve" data-deposit-id="${esc(d.id)}" data-deposit-uid="${esc(d.uid)}" data-deposit-amount="${Number(d.amount)||0}">CONFIRMEI NA CONTA — APROVAR</button><button class="secondary" data-deposit-action="reject" data-deposit-id="${esc(d.id)}">RECUSAR</button></div>`:""}</div>`).join(""):'<p class="small">Nenhuma solicitação de depósito.</p>';
     }, e=>{console.error(e);$("adminDeposits").innerHTML='<p class="small">Sem permissão para consultar depósitos. Revise as regras do Firestore.</p>';});
   }
   const openAccountBtn = $("openAccountBtn");
@@ -1777,7 +1795,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
       const b=snap.data();
       if(!["accepted","won","lost"].includes(String(b.status||"").toLowerCase())){alert("Esta aposta ainda não está validada.");return;}
       const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${p.cup||""}: ${p.a||""} x ${p.b||""} — ${(p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"Palpite")}`).join("; ");
-      const lines=["Olá! Quero solicitar atendimento para retirada/conferência dos meus fundos.","Valor da aposta: "+accountMoney(b.amount),"Status: "+({accepted:"Validada",won:"Vencedora",lost:"Não vencedora"}[b.status]||b.status),"Aposta: "+details,"Identificador da aposta: "+betId,"Saldo atual exibido na conta: "+$("accountBalance").textContent,"Por favor, confiram esta solicitação."];
+      const lines=["Olá! Quero solicitar atendimento para retirada/conferência dos meus fundos.","Valor da aposta: "+accountMoney(b.amount),"Situação: "+window.copabetTraduzirSituacao(b.status),"Aposta: "+details,"Identificador da aposta: "+betId,"Saldo atual exibido na conta: "+$("accountBalance").textContent,"Por favor, confiram esta solicitação."];
       window.open("https://wa.me/5579996498111?text="+encodeURIComponent(lines.join("\n")),"_blank");
     }).catch(err=>{console.error(err);alert("Não foi possível abrir a solicitação desta aposta.");});
   });
@@ -2033,7 +2051,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
         }catch(e){console.error("Falha ao apurar aposta",betDoc.id,e);}
       }
       alert(`Apuração concluída. Vencedoras: ${won}. Não vencedoras: ${lost}. Aguardando encerramento de jogos: ${waiting}.`);
-    }catch(e){console.error(e);alert("Falha ao apurar. Confira o login administrativo e as regras do Firestore.");}
+    }catch(e){console.error(e);alert("Falha ao apurar. Confira o acesso administrativo e as regras do Firestore.");}
     finally{button.disabled=false;}
   });
 
@@ -2071,7 +2089,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
     if(!latestAuditRows.length){list.innerHTML='<p class="small">Nenhum bilhete registrado. O bilhete é salvo quando o cliente clica em enviar ao WhatsApp.</p>';return {total,concluded,waiting,stakes,prizes,profit,matchMap};}
     list.innerHTML=latestAuditRows.map(b=>{
       const status=String(b.status||"pending").toLowerCase();
-      const statusLabel=({pending:"Aguardando resultados",won:"Vencedora",lost:"Não vencedora",cancelled:"Cancelada"})[status]||status;
+      const statusLabel=({pending:"Aguardando resultados",won:"Vencedora",lost:"Não vencedora",cancelled:"Cancelada"})[status]||window.copabetTraduzirSituacao(status);
       const picks=Array.isArray(b.picks)?b.picks:[];
       const pickLines=picks.map(p=>{
         const m=matchMap.get(String(p.id));
@@ -2111,7 +2129,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
       }
       const report=await loadAuditRows();
       alert(`Auditoria atualizada. Vencedoras: ${won}. Não vencedoras: ${lost}. Aguardando placares finais: ${waiting}. Valor apostado nas concluídas: ${auditMoney(report.stakes)}. Prêmios devidos: ${auditMoney(report.prizes)}. Resultado bruto estimado da banca: ${auditMoney(report.profit)}.`);
-    } catch(e) { console.error("Auditoria de apostas:",e); alert("Não foi possível carregar/apurar a auditoria. Confira se o login é administrativo e se as regras do Firestore permitem ao administrador ler e atualizar /bets."); }
+    } catch(e) { console.error("Auditoria de apostas:",e); alert("Não foi possível carregar/apurar a auditoria. Confira se o acesso é administrativo e se as regras do Firestore permitem ao administrador ler e atualizar /bets."); }
     finally { button.disabled=false; }
   });
 
@@ -2314,7 +2332,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
       <div class="match" style="margin:10px 0; background:#161616;">
         <div class="row">
           <b>${esc(m.cup)}: ${esc(m.a)} (${m.scoreA !== "" ? m.scoreA : '0'} x ${m.scoreB !== "" ? m.scoreB : '0'}) ${esc(m.b)}</b>
-          <span class="badge-status ${m.status === 'live' ? 'badge-live' : (m.status === 'ended' ? 'badge-ended' : 'badge-timer')}">${m.status.toUpperCase()}</span>
+          <span class="badge-status ${m.status === 'live' ? 'badge-live' : (m.status === 'ended' ? 'badge-ended' : 'badge-timer')}">${window.copabetTraduzirSituacao(m.status)}</span>
         </div>
         <div class="small" style="margin:6px 0;">Início: ${m.datetime ? m.datetime.replace('T', ' ') : 'Não definida'} | Local: ${esc(m.location || 'Não informado')} | Máximo: ${money(m.maxStake ?? 100)}</div>
         <div class="row" style="margin-top:10px">
@@ -2639,7 +2657,7 @@ const matchesContainer = $("matches");
         const article=document.createElement('div');article.className='card';article.style.margin='8px 0';
         const header=document.createElement('p');
         header.textContent='Bilhete '+bet.id+' · '+String(bet.name||bet.bettorName||'Nome não registrado')+' · '+
-          accountMoney(bet.amount)+' · '+(bet.paymentStatus==='confirmed'?'PAGAMENTO CONFIRMADO':bet.paymentStatus==='rejected'?'PAGAMENTO REJEITADO':bet.status==='pending'?'AGUARDANDO PAGAMENTO':String(bet.status||'pending'));
+          accountMoney(bet.amount)+' · '+(bet.paymentStatus==='confirmed'?'PAGAMENTO CONFIRMADO':bet.paymentStatus==='rejected'?'PAGAMENTO REJEITADO':bet.status==='pending'?'AGUARDANDO PAGAMENTO':window.copabetTraduzirSituacao(bet.status||'pending'));
         article.append(header);
         const details=document.createElement('p');details.className='small';
         details.textContent='Telefone: '+String(bet.phone||bet.bettorPhone||'Não registrado')+
@@ -3285,7 +3303,7 @@ function renderMarketsModal(){
 }
 window.copabetValidateApiPicks=items=>{
  if(!items.some(p=>String(p.id).startsWith("sportsapi:")))return "";
- if(!apiDataConfirmed)return "Não foi possível validar as odds da API. Atualize a página.";
+ if(!apiDataConfirmed)return "Não foi possível validar as cotações da API. Atualize a página.";
  for(const p of items){
   if(!String(p.id).startsWith("sportsapi:"))continue;
   const g=games.find(x=>String(x.sportsApiId||x.id)===String(p.id).slice(10));
@@ -3456,7 +3474,7 @@ function render(){
     : !games.some(g=>football(g))
      ? "Nenhuma partida de futebol disponível neste momento."
      : !availableGames.length
-      ? (filter==="live"?"Não há partidas ao vivo com odds atualizadas disponíveis agora.":"Ainda não há partidas futuras disponíveis.")
+      ? (filter==="live"?"Não há partidas ao vivo com cotações atualizadas disponíveis agora.":"Ainda não há partidas futuras disponíveis.")
       : "Nenhuma partida disponível para este filtro. Experimente Futebol em Destaque.";
   root.replaceChildren(node("p",message,"small"));
   return;
@@ -3497,7 +3515,7 @@ function render(){
       btn.setAttribute("aria-pressed",String(selected));
       btn.style.marginTop="6px";btn.style.fontSize="11px";
       btn.addEventListener("click",()=>{
-        if(!canBetApi(g)){render();alert("As odds deste jogo não estão disponíveis agora.");return}
+        if(!canBetApi(g)){render();alert("As cotações deste jogo não estão disponíveis agora.");return}
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
           market:"Resultado final (1X2)",marketId:"1x2",outcomeId:side,selection:side,
@@ -3625,7 +3643,7 @@ function displayGamesFromSnapshot(snapshot,source){
    const latest=knownDates.length?Math.max(...knownDates):null;
    const last=latest?new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(latest)):"sem data identificável";
    statusEl.textContent=apiDataConfirmed
-    ? (visible ? (filter==="live"?"Jogos ao vivo com odds disponíveis":"Partidas disponíveis") : (filter==="live"?"Sem partidas ao vivo com odds disponíveis":"Sem partidas futuras disponíveis"))
+    ? (visible ? (filter==="live"?"Jogos ao vivo com cotações disponíveis":"Partidas disponíveis") : (filter==="live"?"Sem partidas ao vivo com cotações disponíveis":"Sem partidas futuras disponíveis"))
     : "Atualizando partidas...";
   }
  }catch(error){
@@ -3815,7 +3833,7 @@ function receipt(t){
   if(Number.isFinite(Number(p.startTime)) && Number(p.startTime)>0){
    add("p","Jogo: "+new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(Number(p.startTime)))+" (Brasília)","cb-print-small",row);
   }
-  add("p","Palpite: "+["Casa","Empate","Fora"][p.side]+" · Odd "+formatOdd(p.odd),"",row);
+  add("p","Palpite: "+["Casa","Empate","Fora"][p.side]+" · Cotação "+formatOdd(p.odd),"",row);
  });
  add("p","Valor: "+money(t.amount),"cb-print-divider");
  add("p","Cotação total: "+formatOdd(t.combined));
@@ -4066,9 +4084,9 @@ function renderRanking(){
  const root=$("cbRankingRows"),status=$("cbRankingStatus");
  if(!root||!status||!admin())return;
  root.replaceChildren();
- if(!ticketReadOk){status.textContent="Não foi possível consultar os bilhetes; o ranking financeiro está indisponível. "+ticketReadError;return;}
+ if(!ticketReadOk){status.textContent="Não foi possível consultar os bilhetes; a classificação financeira está indisponível. "+ticketReadError;return;}
  const ordered=[...rows].sort((a,b)=>b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"));
- status.textContent=ordered.length+" cambista(s) no ranking. Classificado por valor bruto confirmado.";
+ status.textContent=ordered.length+" cambista(s) na classificação. Classificado por valor bruto confirmado.";
  if(!ordered.length){append(root,"p","Nenhum cambista cadastrado.");return;}
  for(const [index,r] of ordered.entries()){
   const card=append(root,"article","","cb-cambista-row");
@@ -4143,7 +4161,7 @@ function cambistaSignupError(error,stage){
   "auth/network-request-failed":"Falha de conexão ao acessar o Firebase. Confira a internet e tente novamente.",
   "auth/too-many-requests":"Muitas tentativas em pouco tempo. O Firebase bloqueou temporariamente novos pedidos.",
   "auth/configuration-not-found":"A configuração do Authentication não foi localizada no projeto Firebase.",
-  "permission-denied":"A conta de login foi criada, mas o Firestore negou a gravação do perfil. Verifique as regras publicadas para a coleção cambistas e se você está conectado como administrador."
+  "permission-denied":"A conta de acesso foi criada, mas o Firestore negou a gravação do perfil. Verifique as regras publicadas para a coleção cambistas e se você está conectado como administrador."
  };
  return (messages[code]||"Falha "+stage+": "+(code||String(error?.message||"sem detalhes")))+ (code?" ["+code+"]":"");
 }
