@@ -975,6 +975,107 @@ input:focus,select:focus,textarea:focus{border-color:#69db9e!important;box-shado
 .badge-timer{background:#174b35!important;border-color:#3d9662!important;color:#b0efc8!important}
 .alert-box{background:#17402e!important;border-color:#5a9f79!important;color:#e5f8eb!important}
 </style>
+
+<style id="cb-orange-black-redesign-2026">
+/* COPABET: tema preto + laranja. Apenas apresentação; mantém a lógica, dados e bilhetes. */
+:root{
+ --orange:#ff7a1a!important;--orange-light:#ffb16f!important;
+ --orange-glow:rgba(255,122,26,.23)!important;
+ --bg:#090b10!important;--card:#15191f!important;--card-hover:#1c222a!important;
+ --border:#343941!important;--cb-blue:#ff831f!important;--cb-yellow:#ffcf49!important;
+}
+body{
+ color:#f5f4f1!important;
+ background:radial-gradient(ellipse at 15% -8%,rgba(255,115,23,.20) 0,transparent 45%),radial-gradient(ellipse at 92% 2%,rgba(151,65,21,.11) 0,transparent 36%),#090b10!important;
+ font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif!important;
+}
+header{background:linear-gradient(125deg,#0e1117,#211810 50%,#0a0c10)!important;border-bottom:2px solid #ff7a1a!important;box-shadow:0 14px 40px #0009!important}
+#siteTitle{background:linear-gradient(95deg,#fff2e4,#ff8a2d)!important;background-clip:text!important;-webkit-background-clip:text!important}
+.banner-carousel{border:1px solid #784321!important;box-shadow:0 15px 38px #0008!important;border-radius:19px!important}
+.banner-slide{background:linear-gradient(125deg,#191b21,#362217 58%,#111317)!important}
+.banner-slide h2 span,.orange,.promo-card b,.champ-sidebar h3,#cbSocietyGames h3,.cb-match-time{color:#ff9c42!important}
+.banner-dots .dot.active,.dot.active{background:#ff821c!important}
+.promo-card,.champ-sidebar,.modalbox,.account-modal,.match,
+#sportsapiPanel,.card:not(.cb-live-game),#floatingBetSlip,
+#adminView .card,#cambistaView .card{
+ background:linear-gradient(155deg,#191c22,#111418)!important;
+ border-color:#393c42!important;
+ box-shadow:0 12px 28px #0006!important;
+}
+.card:hover,.promo-card:hover,.match:hover,.cb-live-game:hover{border-color:#ff8b30!important;box-shadow:0 13px 33px #0009!important}
+#sportsapiPanel{border-radius:18px!important;padding:18px!important}
+#sportsapiPanel .cb-live-head{border-bottom:1px solid #544031!important}
+#sportsapiPanel .cb-live-head h2{color:#fff4e9!important}
+.cb-live-game{background:linear-gradient(155deg,#202026,#14171c)!important;border:1px solid #464044!important;border-radius:15px!important}
+.cb-live-game-top,.cb-match-time{color:#e0c5ad!important}
+.cb-live-score{background:#332014!important;border:1px solid #a85b25!important;color:#ffb361!important}
+.champ-tab,.admin-tab,.secondary,.cb-live-tools button,#cbSportFilters button{
+ background:#24272d!important;color:#f2e9e2!important;border:1px solid #535055!important;
+}
+.champ-tab:hover,.champ-tab.active,.admin-tab:hover,.admin-tab.active,
+.cb-live-tools button:hover,#cbSportFilters button:hover{
+ background:#48301f!important;color:#ffba7c!important;border-color:#ff933d!important
+}
+#cbSportFilters button[aria-pressed="true"],.cb-live-tools button[aria-pressed="true"]{background:#ff821c!important;color:#160c05!important;border-color:#ffb36b!important}
+.btn,.cb-more-market-btn{background:linear-gradient(115deg,#ff922c,#ee620d)!important;color:#170e09!important;border:1px solid #ffab52!important;box-shadow:0 5px 19px #ff781b27!important}
+.btn:hover,.cb-more-market-btn:hover{filter:brightness(1.09)}
+input,select,textarea{background:#13161b!important;color:#fff!important;border:1px solid #565056!important}
+input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shadow:0 0 0 3px #ff841c30!important}
+.cb-odd{background:linear-gradient(155deg,#30251f,#211f22)!important;border:1px solid #69503b!important;border-radius:11px!important}
+.cb-odd small{color:#e2c5ad!important}
+.cb-odd strong{color:#fff2e7!important}
+.cb-odd button,#matches .odds button{background:#352820!important;color:#fff4e9!important;border:1px solid #815636!important}
+.cb-odd:hover,#matches .odds button:hover{border-color:#ff9b42!important}
+.cb-odd.is-picked,.cb-odd.is-picked strong,.cb-odd.is-picked small{
+ background:#ffcf49!important;color:#211708!important;border-color:#ffe08e!important;
+}
+.cb-odd.is-picked button{background:#342619!important;color:#ffe099!important;border-color:#342619!important}
+#matches .odds button.selected{background:#ffcf49!important;color:#231607!important;border-color:#ffe08e!important}
+#floatingBetSlip{border:1px solid #9d5928!important;border-top:3px solid #ff881f!important}
+#floatingBetSlip .cb-slip-title h2{color:#fff1e4!important}
+#cbSlipToggle{background:#372720!important;border:1px solid #bd7540!important;color:#ffc18d!important}
+#floatingBetSlip #combined,#floatingBetSlip #payout{color:#ffcd69!important}
+#floatingBetSlip #selections p{border-bottom-color:#564135!important}
+#cbSlipCount{color:#f1c9a6!important}
+#cbMarketsModal{background:#080706e9!important}
+.cb-markets-panel{background:linear-gradient(160deg,#221b18,#111418)!important;border-color:#865330!important}
+.cb-markets-header{background:#231b18!important;border-color:#6a4834!important}
+.cb-market-card{background:#2a231f!important;border-color:#75533c!important}
+.cb-market-group h3{color:#ffb66d!important}
+#cbMarketsClose,.cb-market-picks button{background:#423023!important;color:#fff3e8!important;border-color:#976944!important}
+.cb-market-picks button strong{color:#ffc777!important}
+.cb-market-picks button.is-picked,.cb-market-picks button.is-picked strong{background:#ffcf49!important;color:#211708!important}
+#cbEntryGate{background:radial-gradient(ellipse at 50% 12%,#352012,#080a0e 62%)!important}
+#cbEntryGate .cb-entry-panel{background:linear-gradient(160deg,#241d19,#111419)!important;border-color:#b86d31!important}
+.badge-timer,.alert-box{background:#322216!important;border-color:#a56834!important;color:#ffca95!important}
+.admin-lock-btn:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #ff992d!important;outline-offset:2px}
+.cb-match-teams{display:flex;align-items:center;justify-content:center;gap:10px;margin:11px 0 5px;min-width:0}
+.cb-team-display{display:flex;align-items:center;justify-content:center;gap:9px;flex:1 1 0;min-width:0;color:#fff5ec;font-weight:800;overflow-wrap:anywhere}
+.cb-team-display:last-child{flex-direction:row-reverse;text-align:right}
+.cb-team-display .cb-team-name{min-width:0;overflow-wrap:anywhere}
+.cb-match-vs{flex:0 0 auto;color:#ff963b!important;font-weight:900}
+.cb-team-crest{position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:46px;flex:0 0 40px}
+.cb-team-crest svg{display:block;width:100%;height:100%;fill:none;stroke:#ff913c;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
+.cb-team-crest img{position:absolute;inset:3px;display:block;width:calc(100% - 6px);height:calc(100% - 6px);object-fit:contain;border-radius:4px}
+.cb-manual-match-teams{font-size:clamp(14px,2.1vw,19px);margin:15px 0!important}
+.cb-manual-team{display:inline-flex;gap:8px;align-items:center;justify-content:center;vertical-align:middle;max-width:43%}
+.cb-manual-team .cb-team-name{overflow-wrap:anywhere}
+.cb-manual-team .cb-team-crest{width:30px;height:35px;flex-basis:30px}
+.cb-manual-vs{margin-inline:7px}
+@media(max-width:699px){
+ #sportsapiPanel{padding:11px!important}
+ .cb-live-game{padding:12px!important}
+ .cb-match-teams{gap:5px}
+ .cb-team-display{gap:5px;font-size:13px}
+ .cb-team-crest{width:29px;height:34px;flex-basis:29px}
+ .cb-manual-team .cb-team-crest{width:25px;height:29px;flex-basis:25px}
+ .cb-manual-match-teams{font-size:13px}
+ .cb-odds-grid,#sportsapiPanel .cb-odds-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .cb-odd{min-width:0!important}
+ .champ-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){.card,.match,.promo-card,.cb-live-game{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
 
@@ -2166,9 +2267,9 @@ input:focus,select:focus,textarea:focus{border-color:#69db9e!important;box-shado
       const sA = (m.scoreA !== "" && m.scoreA !== undefined && m.scoreA !== null) ? m.scoreA : "0";
       const sB = (m.scoreB !== "" && m.scoreB !== undefined && m.scoreB !== null) ? m.scoreB : "0";
 
-      let centerContent = `<h3 style="text-align:center;margin:18px 0">${esc(m.a)} <span class="orange">×</span> ${esc(m.b)}</h3>`;
+      let centerContent = `<h3 class="cb-manual-match-teams" style="text-align:center"><span class="cb-manual-team"><span class="cb-team-crest" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M20 3 36 8V24C36 34 30 40 20 45 10 40 4 34 4 24V8Z"/></svg></span><span class="cb-team-name">${esc(m.a)}</span></span><span class="orange cb-manual-vs">×</span><span class="cb-manual-team"><span class="cb-team-crest" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M20 3 36 8V24C36 34 30 40 20 45 10 40 4 34 4 24V8Z"/></svg></span><span class="cb-team-name">${esc(m.b)}</span></span></h3>`;
       if (m.status === 'ended' || m.status === 'live' || (m.scoreA !== "" && m.scoreB !== "")) {
-        centerContent = `<h3 style="text-align:center;margin:18px 0">${esc(m.a)} <b class="orange">${sA}</b> <span class="orange">×</span> <b class="orange">${sB}</b> ${esc(m.b)} <span class="small" style="display:block;margin-top:4px">${m.status === 'ended' ? '(Placar Final)' : (m.status === 'live' ? '(Ao Vivo)' : '(Placar)')}</span></h3>`;
+        centerContent = `<h3 class="cb-manual-match-teams" style="text-align:center"><span class="cb-manual-team"><span class="cb-team-crest" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M20 3 36 8V24C36 34 30 40 20 45 10 40 4 34 4 24V8Z"/></svg></span><span class="cb-team-name">${esc(m.a)}</span></span> <b class="orange">${sA}</b><span class="orange cb-manual-vs">×</span><b class="orange">${sB}</b> <span class="cb-manual-team"><span class="cb-team-crest" aria-hidden="true"><svg viewBox="0 0 40 48" focusable="false"><path d="M20 3 36 8V24C36 34 30 40 20 45 10 40 4 34 4 24V8Z"/></svg></span><span class="cb-team-name">${esc(m.b)}</span></span><span class="small" style="display:block;margin-top:4px">${m.status === 'ended' ? '(Placar Final)' : (m.status === 'live' ? '(Ao Vivo)' : '(Placar)')}</span></h3>`;
       }
 
       return `
@@ -3302,6 +3403,46 @@ window.copabetAdminApiGames=function(){
    startTime:startTimestamp(g),odds:[val("Casa"),val("Empate"),val("Fora")],maxStake:null};
  });
 };
+
+/* Escudos dos times: imagem real quando fornecida pela API; caso contrário,
+   apenas contorno de escudo, sem letras nem escudo inventado. */
+function cbTeamLogo(g,home){
+ const t=home?first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home):
+              first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away);
+ const side=home?"home":"away";
+ const sources=[
+  t?.logo,t?.logo_url,t?.logoUrl,t?.crest,t?.badge,t?.image,t?.imageUrl,t?.emblem,t?.shield,
+  g?.teams?.[side]?.logo,g?.teams?.[side]?.badge,g?.teams?.[side]?.image,
+  home?g?.homeLogo:g?.awayLogo,home?g?.homeTeamLogo:g?.awayTeamLogo,
+  home?g?.home_logo:g?.away_logo,home?g?.home_team_logo:g?.away_team_logo,
+  g?.logos?.[side],g?.badges?.[side],g?.crests?.[side]
+ ];
+ for(const value of sources){
+  const candidate=typeof value==="string"?value:(value && typeof value==="object" ? (value.url||value.src||value.href) : "");
+  if(typeof candidate!=="string")continue;
+  try{const u=new URL(candidate);if(u.protocol==="https:")return u.href}catch(_){}
+ }
+ return "";
+}
+function cbTeamShield(g,home){
+ const shell=node("span","","cb-team-crest");
+ shell.setAttribute("aria-hidden","true");
+ const ns="http://www.w3.org/2000/svg";
+ const svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 40 48");svg.setAttribute("focusable","false");
+ const path=document.createElementNS(ns,"path");path.setAttribute("d","M20 3 36 8V24C36 34 30 40 20 45 10 40 4 34 4 24V8Z");svg.append(path);shell.append(svg);
+ const url=cbTeamLogo(g,home);
+ if(url){const img=document.createElement("img");img.alt="";img.loading="lazy";img.referrerPolicy="no-referrer";img.onerror=()=>img.remove();img.src=url;shell.append(img)}
+ return shell;
+}
+function cbMatchTeams(g,homeName,awayName){
+ const wrap=node("div","","cb-live-match cb-match-teams");
+ for(const [name,isHome] of [[homeName,true],[awayName,false]]){
+  if(!isHome)wrap.append(node("span","×","cb-match-vs"));
+  const team=node("span","","cb-team-display");team.append(cbTeamShield(g,isHome),node("span",name,"cb-team-name"));wrap.append(team);
+ }
+ return wrap;
+}
+
 function render(){
  if(filter==="society"||!root)return;
  const availableGames=games.filter(g=>filter==="live"?isEligibleLiveGame(g):isAvailableApiGame(g));
@@ -3330,7 +3471,7 @@ function render(){
   card.append(top);
   const a=ptClub(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home));
   const b=ptClub(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away));
-  card.append(node("div",(a||"Mandante não informado")+" × "+(b||"Visitante não informado"),"cb-live-match"));
+  card.append(cbMatchTeams(g,a||"Mandante não informado",b||"Visitante não informado"));
   const date=first(g.startTime,g.dateTime,g.datetime,g.kickoff,g.start_at,g.date);
   const ts=startTimestamp(g);
   if(ts!==Number.MAX_SAFE_INTEGER && Number.isFinite(ts) && Math.abs(ts)<=8.64e15){
