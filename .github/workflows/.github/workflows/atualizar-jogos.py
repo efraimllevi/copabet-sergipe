@@ -132,32 +132,40 @@ for dias in range(7):
 
 print("Partidas encontradas:", len(jogos))
 
-# Consultar odds disponíveis
-limite_odds = 50  # teto conservador por execução; depende da cota da API
+# Consultar as odds atuais, priorizando jogos em andamento.
+# A cota da API limita as partidas consultadas a cada sincronização.
+limite_odds = 50
 odds_consultadas = 0
+LIVE_STATUSES = {"live", "inplay", "in_play", "1h", "2h", "ht", "half_time", "playing", "started", "first_half", "second_half"}
+ABERTOS = LIVE_STATUSES | {"scheduled", "upcoming", "not_started"}
 
-for identificador, jogo in jogos.items():
+def prioridade_odds(item):
+    status = str(item[1].get("status") or "").lower().replace("-", "_").replace(" ", "_")
+    return 0 if status in LIVE_STATUSES else 1
 
-    if (
-        odds_consultadas < limite_odds
-        and jogo.get("status") in ("live", "scheduled")
-    ):
-
-        try:
-            resposta = session.get(
-                f"https://sportsapi.com.br/api/v1/games/{identificador}/odds",
-                params={"sport": jogo.get("sport", "football")},
-                timeout=30
-            )
-
-            if resposta.ok:
-                dados_odds = resposta.json()
-                jogo["odds"] = dados_odds.get("markets", [])
-
-            odds_consultadas += 1
-
-        except requests.RequestException as erro:
-            print("Odds indisponíveis:", identificador)
+for identificador, jogo in sorted(jogos.items(), key=prioridade_odds):
+    status = str(jogo.get("status") or "").lower().replace("-", "_").replace(" ", "_")
+    if odds_consultadas >= limite_odds:
+        break
+    if status not in ABERTOS:
+        continue
+    try:
+        odds_consultadas += 1
+        resposta = session.get(
+            f"https://sportsapi.com.br/api/v1/games/{identificador}/odds",
+            params={"sport": jogo.get("sport", "football")},
+            timeout=30
+        )
+        if resposta.ok:
+            dados_odds = resposta.json()
+            mercados = dados_odds.get("markets") if isinstance(dados_odds, dict) else None
+            if isinstance(mercados, list):
+                jogo["odds"] = mercados
+                # Apenas a resposta de odds realmente recebida atualiza a validade.
+                # Partida em andamento com odds anteriores não deve ser ofertada.
+                jogo["oddsAtualizadasEm"] = datetime.now(timezone.utc)
+    except (requests.RequestException, ValueError) as erro:
+        print("Odds indisponíveis:", identificador, erro)
 
 # Salvar partidas no Firestore
 quantidade = 0
