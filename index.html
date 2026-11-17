@@ -947,6 +947,33 @@ header{background:linear-gradient(105deg,#0c1717,#1c302b 55%,#181a18)!important;
 #cbSportFilters button{border-color:#457c60!important}
 button:focus-visible,a:focus-visible{outline:3px solid #ffdc5c!important;outline-offset:2px}
 @media(max-width:699px){.cb-live-score{font-size:16px!important}.cb-live-game{border-radius:12px!important}.cb-more-market-btn{min-height:44px}}
+
+:root{--orange-light:#77e1b0!important;--orange-glow:rgba(57,191,129,.22)!important;--bg:#0c1112!important;--card:#15251e!important;--card-hover:#1a3027!important;--border:#3f6955!important}
+.banner-slide h2 span,.orange{color:#90efb9!important}
+.banner-dots .dot.active,.dot.active{background:#5adba0!important}
+.promo-card,.champ-sidebar,.modalbox,.account-modal,.match,#floatingBetSlip{background:linear-gradient(145deg,#1a2d24,#111d19)!important;border-color:#3d6b56!important;box-shadow:0 10px 30px #0008!important}
+.promo-card b,.champ-sidebar h3{color:#90efb9!important}
+.card:hover,.promo-card:hover,.match:hover{border-color:#65e1ad!important}
+.champ-tab,.admin-tab,.secondary{background:#1c3328!important;border-color:#436d58!important;color:#e8f8ee!important}
+.champ-tab:hover,.champ-tab.active,.admin-tab.active,.admin-tab:hover{background:#265840!important;border-color:#6be4ac!important;color:#fff!important}
+.btn{background:linear-gradient(110deg,#278c5e,#126241)!important;color:#fff!important;box-shadow:0 6px 20px #0f593950!important}
+input,select,textarea{background:#11231b!important;border-color:#426c56!important;color:#fff!important}
+input:focus,select:focus,textarea:focus{border-color:#69db9e!important;box-shadow:0 0 0 3px #49cb8b44!important}
+.cb-live-tools button,#cbSportFilters button{background:#1d3c2c!important;color:#f2faf5!important;border-color:#527c62!important}
+.cb-live-tools button:hover{background:#295d43!important}
+.cb-odd small{color:#c4e5d1!important}
+.cb-odd button{background:#276647!important;border-color:#438963!important;color:#fff!important}
+.cb-odd:hover{border-color:#63d99b!important}
+.cb-odd.is-picked small,.cb-odd.is-picked strong{color:#142019!important}
+.cb-odd.is-picked button{background:#2d3a27!important;color:#ffe274!important;border-color:#2d3a27!important}
+#matches .odds button{background:#1b5037!important;border-color:#418a60!important;color:#fff!important}
+#matches .odds button.selected{background:#ffdc5c!important;border-color:#ffe897!important;color:#142019!important}
+#floatingBetSlip{border-top:3px solid #51d997!important}
+#cbSlipToggle{background:#2a694b!important;border-color:#60c38f!important}
+#floatingBetSlip #selections p{border-bottom-color:#426c53!important}
+#cbSlipCount{color:#c6ead7!important}
+.badge-timer{background:#174b35!important;border-color:#3d9662!important;color:#b0efc8!important}
+.alert-box{background:#17402e!important;border-color:#5a9f79!important;color:#e5f8eb!important}
 </style>
 </head>
 <body>
@@ -3124,8 +3151,8 @@ function renderMarketsModal(){
  if(activeModalId===null)return;
  const g=games.find(x=>String(x.sportsApiId||x.id)===activeModalId);
  if(!g||!canBetApi(g)){closeMarkets();return}
- const home=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
- const away=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
+ const home=ptClub(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
+ const away=ptClub(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
  document.getElementById("cbMarketsTitle").textContent=home+" × "+away;
  document.getElementById("cbMarketsSubtitle").textContent=competitionOf(g)+" · Cotações da API";
  const body=document.getElementById("cbMarketsBody");body.replaceChildren();
@@ -3180,10 +3207,15 @@ function apiScore(g){
  return /^\d{1,2}\s*[-:×x]\s*\d{1,2}$/.test(str)?str.replace(/\s*[-:x]\s*/," × "):null;
 }
 function apiMinute(g){
- const value=first(g.elapsed,g.elapsedTime,g.minute,g.currentMinute,g.matchMinute,g.match_minute,g.timer?.minute,g.clock?.minute,g.fixture?.status?.elapsed,g.status?.elapsed,g.gameTime?.minute);
+ const value=first(g.elapsed,g.elapsedTime,g.minute,g.currentMinute,g.matchMinute,g.match_minute,g.timer?.minute,g.timer?.elapsed,g.clock?.minute,g.clock?.elapsed,g.fixture?.status?.elapsed,g.status?.elapsed,g.gameTime?.minute,g.gameClock,g.timer);
  if(value===null||value===undefined)return null;
  const v=typeof value==="object"?first(value.minute,value.elapsed):value;
- if(typeof v==="string"&&/^\d{1,3}\+\d{1,2}$/.test(v.trim()))return v.trim()+"'";
+ if(typeof v==="string"){
+   const t=v.trim();
+   if(/^\d{1,3}\+\d{1,2}$/.test(t))return t+"'";
+   const m=t.match(/^(\d{1,3}):\d{2}$/);
+   if(m&&Number(m[1])<=130)return Number(m[1])+"'";
+ }
  const n=Number(v);return Number.isInteger(n)&&n>=0&&n<=130?n+"'":null;
 }
 // Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
@@ -3305,10 +3337,10 @@ function render(){
    try{card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"))}catch(error){console.warn("Horário inválido ignorado:",error)}
   }
   const beforeKickoff=canBetApi(g);
-  if(!beforeKickoff){
-    card.append(node("p","Jogo iniciado · apostas encerradas","small"));
-  }
-  const result=cachedOdds(g);
+  if(!beforeKickoff&&!apiDataConfirmed){
+    card.append(node("p","Validando cotações da partida...","small"));
+   }
+   const result=cachedOdds(g);
   const grid=node("div","","cb-odds-grid");
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
     const box=node("div","","cb-odd");
@@ -3375,8 +3407,8 @@ function renderImportedAdmin(){
  const fragment=document.createDocumentFragment();
  for(const g of currentGames.slice(0,150)){
   const article=node("article","","cb-live-game");
-  const home=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
-  const away=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
+  const home=ptClub(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
+  const away=ptClub(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
   const league=competitionOf(g)||"Futebol";
   article.append(node("span",league,"small"));
   article.append(node("strong",home+" × "+away));
