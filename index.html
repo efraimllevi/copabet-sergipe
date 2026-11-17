@@ -3100,21 +3100,109 @@ const ptCompetition=value=>{
  return names[key]||t;
 };
 const ptMarket=value=>{
- let t=name(value);
- for(const [regex,pt] of [
-  [/\bboth teams to score\b/gi,"Ambos marcam"],[/\btotal goals\b/gi,"Total de gols"],
-  [/\btotal corners\b/gi,"Total de escanteios"],[/\btotal cards\b/gi,"Total de cartões"],
-  [/\bfirst half\b/gi,"Primeiro tempo"],[/\bsecond half\b/gi,"Segundo tempo"],
-  [/\bfull time\b/gi,"Tempo regulamentar"],[/\bmatch result\b/gi,"Resultado final"],
-  [/\bdouble chance\b/gi,"Dupla chance"],[/\bcorrect score\b/gi,"Placar exato"],
-  [/\bdraw no bet\b/gi,"Empate anula aposta"],[/\bhome team\b/gi,"Mandante"],
-  [/\baway team\b/gi,"Visitante"],[/\bover\b/gi,"Mais de"],
-  [/\bunder\b/gi,"Menos de"],[/\bgoals\b/gi,"Gols"],
-  [/\bgoal\b/gi,"Gol"],[/\bcorners\b/gi,"Escanteios"],
-  [/\bcards\b/gi,"Cartões"],[/\bpenalties\b/gi,"Pênaltis"],
-  [/\bpenalty\b/gi,"Pênalti"],[/\byes\b/gi,"Sim"],
-  [/\bno\b/gi,"Não"],[/\bdraw\b/gi,"Empate"]])t=t.replace(regex,pt);
+ const original=name(value).trim();
+ if(!original)return "";
+ let t=original.replace(/_/g," ").replace(/\s+/g," ").trim();
+ const substitutions=[
+  [/\bboth teams to score\b/gi,"Ambos os times marcam"],
+  [/\btotal yellow cards?\b/gi,"Total de cartões amarelos"],
+  [/\btotal red cards?\b/gi,"Total de cartões vermelhos"],
+  [/\byellow cards?\b/gi,"Cartões amarelos"],
+  [/\bred cards?\b/gi,"Cartões vermelhos"],
+  [/\bbookings?\b/gi,"Cartões"],
+  [/\btotal goals?\b/gi,"Total de gols"],
+  [/\bteam total goals?\b/gi,"Total de gols do time"],
+  [/\btotal corners?\b/gi,"Total de escanteios"],
+  [/\btotal cards?\b/gi,"Total de cartões"],
+  [/\b(?:full[\s-]?time|regular time|90 minutes|ft)\b/gi,"Jogo inteiro"],
+  [/\b(?:first half|1st half|1h|half 1)\b/gi,"Primeiro tempo"],
+  [/\b(?:second half|2nd half|2h|half 2)\b/gi,"Segundo tempo"],
+  [/\b(?:first period|period 1)\b/gi,"Primeiro período"],
+  [/\b(?:second period|period 2)\b/gi,"Segundo período"],
+  [/\b(?:match result|match winner|result of the match|three way|3-way|1x2)\b/gi,"Resultado final"],
+  [/\bdouble chance\b/gi,"Dupla chance"],
+  [/\bcorrect score\b/gi,"Placar exato"],
+  [/\bdraw no bet\b/gi,"Empate anula aposta"],
+  [/\basian handicap\b/gi,"Vantagem asiática"],
+  [/\bhandicap\b/gi,"Vantagem"],
+  [/\bboth halves\b/gi,"Ambos os tempos"],
+  [/\beither half\b/gi,"Qualquer tempo"],
+  [/\bextra time\b/gi,"Prorrogação"],
+  [/\bpenalty shootout\b/gi,"Disputa de pênaltis"],
+  [/\b(?:home team|home|house)\b/gi,"Casa"],
+  [/\b(?:away team|away)\b/gi,"Fora"],
+  [/\bteam 1\b/gi,"Time da casa"],
+  [/\bteam 2\b/gi,"Time visitante"],
+  [/\b(?:odd\/even|odd or even)\b/gi,"Ímpar ou par"],
+  [/\bodd\b/gi,"Ímpar"],
+  [/\beven\b/gi,"Par"],
+  [/\bover\b/gi,"Mais de"],
+  [/\bunder\b/gi,"Menos de"],
+  [/\bgoals\b/gi,"Gols"],
+  [/\bgoal\b/gi,"Gol"],
+  [/\b(?:corners|corner kicks)\b/gi,"Escanteios"],
+  [/\bcorner\b/gi,"Escanteio"],
+  [/\bcards\b/gi,"Cartões"],
+  [/\bcard\b/gi,"Cartão"],
+  [/\bpenalties\b/gi,"Pênaltis"],
+  [/\bpenalty\b/gi,"Pênalti"],
+  [/\bshots on target\b/gi,"Chutes no gol"],
+  [/\btotal shots\b/gi,"Total de chutes"],
+  [/\bshots\b/gi,"Chutes"],
+  [/\bfouls\b/gi,"Faltas"],
+  [/\boffsides\b/gi,"Impedimentos"],
+  [/\bassists\b/gi,"Assistências"],
+  [/\bplayer\b/gi,"Jogador"],
+  [/\bto score\b/gi,"Para marcar"],
+  [/\bclean sheet\b/gi,"Sem sofrer gols"],
+  [/\bwin to nil\b/gi,"Vitória sem sofrer gols"],
+  [/\byes\b/gi,"Sim"],
+  [/\bno\b/gi,"Não"],
+  [/\bdraw\b/gi,"Empate"],
+  [/\bwinner\b/gi,"Vencedor"],
+  [/\btotal\b/gi,"Total"],
+  [/\bmatch\b/gi,"Partida"],
+  [/\bresult\b/gi,"Resultado"],
+  [/\bhalf\b/gi,"Tempo"],
+  [/\bteam\b/gi,"Time"]
+ ];
+ for(const [pattern,translation] of substitutions)t=t.replace(pattern,translation);
+ t=t.replace(/\b(\d+)\.(\d+)\b/g,"$1,$2")
+    .replace(/\s*[-–]\s*/g," — ").replace(/\s+/g," ").trim();
+ const words=t.match(/[A-Za-zÀ-ÿ]+/g)||[];
+ const allowed=new Set(("ambos os as times time marcam total de da do no na dos das cartões amarelos vermelhos "+
+ "gols gol escanteios escanteio jogo inteiro primeiro primeira segunda segundo tempo tempos período "+
+ "resultado final dupla chance placar exato empate anula aposta vantagem asiática qualquer prorrogação "+
+ "disputa pênaltis pênalti casa fora visitante ímpar par mais menos chutes faltas impedimentos "+
+ "assistências jogador para marcar sem sofrer vitória sim não vencedor partida e ou").split(" "));
+ // Uma opção desconhecida não pode ser exibida com inglês ou tradução adivinhada.
+ if(words.some(w=>!allowed.has(w.toLowerCase())))return "";
  return t;
+};
+const ptMarketPeriod=market=>{
+ const text=name(market).toLowerCase().replace(/_/g," ");
+ if(/\b(first half|1st half|1h|half 1|primeiro tempo)\b/.test(text))return "no primeiro tempo";
+ if(/\b(second half|2nd half|2h|half 2|segundo tempo)\b/.test(text))return "no segundo tempo";
+ if(/\b(full time|full-time|ft|regular time|90 minutes|jogo inteiro)\b/.test(text))return "no jogo inteiro (90 minutos e acréscimos)";
+ return "";
+};
+const ptOutcome=(selection,market)=>{
+ const raw=name(selection).trim(),title=name(market);
+ let translated=ptMarket(raw);
+ if(!translated)return "";
+ const threshold=/^(Mais de|Menos de)\s+(\d+(?:,\d+)?)/i.exec(translated);
+ if(threshold){
+  let subject="";
+  if(/yellow|amarelo/i.test(title))subject="cartões amarelos";
+  else if(/red cards?|vermelho/i.test(title))subject="cartões vermelhos";
+  else if(/cards?|cartões/i.test(title))subject="cartões";
+  else if(/corners?|escanteios/i.test(title))subject="escanteios";
+  else if(/goals?|gols/i.test(title))subject="gols";
+  if(subject&&!translated.toLowerCase().includes(subject))translated+=" "+subject;
+  const period=ptMarketPeriod(title);
+  if(period && !/\b(jogo inteiro|primeiro tempo|segundo tempo)\b/i.test(translated))translated+=" "+period;
+ }
+ return translated;
 };
 const node = (tag,text,cls) => {let n=document.createElement(tag);if(cls)n.className=cls;n.textContent=asText(text);return n};
 const isLive = g => ["live","inplay","in_play","1h","2h","ht","half_time","playing","started","first_half","second_half"].includes(asText(g.status).toLowerCase().replace(/[\s-]+/g,"_"));
@@ -3279,20 +3367,21 @@ function renderMarketsModal(){
  if(!markets.length){body.append(node("p","A API não forneceu outras opções com cotações identificadas para esta partida.","small"));return}
  if(!canBetApi(g))body.append(node("p","Apostas indisponíveis: partida iniciada ou conexão sem confirmação.","small"));
  const grouped=new Map();
- for(const m of markets){const category=marketCategory(m.name);if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push(m)}
+ for(const m of markets){const title=ptMarket(m.name);const choices=m.outcomes.filter(p=>ptOutcome(p.name,m.name));if(!title||!choices.length)continue;const category=marketCategory(m.name);if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push({...m,outcomes:choices})}
+ if(!grouped.size){body.append(node("p","As opções recebidas não têm descrições suficientemente claras em português para apostar com segurança.","small"));return}
  for(const [category,items] of grouped){
   const group=node("section","","cb-market-group");group.append(node("h3",category));
   for(const m of items){
    const card=node("div","","cb-market-card");card.append(node("h4",ptMarket(m.name)));
    const grid=node("div","","cb-market-picks");
    for(const p of m.outcomes){
-    const btn=node("button",ptMarket(p.name)),key=m.id+"|"+p.id,chosen=pickedSports.get(activeModalId)===key;
+    const btn=node("button",ptOutcome(p.name,m.name)),key=m.id+"|"+p.id,chosen=pickedSports.get(activeModalId)===key;
     btn.type="button";btn.disabled=!canBetApi(g);btn.setAttribute("aria-pressed",String(chosen));
     if(chosen)btn.classList.add("is-picked");
     btn.append(node("strong",fmt(p.odd)));
     btn.addEventListener("click",()=>{
      if(!canBetApi(g)){alert("Apostas indisponíveis nesta partida.");return}
-     window.copabetSelectSportsOdd?.({gameId:activeModalId,odd:p.odd,marketId:m.id,outcomeId:p.id,market:ptMarket(m.name),selection:ptMarket(p.name),competition:competitionOf(g),home,away});
+     window.copabetSelectSportsOdd?.({gameId:activeModalId,odd:p.odd,marketId:m.id,outcomeId:p.id,market:ptMarket(m.name),selection:ptOutcome(p.name,m.name),competition:competitionOf(g),home,away});
     });
     grid.append(btn);
    }
