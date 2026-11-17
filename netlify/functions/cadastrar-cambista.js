@@ -137,16 +137,13 @@ exports.handler = async (event) => {
   const nome = typeof data.nome === "string" ? data.nome.trim() : "";
   const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
   const senha = typeof data.senha === "string" ? data.senha : "";
-  const rate = data.commissionPercent;
 
   if (
     nome.length < 2 || nome.length > 100 ||
     email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-    senha.length < 8 || senha.length > 128 ||
-    typeof rate !== "number" || !Number.isFinite(rate) ||
-    rate < 0 || rate > 100
+    senha.length < 8 || senha.length > 128
   ) {
-    return reply(400, "Informe nome, e-mail, senha de 8 a 128 caracteres e comissão entre 0% e 100%.");
+    return reply(400, "Informe nome, e-mail válido e senha de 8 a 128 caracteres.");
   }
 
   let created;
@@ -177,7 +174,7 @@ exports.handler = async (event) => {
       email,
       role: "cambista",
       active: true,
-      commissionPercent: rate,
+      commissionScheme: "games-tier-v1",
       createdBy: session.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });

@@ -800,7 +800,7 @@ body:has(#publicView.hidden) #cbSlipReopen,body:has(#adminView:not(.hidden)) #cb
 @media(max-width:699px){#cbSlipReopen{position:sticky;top:8px;z-index:6;margin:0 0 12px auto;max-width:100%;min-height:42px}}
 </style>
 <style id="cb-cambista-management-css">
-.cb-cambista-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:10px 0}.cb-cambista-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px}.cb-cambista-form button{align-self:end}.cb-cambista-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}.cb-cambista-stat{background:#112b46;border:1px solid #3b6686;border-radius:9px;padding:10px;min-width:0}.cb-cambista-stat small{display:block;font-size:12px;opacity:.85}.cb-cambista-stat b{font-size:17px;word-break:break-word}.cb-cambista-row{background:#10243e;border:1px solid #3b6686;border-radius:12px;margin:10px 0;padding:14px}.cb-cambista-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.cb-cambista-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:12px}.cb-cambista-actions input{max-width:130px}.cb-cambista-actions label{display:grid;gap:5px}@media(max-width:699px){.cb-cambista-form{grid-template-columns:1fr}.cb-cambista-actions button{flex:1}}
+.cb-cambista-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:10px 0}.cb-cambista-form input{display:block;width:100%;box-sizing:border-box;margin-top:5px}.cb-cambista-form button{align-self:end}.cb-cambista-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:12px 0}.cb-cambista-stat{background:#112b46;border:1px solid #3b6686;border-radius:9px;padding:10px;min-width:0}.cb-cambista-stat small{display:block;font-size:12px;opacity:.85}.cb-cambista-stat b{font-size:17px;word-break:break-word}.cb-cambista-row{background:#10243e;border:1px solid #3b6686;border-radius:12px;margin:10px 0;padding:14px}.cb-cambista-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.cb-cambista-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-top:12px}.cb-cambista-actions input{max-width:130px}.cb-cambista-actions label{display:grid;gap:5px}.cb-commission-scroll{max-width:100%;overflow-x:auto;margin:10px 0 15px}.cb-commission-table{width:100%;border-collapse:collapse;font-size:13px}.cb-commission-table th,.cb-commission-table td{padding:9px 10px;text-align:left;border:1px solid #3b6686;white-space:nowrap}.cb-commission-table th{background:#173955;font-weight:700}.cb-commission-table tbody tr:nth-child(even){background:#14304c}@media(max-width:699px){.cb-cambista-form{grid-template-columns:1fr}.cb-cambista-actions button{flex:1}}
 </style>
 <style id="cb-cash-design">
 #cbCashPane .cb-cash{padding:20px}
@@ -1232,7 +1232,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
    <div class="row" style="margin:12px 0"><span>Retorno potencial</span><b id="payout" class="orange">R$ 0,00</b></div>
    <button class="btn" id="payBtn" style="width:100%">CONTINUAR PARA PAGAMENTO</button>
     
-   <p class="small" style="margin-top:12px">O retorno exibido é uma estimativa e depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
+   <p class="small" style="margin-top:12px">Prêmio máximo de R$ 10.000,00 por bilhete. O retorno exibido depende do resultado dos jogos. Aposta válida apenas mediante envio do comprovante no WhatsApp.</p>
    </div>
   </div>
   <button type="button" id="cbSlipReopen" aria-controls="floatingBetSlip" aria-expanded="false" aria-label="Ver bilhete de apostas">Ver bilhete <span id="cbSlipReopenCount"></span></button>
@@ -1265,12 +1265,11 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
   </section>
   <section id="cbCambistaCreatePane" class="admin-pane hidden">
 <h3>Cadastrar Cambista</h3>
-<p class="small">Cadastre nome, e-mail, senha e comissão. O acesso será criado no servidor para acesso imediato à aba Cambista.</p>
+<p class="small">Cadastre nome, e-mail e senha. A comissão será calculada automaticamente por jogos em cada bilhete pago.</p>
 <form id="cbCambistaCreateForm" class="cb-cambista-form card">
 <div><label for="cbCambistaName">Nome completo</label><input id="cbCambistaName" type="text" required minlength="2" maxlength="100" autocomplete="off"></div>
 <div><label for="cbCambistaEmail">E-mail de acesso</label><input id="cbCambistaEmail" type="email" required autocomplete="off"></div>
 <div><label for="cbCambistaPassword">Senha inicial (mín. 8 caracteres)</label><input id="cbCambistaPassword" type="password" required minlength="8" autocomplete="new-password"></div>
-<div><label for="cbCambistaRate">Comissão (%)</label><input id="cbCambistaRate" type="number" min="0" max="100" step="0.01" required placeholder="Ex.: 10"></div>
 <button class="btn" type="submit" id="cbCambistaCreateBtn">CADASTRAR CAMBISTA</button>
 </form>
 <p id="cbCambistaCreateStatus" role="status" class="small">Cadastro Netlify + Firebase (revisão 12/11/2026). A senha não é armazenada no Firestore.</p>
@@ -1282,7 +1281,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 <div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Pesquisar cambista pelo início do nome</label><input id="cbCambistaFilter" type="search" autocomplete="off" placeholder="Digite as primeiras letras: O, OL, OLE..." aria-label="Pesquisar cambistas pelo início do nome"></div>
 <button class="secondary" type="button" id="cbCambistaRefresh">ATUALIZAR</button><button class="secondary" type="button" id="cbCambistaCsv">BAIXAR CSV DO RESULTADO</button>
 </div>
-<p class="small">Comissões calculadas sobre vendas brutas com pagamento confirmado. Os valores pendentes não entram no cálculo.</p>
+<p class="small">A comissão é calculada por bilhete sobre o valor bruto efetivamente recebido pelo cambista, mesmo quando a aposta não é premiada.</p><div class="cb-commission-scroll"><table class="cb-commission-table" aria-label="Faixas de comissão"><thead><tr><th>Jogos no bilhete</th><th>Comissão</th></tr></thead><tbody><tr><td>1 jogo</td><td>2,5%</td></tr><tr><td>2 a 3 jogos</td><td>5,0%</td></tr><tr><td>4 a 6 jogos</td><td>10,0%</td></tr><tr><td>7 ou mais jogos</td><td>15,0%</td></tr></tbody></table></div>
 <div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
 <p id="cbCambistaListingStatus" class="small" role="status" aria-live="polite">O total de cambistas será confirmado ao consultar o Firebase.</p>
 <div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
@@ -1322,7 +1321,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
       <a id="adminTicketPdfFallback" href="#" hidden style="color:#f5c400;font-weight:bold">ABRIR PDF PARA SALVAR OU IMPRIMIR</a>
       <button type="button" class="secondary" id="adminTicketReprint" style="width:100%;margin-top:8px" disabled>REIMPRIMIR ÚLTIMO BILHETE</button>
       <p class="small" id="adminTicketResult" role="status"></p>
-      <p class="small">O recibo não confirma pagamento ou validação da aposta. Consulte Confirmação de Bilhetes para verificar o registro.</p>
+      <p class="small">Prêmio máximo de R$ 10.000,00 por bilhete. O recibo não confirma pagamento ou validação da aposta. Consulte Confirmação de Bilhetes para verificar o registro.</p>
     </section>
    </div><!-- /adminTicketPane -->
    <div id="matchesPane" class="admin-pane">
@@ -1581,7 +1580,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
   <section class="card" id="cbCambistaPersonalReport">
 <div class="row" style="gap:8px;flex-wrap:wrap"><h3>Minhas vendas e comissão</h3><button type="button" class="secondary" id="cbCambistaPersonalRefresh">ATUALIZAR</button></div>
 <p class="small">Comissões calculadas apenas sobre bilhetes com pagamento confirmado.</p>
-<div id="cbCambistaPersonalTotals" class="cb-cambista-totals">Abra a sessão para consultar suas vendas.</div>
+<div id="cbCambistaPersonalTotals" class="cb-cambista-totals">Abra a sessão para consultar suas vendas.</div><div id="cbCambistaPersonalRates"></div>
 <h4>Meus bilhetes aguardando pagamento</h4>
 <p class="small">Confirme apenas pagamentos recebidos. O bruto e a comissão serão atualizados, sem alterar o resultado da aposta.</p>
 <button type="button" class="secondary" id="cbCambistaPendingRefresh">ATUALIZAR BILHETES</button>
@@ -2474,7 +2473,9 @@ const matchesContainer = $("matches");
     combined = picks.reduce((t, p) => t * p.odd, 1);
     
     $("combined").textContent = picks.length ? formatOdds(combined) : "0,00";
-    $("payout").textContent = money(picks.length ? amount * combined : 0);
+    const potential=picks.length?Math.round(amount*combined*100)/100:0;
+    $("payout").textContent=money(potential);$("payout").style.color=potential>10000?"#ff7777":"";
+    $("payBtn").title=potential>10000?"Prêmio acima do máximo de R$ 10.000,00":"";
   }
 
   $("amount").addEventListener("input", renderPicks);
@@ -2774,7 +2775,8 @@ const matchesContainer = $("matches");
       return;
     }
     combined = picks.reduce((t, p) => t * p.odd, 1);
-    payout = betAmount * combined;
+    payout = Math.round(betAmount*combined*100)/100;
+    if(!Number.isFinite(payout)||payout>10000){alert("Prêmio máximo permitido: R$ 10.000,00 por bilhete. Diminua o valor apostado ou a quantidade de jogos.");$("amount").focus();return;}
     
     $("preSummary").innerHTML = picks.map(p => `<p>${esc(p.cup)} — ${esc(p.a)} x ${esc(p.b)}<br><span class="small">Palpite: ${esc(cbPickName(p))} | Cotação: ${p.odd}</span></p>`).join("");
     $("preAmount").textContent = money(betAmount);
@@ -2815,6 +2817,7 @@ const matchesContainer = $("matches");
   $("sendWhatsAppBtn").addEventListener("click", async () => {
     const check=typeof window.copabetValidateApiPicks==="function"?window.copabetValidateApiPicks(picks):(picks.some(p=>p.source==="api")?"API indisponível.":"");
     if(check){alert(check);return;}
+    if(!Number.isFinite(payout)||payout<=0||payout>10000){alert("Prêmio máximo: R$ 10.000,00 por bilhete. Revise a aposta.");return;}
     if (!bettor.name || !bettor.phone) { alert("Informe seu nome e telefone antes de continuar."); $("pixStep").classList.add("hidden"); $("customerStep").classList.remove("hidden"); return; }
     const sendBtn = $("sendWhatsAppBtn"); sendBtn.disabled = true;
     const lines = [
@@ -3848,7 +3851,7 @@ function games(){
  return manual.concat(api);
 }
 const picks=()=>[...selected.values()];
-const totals=()=>{const list=picks(),amount=Number($("adminTicketAmount").value),combined=list.reduce((t,p)=>t*p.odd,1);return {amount,combined,payout:amount*combined};};
+const totals=()=>{const list=picks(),amount=Number($("adminTicketAmount").value),combined=list.reduce((t,p)=>t*p.odd,1);return {amount,combined,payout:Math.round(amount*combined*100)/100};};
 function summary(){
  const root=$("adminTicketSelections");root.replaceChildren();
  if(!selected.size)element("p","Nenhum palpite selecionado.","small",root);
@@ -3862,6 +3865,7 @@ function summary(){
  const t=totals();
  $("adminTicketCombined").textContent=selected.size?formatOdd(t.combined):"0,00";
  $("adminTicketPayout").textContent=selected.size&&t.amount>0&&Number.isFinite(t.payout)?money(t.payout):money(0);
+ $("adminTicketPayout").style.color=selected.size&&t.payout>10000?"#ff7777":"";
 }
 function render(){
  if(!active())return;
@@ -3953,6 +3957,7 @@ async function issue(){
  if(!list.length){alert("Selecione pelo menos um jogo.");return;}
  if(!Number.isFinite(t.amount)||t.amount<=0){alert("Informe um valor válido.");return;}
  if(!Number.isFinite(t.combined)||t.combined<=1||!Number.isFinite(t.payout)){alert("As cotações são inválidas.");return;}
+ if(t.payout>10000){alert("Prêmio máximo: R$ 10.000,00 por bilhete. Reduza o valor ou os jogos selecionados.");$("adminTicketAmount").focus();return;}
  const fresh=new Map(games().map(g=>[g.id,g]));
  for(const p of list){
   const g=fresh.get(p.id);
@@ -4117,22 +4122,21 @@ window.addEventListener("copabet:cambista-opened",()=>{
 import{getApps,getApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import{summarizeCambistaBets}from"/assets/cambista-commission.mjs?v=1";
 const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2", app=getApps().length?getApp():null, auth=app?getAuth(app):null, db=app?getFirestore(app):null;
 const $=id=>document.getElementById(id), money=x=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(x)||0);
 const admin=()=>auth?.currentUser?.uid===ADMIN_UID&&!auth.currentUser.isAnonymous&&!$("adminView").classList.contains("hidden");
 const cambista=()=>auth?.currentUser&&!auth.currentUser.isAnonymous&&window.copabetCambistaSession?.uid===auth.currentUser.uid&&!$("cambistaView").classList.contains("hidden");
-const validRate=r=>r!==undefined&&r!==null&&String(r).trim()!==""&&Number.isFinite(Number(r))&&Number(r)>=0&&Number(r)<=100;
 const round=n=>Math.round((Number(n)||0)*100)/100;
 const append=(p,tag,txt,cls)=>{const e=document.createElement(tag);e.textContent=String(txt);if(cls)e.className=cls;p.append(e);return e;};
-const confirmed=b=>{const payment=String(b.paymentStatus||"").toLowerCase(),status=String(b.status||"").toLowerCase();return payment==="confirmed"||(payment===""&&["accepted","won","lost"].includes(status));};
-const amt=b=>{const n=Number(b.amount);return Number.isFinite(n)&&n>0?n:0};
-function summarize(rows,rate){
- const bets=rows.filter(b=>b.cambistaIssued===true||String(b.source||"").startsWith("cambista_"));
- const done=bets.filter(confirmed),pending=bets.filter(b=>!confirmed(b)&&!["rejected","cancelled"].includes(String(b.status||"").toLowerCase())&&!["rejected","cancelled"].includes(String(b.paymentStatus||"").toLowerCase()));
- const gross=round(done.reduce((n,b)=>n+amt(b),0));
- return {issued:bets.length,done:done.length,gross,pending:round(pending.reduce((n,b)=>n+amt(b),0)),due:validRate(rate)?round(gross*Number(rate)/100):null};
-}
 const tile=(parent,label,value)=>{const d=append(parent,"div","","cb-cambista-stat");append(d,"small",label);append(d,"b",value);};
+function renderTierTable(parent,tiers){
+ parent.replaceChildren();const wrap=append(parent,"div","","cb-commission-scroll"),table=append(wrap,"table","","cb-commission-table"),thead=append(table,"thead",""),head=append(thead,"tr","");
+ for(const label of ["Jogos","Taxa","Bilhetes pagos","Bruto confirmado","Comissão"])append(head,"th",label);
+ const tbody=append(table,"tbody","");
+ for(const tier of tiers){const tr=append(tbody,"tr","");
+ for(const value of [tier.label,tier.rate.toLocaleString("pt-BR")+"%",tier.count,money(tier.gross),money(tier.commission)])append(tr,"td",value);}
+}
 let rows=[],sequence=0;
 let ticketReadOk=true, ticketReadError="";
 async function loadAll(){
@@ -4158,7 +4162,7 @@ async function loadAll(){
   rows=profiles.docs.map(d=>{
    const x=d.data(),own=all.filter(b=>String(b.issuedByUid||"")===d.id);
    return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),active:x.active===true,
-     rate:validRate(x.commissionPercent)?Number(x.commissionPercent):null,...summarize(own,x.commissionPercent)};
+     ...summarizeCambistaBets(own)};
   }).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
   if(listingStatus)listingStatus.textContent=rows.length
    ?rows.length+" cambista(s) encontrado(s) no banco. Digite o início do nome para localizar um registro."
@@ -4185,7 +4189,7 @@ function renderRanking(){
   const details=append(card,"div","","cb-cambista-details");
   tile(details,"Bruto confirmado",money(r.gross));
   tile(details,"Bilhetes pagos",String(r.done));
-  tile(details,"Comissão",r.due===null?"A definir":money(r.due));
+  tile(details,"Comissão",money(r.due));
   tile(details,"Bilhetes emitidos",String(r.issued));
   tile(details,"Pendente",money(r.pending));
  }
@@ -4218,19 +4222,11 @@ function render(){
   append(card,"p",r.email||"E-mail não cadastrado — confira o perfil no Firebase.","small");
   const d=append(card,"div","","cb-cambista-details");
   tile(d,"Bilhetes emitidos",ticketReadOk?r.issued:"—");tile(d,"Pagamentos confirmados",ticketReadOk?r.done:"—");tile(d,"Venda bruta",ticketReadOk?money(r.gross):"—");
-  tile(d,"Percentual",r.rate===null?"A definir":r.rate.toLocaleString("pt-BR")+"%");
-  tile(d,"Comissão",ticketReadOk?(r.due===null?"A definir":money(r.due)):"—");tile(d,"Pendentes",ticketReadOk?money(r.pending):"—");
+  tile(d,"Comissão",ticketReadOk?money(r.due):"—");
+  tile(d,"Pendentes",ticketReadOk?money(r.pending):"—");
+  if(ticketReadOk){append(card,"p","Bruto confirmado e comissão por jogos","small");const panel=append(card,"div","");renderTierTable(panel,r.tiers);
+  if(r.unclassified)append(card,"p",r.unclassified+" bilhete(s) pagos sem lista de jogos válida: incluídos no bruto, sem comissão.","small");}
   const actions=append(card,"div","","cb-cambista-actions");
-  const label=append(actions,"label","Alterar comissão (%)");
-  const input=append(label,"input","");input.type="number";input.min="0";input.max="100";input.step="0.01";input.value=r.rate===null?"":String(r.rate);
-  const save=append(actions,"button","SALVAR %","secondary");save.type="button";
-  save.addEventListener("click",async()=>{
-   if(!validRate(input.value)){alert("Informe percentual entre 0 e 100.");return;}
-   if(!admin())return;
-   save.disabled=true;
-   try{await updateDoc(doc(db,"cambistas",r.uid),{commissionPercent:Number(input.value),updatedAt:serverTimestamp()});await loadAll();}
-   catch(e){alert("Falha ao salvar comissão: "+e.message);save.disabled=false;}
-  });
   const toggle=append(actions,"button",r.active?"DESATIVAR":"ATIVAR","secondary");toggle.type="button";
   toggle.addEventListener("click",async()=>{
    if(!admin()||!confirm((r.active?"Desativar":"Ativar")+" o acesso de "+r.name+"?"))return;
@@ -4266,14 +4262,11 @@ async function createCambista(event){
  const nome=$("cbCambistaName").value.trim();
  const email=$("cbCambistaEmail").value.trim().toLowerCase();
  const senha=$("cbCambistaPassword").value;
- const rateRaw=$("cbCambistaRate").value.trim();
- const commissionPercent=Number(rateRaw);
  if(
   nome.length<2||nome.length>100||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
-  senha.length<8||senha.length>128||rateRaw===""||
-  !Number.isFinite(commissionPercent)||commissionPercent<0||commissionPercent>100
+  senha.length<8||senha.length>128
  ){
-  status.textContent="Informe nome, e-mail válido, senha de 8 a 128 caracteres e comissão entre 0% e 100%.";
+  status.textContent="Informe nome, e-mail válido e senha de 8 a 128 caracteres.";
   return;
  }
  const btn=$("cbCambistaCreateBtn");
@@ -4288,7 +4281,7 @@ async function createCambista(event){
    method:"POST",
    cache:"no-store",
    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-   body:JSON.stringify({nome,email,senha,commissionPercent})
+   body:JSON.stringify({nome,email,senha})
   });
   // A Netlify pode devolver HTML em um 404 ou erro de implantação.
   // Nunca trate uma página HTML como cadastro realizado.
@@ -4348,15 +4341,17 @@ async function createCambista(event){
 async function loadPersonal(){
  if(!cambista())return;
  const user=auth.currentUser,root=$("cbCambistaPersonalTotals");root.textContent="Carregando...";
+  $("cbCambistaPersonalRates")?.replaceChildren();
  try{
   const [p,bets]=await Promise.all([getDoc(doc(db,"cambistas",user.uid)),getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))]);
   if(!cambista()||auth.currentUser.uid!==user.uid)return;
   if(!p.exists()||p.data().active!==true){root.textContent="Cadastro desativado.";return;}
-  const all=bets.docs.map(d=>d.data()),r=summarize(all,p.data().commissionPercent);root.replaceChildren();
+  const all=bets.docs.map(d=>d.data()).filter(b=>b.issuedByUid===user.uid),r=summarizeCambistaBets(all);root.replaceChildren();
   tile(root,"Bilhetes emitidos",r.issued);tile(root,"Bruto confirmado",money(r.gross));
-  tile(root,"Comissão a receber",r.due===null?"Percentual não definido":money(r.due));
-  tile(root,"Percentual",validRate(p.data().commissionPercent)?Number(p.data().commissionPercent).toLocaleString("pt-BR")+"%":"A definir");
+  tile(root,"Comissão a receber",money(r.due));
   tile(root,"Valor pendente",money(r.pending));
+  const ratesHost=$("cbCambistaPersonalRates");if(ratesHost){append(ratesHost,"h4","Comissões por quantidade de jogos");const panel=append(ratesHost,"div","");renderTierTable(panel,r.tiers);
+    if(r.unclassified)append(ratesHost,"p",r.unclassified+" bilhete(s) pagos sem quantidade de jogos válida: sem comissão.","small");}
  }catch(e){root.textContent="Erro ao consultar vendas: "+String(e.code||e.message);}
 }
 
@@ -4416,7 +4411,7 @@ function csvExport(){
  if(!search){alert("Digite as primeiras letras do nome antes de exportar.");return;}
  const filtered=rows.filter(r=>matchFirstNamePrefix(r.name,search));
  const csvValue=v=>'"'+String(v??"").replaceAll('"','""')+'"';
- const data=[["Nome","Email","UID","Ativo","Percentual","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)"],...filtered.map(r=>[r.name,r.email,r.uid,r.active?"Sim":"Nao",r.rate??"",r.issued,r.done,r.gross,r.due??"",r.pending])];
+ const data=[["Nome","Email","UID","Ativo","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)",...["1 jogo","2 a 3 jogos","4 a 6 jogos","7 ou mais jogos"].flatMap(label=>["Bruto "+label+" (R$)","Comissao "+label+" (R$)"])],...filtered.map(r=>[r.name,r.email,r.uid,r.active?"Sim":"Nao",r.issued,r.done,r.gross,r.due,r.pending,...r.tiers.flatMap(t=>[t.gross,t.commission])])];
  const blob=new Blob(["\uFEFF"+data.map(a=>a.map(csvValue).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="copabet-comissoes-cambistas.csv";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
