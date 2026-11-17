@@ -883,6 +883,41 @@ img,video,canvas,svg{max-width:100%}
   html,body{overflow:visible!important;max-width:none!important}
 }
 </style>
+<style id="copabet-visual-premium">
+body{background:radial-gradient(ellipse at 20% 0%,#1a4878 0,transparent 39%),radial-gradient(ellipse at 80% 12%,#102c55 0,transparent 40%),#06101f!important;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif!important}
+header{background:linear-gradient(110deg,#0b1b31,#174573 58%,#0a1e37)!important;border-bottom:1px solid #4ba1dc!important}
+.banner-carousel{border:1px solid #3b668f!important;border-radius:20px!important;overflow:hidden}
+.banner-slide{background:linear-gradient(125deg,#0b223f,#184e80,#09213a)!important}
+#sportsapiPanel{background:linear-gradient(155deg,#0b233f,#08182e)!important;border:1px solid #3c678e!important;border-radius:19px!important;box-shadow:0 16px 40px #020b1999!important}
+#sportsapiPanel .cb-live-head{padding-bottom:12px;border-bottom:1px solid #305475}
+#sportsapiPanel .cb-live-head h2{font-size:clamp(19px,2.4vw,28px)!important;font-weight:850;letter-spacing:.35px}
+.cb-live-game{background:linear-gradient(145deg,#143454,#0a1c34)!important;border:1px solid #386287!important;border-radius:16px!important;padding:15px!important;transition:transform .18s,border-color .18s}
+.cb-live-game:hover{transform:translateY(-1px);border-color:#66b4ef!important}
+.cb-live-match{font-size:clamp(16px,2vw,21px)!important}
+.cb-odd{min-width:0!important;border-radius:12px!important;background:#153a5b!important}
+.cb-odd.is-picked{background:#ffda46!important;border-color:#ffedab!important}
+.cb-live-score{font-size:22px;font-weight:850;color:#ffda68;margin:3px 0 7px}
+.cb-more-market-btn{width:100%;min-height:44px;margin-top:10px;background:linear-gradient(100deg,#165583,#237eb9)!important;color:#fff!important;border:1px solid #58b3eb!important;border-radius:11px;font-weight:800;cursor:pointer}
+#cbMarketsModal{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:14px;background:#020914e5;backdrop-filter:blur(8px)}
+#cbMarketsModal.hidden{display:none!important}
+.cb-markets-panel{width:min(900px,100%);max-height:92dvh;overflow:auto;background:linear-gradient(155deg,#0d2c4b,#071a30);border:1px solid #4f86b5;border-radius:18px;padding:20px;box-shadow:0 30px 80px #000b}
+.cb-markets-header{position:sticky;top:-20px;z-index:3;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;background:#0b2743;padding:12px 0;border-bottom:1px solid #385f81}
+.cb-markets-header h2{font-size:clamp(18px,3vw,26px);color:#fff;margin:0 0 6px}
+#cbMarketsClose{background:#174266!important;color:#fff!important;border:1px solid #63a1ce!important;border-radius:11px;min-width:44px;min-height:44px;font-size:28px;cursor:pointer}
+.cb-market-group{margin:17px 0}
+.cb-market-group h3{color:#9fd5ff;letter-spacing:1px;font-size:13px;text-transform:uppercase}
+.cb-market-card{background:#103552;border:1px solid #386285;border-radius:12px;padding:12px;margin:9px 0}
+.cb-market-card h4{font-size:15px;color:#fff;margin:0 0 10px}
+.cb-market-picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.cb-market-picks button{background:#1e4e74;color:#fff;border:1px solid #5187af;border-radius:9px;min-height:54px;padding:9px;cursor:pointer;overflow-wrap:anywhere}
+.cb-market-picks button strong{display:block;color:#ffdc6a;margin-top:5px}
+.cb-market-picks button.is-picked{background:#ffd643!important;color:#10243b!important;border-color:#fff0ad!important}
+.cb-market-picks button.is-picked strong{color:#10243b!important}
+.cb-market-picks button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:699px){#sportsapiPanel .cb-odds-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+#sportsapiPanel .cb-live-game{padding:10px!important}#sportsapiPanel .cb-odd{padding:8px 3px!important}
+#cbMarketsModal{padding:0;align-items:stretch}.cb-markets-panel{height:100dvh;max-height:100dvh;width:100%;border-radius:0;padding:13px}.cb-markets-header{top:-13px}.cb-market-picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
 </head>
 <body>
 
@@ -1312,6 +1347,12 @@ img,video,canvas,svg{max-width:100%}
 </main>
 </div>
 
+<div id="cbMarketsModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="cbMarketsTitle" tabindex="-1">
+ <div class="cb-markets-panel">
+  <div class="cb-markets-header"><div><h2 id="cbMarketsTitle">Mais opções de aposta</h2><p class="small" id="cbMarketsSubtitle">Mercados disponibilizados pela API</p></div><button type="button" id="cbMarketsClose" aria-label="Fechar opções">×</button></div>
+  <div id="cbMarketsBody"><p class="small">Buscando mercados...</p></div>
+ </div>
+</div>
 <!-- Modal Pix -->
 <div id="paymentModal" class="modal hidden">
  <div class="modalbox">
@@ -1488,7 +1529,7 @@ img,video,canvas,svg{max-width:100%}
       const validated = rows.filter(b=>["accepted","won","lost"].includes(String(b.status||"").toLowerCase()));
       const pending = rows.filter(b=>!["accepted","won","lost","cancelled"].includes(String(b.status||"").toLowerCase()));
       const renderBet = (b, canRequest) => {
-        const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${esc(p.cup||"")}: ${esc(p.a||"")} x ${esc(p.b||"")} — ${esc(["Casa","Empate","Visitante"][Number(p.side)]||"Palpite")}`).join(" · ");
+        const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${esc(p.cup||"")}: ${esc(p.a||"")} x ${esc(p.b||"")} — ${esc((p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"Palpite"))}`).join(" · ");
         return `<div style="padding:8px 0;border-bottom:1px solid #292929"><div class="row" style="gap:8px"><b>${accountMoney(b.amount)}</b><span class="small">${esc(({accepted:"Validada",won:"Vencedora",lost:"Não vencedora",pending:"Aguardando validação"})[b.status]||b.status||"Aguardando validação")}</span></div>${details?`<p class="small" style="margin:5px 0">${details}</p>`:""}${canRequest?`<button type="button" class="secondary" data-withdraw-bet="${esc(b.id)}" style="width:100%;margin-top:5px">SOLICITAR RETIRADA PELO WHATSAPP</button>`:""}</div>`;
       };
       $("myValidatedBets").innerHTML=validated.length?validated.map(b=>renderBet(b,true)).join(""):'<p class="small">Nenhuma aposta validada.</p>';
@@ -1577,7 +1618,7 @@ img,video,canvas,svg{max-width:100%}
       if(!snap.exists() || snap.data().uid!==currentUser.uid){alert("Não foi possível localizar essa aposta na sua conta.");return;}
       const b=snap.data();
       if(!["accepted","won","lost"].includes(String(b.status||"").toLowerCase())){alert("Esta aposta ainda não está validada.");return;}
-      const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${p.cup||""}: ${p.a||""} x ${p.b||""} — ${["Casa","Empate","Visitante"][Number(p.side)]||"Palpite"}`).join("; ");
+      const details=(Array.isArray(b.picks)?b.picks:[]).map(p=>`${p.cup||""}: ${p.a||""} x ${p.b||""} — ${(p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"Palpite")}`).join("; ");
       const lines=["Olá! Quero solicitar atendimento para retirada/conferência dos meus fundos.","Valor da aposta: "+accountMoney(b.amount),"Status: "+({accepted:"Validada",won:"Vencedora",lost:"Não vencedora"}[b.status]||b.status),"Aposta: "+details,"Identificador da aposta: "+betId,"Saldo atual exibido na conta: "+$("accountBalance").textContent,"Por favor, confiram esta solicitação."];
       window.open("https://wa.me/5579996498111?text="+encodeURIComponent(lines.join("\n")),"_blank");
     }).catch(err=>{console.error(err);alert("Não foi possível abrir a solicitação desta aposta.");});
@@ -1877,7 +1918,7 @@ img,video,canvas,svg{max-width:100%}
       const pickLines=picks.map(p=>{
         const m=matchMap.get(String(p.id));
         const score=m && m.status==="ended" && m.scoreA!=null && m.scoreB!=null ? ` — Placar ${m.scoreA} x ${m.scoreB}` : " — aguardando placar final";
-        return `${esc(p.cup||"Liga")} · ${esc(p.a||"")} x ${esc(p.b||"")} · Palpite: ${esc(["Casa","Empate","Visitante"][Number(p.side)]||"—")}${score}`;
+        return `${esc(p.cup||"Liga")} · ${esc(p.a||"")} x ${esc(p.b||"")} · Palpite: ${esc((p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"—"))}${score}`;
       }).join("<br>");
       const statusColor=status==="won"?"#45d483":status==="lost"?"#ff6969":"#ffd400";
       return `<div class="card" style="margin:8px 0"><div class="row"><b>Bilhete ${esc(b.id.slice(-8).toUpperCase())}</b><b style="color:${statusColor}">${esc(statusLabel)}</b></div><p class="small">Enviado: ${esc(auditDate(b.sentAt||b.createdAt))} · Valor: ${auditMoney(b.amount)} · Cotação: ${formatOdds(b.combined)} · Retorno potencial: ${auditMoney(b.payout)}</p><p class="small">${pickLines||"Sem seleções registradas."}</p>${["won","lost"].includes(status)?`<p><b>Resultado: ${status==="won"?"Prêmio devido "+auditMoney(b.payout):"Prêmio devido R$ 0,00"}</b></p>`:""}</div>`;
@@ -1931,7 +1972,7 @@ img,video,canvas,svg{max-width:100%}
       completed.forEach((b,i)=>{
         const won=String(b.status).toLowerCase()==="won";
         lines.push(`${i+1}. Bilhete ${b.id.slice(-8).toUpperCase()} — ${won?"VENCEDORA":"NÃO VENCEDORA"}`,`Valor: ${auditMoney(b.amount)} | Retorno devido: ${auditMoney(won?(b.payout||b.creditedAmount):0)}`);
-        (Array.isArray(b.picks)?b.picks:[]).forEach(p=>lines.push(`• ${p.cup||"Liga"}: ${p.a} x ${p.b} — palpite ${["Casa","Empate","Visitante"][Number(p.side)]||"—"}`));
+        (Array.isArray(b.picks)?b.picks:[]).forEach(p=>lines.push(`• ${p.cup||"Liga"}: ${p.a} x ${p.b} — palpite ${(p.marketId&&p.marketId!=="1x2"?(p.marketName||"Mercado")+" — "+(p.selectionName||"Seleção"):["Casa","Empate","Visitante"][Number(p.side)]||"—")}`));
       });
       lines.push("","*Observação: valores brutos estimados; confirmar recebimentos Pix e pagamentos reais separadamente.");
       const url=`https://wa.me/${AUDIT_WHATSAPP}?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -2152,23 +2193,24 @@ img,video,canvas,svg{max-width:100%}
     });
   }
 
-  window.copabetSelectSportsOdd = function(info){
-    const id = 'sportsapi:' + String(info.gameId);
-    const odd = Number(info.odd);
-    if (!Number.isFinite(odd) || odd <= 1) { alert('Cotação inválida.'); return; }
-    // Cotação real válida não depende da presença do nome da casa.
-    const idx = picks.findIndex(p => String(p.id) === id);
-    const item = {id, side: ({Casa:0,Empate:1,Fora:2})[String(info.selection)] ?? 0, odd, cup: String(info.competition||'Futebol'),
-      a: String(info.home||'Mandante'), b: String(info.away||'Visitante'),
-      location: String(info.market||'') + ' · ' + String(info.selection||'')};
-    const removing = idx >= 0 && picks[idx].side === item.side;
-    if(removing) picks.splice(idx,1); else if(idx >= 0) picks[idx] = item; else picks.push(item);
+  const cbPickName=p=>p.marketId && p.marketId!=="1x2"
+    ?String(p.marketName||"Mercado")+" — "+String(p.selectionName||"Escolha")
+    :(["Casa","Empate","Fora"][Number(p.side)]||String(p.selectionName||"Palpite"));
+  window.copabetPickName=cbPickName;
+  window.copabetSelectSportsOdd=function(info){
+    const id="sportsapi:"+String(info.gameId),odd=Number(info.odd),marketId=String(info.marketId||"1x2"),outcomeId=String(info.outcomeId||info.selection||"");
+    const side=marketId==="1x2"?({"Casa":0,"Empate":1,"Fora":2})[String(info.selection)]:-1;
+    if(!Number.isFinite(odd)||odd<=1||!outcomeId||(marketId==="1x2"&&!Number.isInteger(side))){alert("Cotação ou seleção inválida.");return;}
+    const pickKey=marketId+"|"+outcomeId,idx=picks.findIndex(p=>p.id===id);
+    const item={id,side,odd,cup:String(info.competition||"Futebol"),a:String(info.home||"Mandante"),b:String(info.away||"Visitante"),
+      marketId,outcomeId,pickKey,marketName:String(info.market||"Resultado final"),selectionName:String(info.selection||""),source:"api"};
+    const removing=idx>=0&&picks[idx].pickKey===pickKey;
+    if(removing)picks.splice(idx,1);else if(idx>=0)picks[idx]=item;else picks.push(item);
     renderPicks();
-    window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(info.gameId),side:removing?"":String(info.selection)}}));
-    // Permanece na lista para escolher outras partidas; o bilhete fica ao final.
+    window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(info.gameId),selectionKey:removing?"":pickKey}}));
   };
 
-  window.pick = function(id, side){
+    window.pick = function(id, side){
     const m = window.matches.find(x => String(x.id) === String(id));
     if(!m) return;
     
@@ -2250,7 +2292,7 @@ const matchesContainer = $("matches");
     
     const counter=document.getElementById("cbSlipCount"); if(counter) counter.textContent=picks.length ? ` · ${picks.length} ${picks.length===1?"jogo":"jogos"}` : "";
     const reopenCount=document.getElementById("cbSlipReopenCount"); if(reopenCount) reopenCount.textContent=picks.length ? `(${picks.length})` : "";
-    sel.innerHTML = picks.length ? picks.map((p,i) => `<div class="cb-slip-pick"><div><b>${esc(p.a)} × ${esc(p.b)}</b><span>${["Casa","Empate","Fora"][p.side]} · ${formatOdds(p.odd)}</span></div><button type="button" class="cb-slip-remove" data-remove-pick="${i}" aria-label="Remover ${esc(p.a)} e ${esc(p.b)} do bilhete">Remover</button></div>`).join("") : "Você ainda não selecionou jogos.";
+    sel.innerHTML = picks.length ? picks.map((p,i) => `<div class="cb-slip-pick"><div><b>${esc(p.a)} × ${esc(p.b)}</b><span>${esc(cbPickName(p))} · ${formatOdds(p.odd)}</span></div><button type="button" class="cb-slip-remove" data-remove-pick="${i}" aria-label="Remover ${esc(p.a)} e ${esc(p.b)} do bilhete">Remover</button></div>`).join("") : "Você ainda não selecionou jogos.";
     
     const amount = Math.max(0, Number($("amount").value) || 0);
     combined = picks.reduce((t, p) => t * p.odd, 1);
@@ -2266,7 +2308,7 @@ const matchesContainer = $("matches");
     const index=Number(button.dataset.removePick);
     if(!Number.isInteger(index)||index<0||index>=picks.length)return;
     const removed=picks.splice(index,1)[0];
-    if(String(removed.id).startsWith("sportsapi:"))window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(removed.id).slice("sportsapi:".length),side:""}}));
+    if(String(removed.id).startsWith("sportsapi:"))window.dispatchEvent(new CustomEvent("copabet:sports-selection",{detail:{gameId:String(removed.id).slice("sportsapi:".length),selectionKey:""}}));
     else if(typeof window.render==="function")window.render();
     renderPicks();
   });
@@ -2525,6 +2567,8 @@ const matchesContainer = $("matches");
   });
 
   $("payBtn").addEventListener("click", async () => {
+    const error=typeof window.copabetValidateApiPicks==="function"?window.copabetValidateApiPicks(picks):(picks.some(p=>p.source==="api")?"API sem confirmação. Atualize a página.":"");
+    if(error){alert(error);return;}
     if (picks.length < 2) {
       alert("Para finalizar a aposta, selecione pelo menos 2 jogos diferentes.");
       return;
@@ -2556,7 +2600,7 @@ const matchesContainer = $("matches");
     combined = picks.reduce((t, p) => t * p.odd, 1);
     payout = betAmount * combined;
     
-    $("preSummary").innerHTML = picks.map(p => `<p>${esc(p.cup)} — ${esc(p.a)} x ${esc(p.b)}<br><span class="small">Palpite: ${["Casa","Empate","Visitante"][p.side]} | Cotação: ${p.odd}</span></p>`).join("");
+    $("preSummary").innerHTML = picks.map(p => `<p>${esc(p.cup)} — ${esc(p.a)} x ${esc(p.b)}<br><span class="small">Palpite: ${esc(cbPickName(p))} | Cotação: ${p.odd}</span></p>`).join("");
     $("preAmount").textContent = money(betAmount);
     $("preOdds").textContent = formatOdds(combined);
     $("prePayout").textContent = money(payout);
@@ -2593,6 +2637,8 @@ const matchesContainer = $("matches");
   });
 
   $("sendWhatsAppBtn").addEventListener("click", async () => {
+    const check=typeof window.copabetValidateApiPicks==="function"?window.copabetValidateApiPicks(picks):(picks.some(p=>p.source==="api")?"API indisponível.":"");
+    if(check){alert(check);return;}
     if (!bettor.name || !bettor.phone) { alert("Informe seu nome e telefone antes de continuar."); $("pixStep").classList.add("hidden"); $("customerStep").classList.remove("hidden"); return; }
     const sendBtn = $("sendWhatsAppBtn"); sendBtn.disabled = true;
     const lines = [
@@ -2600,7 +2646,7 @@ const matchesContainer = $("matches");
       "👤 Nome: " + bettor.name,
       "📱 Telefone: " + bettor.phone,
       "⚽ *JOGOS E PALPITES:*",
-      ...picks.map((p,i) => `${i+1}. ${p.cup}: ${p.a} x ${p.b}\n   Palpite: ${["Vitória da casa","Empate","Vitória visitante"][p.side]}\n   Cotação: ${p.odd}`),
+      ...picks.map((p,i) => `${i+1}. ${p.cup}: ${p.a} x ${p.b}\n   Palpite: ${cbPickName(p)}\n   Cotação: ${p.odd}`),
       "",
       "💰 Valor apostado: " + money(betAmount),
       "📊 Cotação total: " + formatOdds(combined),
@@ -2628,7 +2674,7 @@ const matchesContainer = $("matches");
         amount: betAmount,
         combined: Number(combined),
         payout: Number(payout),
-        picks: picks.map(p=>({id:String(p.id),cup:p.cup,a:p.a,b:p.b,side:Number(p.side),odd:Number(p.odd)})),
+        picks: picks.map(p=>({id:String(p.id),cup:p.cup,a:p.a,b:p.b,side:Number(p.side),odd:Number(p.odd),source:p.source||"manual",marketId:p.marketId||"1x2",outcomeId:p.outcomeId||"",marketName:p.marketName||"Resultado final",selectionName:p.selectionName||cbPickName(p)})),
         status: "pending",
         createdAt: serverTimestamp()
       });
@@ -2824,6 +2870,7 @@ function cachedOdds(g){
 }
 function syncGameSections(){
  const society=filter==="society";
+  if(society)closeMarkets();
  if(root)root.hidden=society;
  if(societyRoot)societyRoot.hidden=!society;
  // A barra "Campeonatos" reúne jogos manuais e importados.
@@ -2832,7 +2879,7 @@ function syncGameSections(){
  if(statusEl)statusEl.hidden=society;
 }
 const pickedSports=new Map();
-window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;e.detail.side?pickedSports.set(String(e.detail.gameId),String(e.detail.side)):pickedSports.delete(String(e.detail.gameId));render()});
+window.addEventListener("copabet:sports-selection",e=>{if(!e.detail)return;e.detail.selectionKey?pickedSports.set(String(e.detail.gameId),String(e.detail.selectionKey)):pickedSports.delete(String(e.detail.gameId));render();if(activeModalId!==null)renderMarketsModal()});
 const asText = x => String(x ?? "").trim();
 const first = (...xs) => xs.find(x=>x!==undefined && x!==null && asText(x)!=="");
 const name = x => typeof x==="object" && x!==null ? asText(first(x.name,x.shortName,x.title,x.label)) : asText(x);
@@ -2936,6 +2983,113 @@ function parseOdds(raw){
  return chosen?{house:chosen[0],values:chosen[1]}:{house:"",values:new Map()};
 }
 
+
+function additionalMarkets(g){
+ const all=new Map(),asNum=x=>{const n=Number(typeof x==="string"?x.replace(",","."):x);return Number.isFinite(n)&&n>1&&n<100000?n:null};
+ function add(mid,title,period,oid,label,odd){
+  const n=asNum(odd),t=name(title).trim(),l=name(label).trim();
+  if(!n||!t||!l||/^\d+$/.test(l)||/^mercado\s+\d+$/i.test(t))return;
+  if(/^(1x2|h2h|match odds|match result|full time result|resultado final|resultado da partida)$/i.test(t))return;
+  const id=String(mid||t)+"|"+String(period||"");
+  if(!all.has(id))all.set(id,{id,name:t+(period?" · "+period:""),outcomes:new Map()});
+  const o=all.get(id).outcomes,key=String(oid||l);
+  if(o.size<45&&!o.has(key))o.set(key,{id:key,name:l,odd:n});
+ }
+ if(Array.isArray(g.marketCatalog))for(const m of g.marketCatalog){
+  if(!m||m.marketActive===false)continue;
+  for(const p of Array.isArray(m.outcomes)?m.outcomes:[])if(p&&p.active!==false)add(m.id,first(m.name,m.label),m.period,p.id,first(p.name,p.label),first(p.odd,p.price));
+ }
+ const raw=Array.isArray(g.odds)?g.odds:Array.isArray(g.odds?.markets)?g.odds.markets:[];
+ for(const m of raw){
+  if(!m||m.marketActive===false||m.active===false)continue;
+  const title=first(m.name,m.label,m.marketName,m.key),mid=first(m.id,m.key,title);
+  const positions=Array.isArray(m.positions)?m.positions:[];
+  for(const quote of Array.isArray(m.quotes)?m.quotes:[]){
+   if(!quote||quote.suspended===true||quote.active===false)continue;
+   const values=Array.isArray(quote.latest)?quote.latest:[];
+   for(let i=0;i<Math.min(values.length,positions.length);i++){
+    const p=positions[i];add(mid,title,m.period,first(p?.id,p?.key,name(p)),name(p),values[i]);
+   }
+  }
+  for(const p of Array.isArray(m.outcomes)?m.outcomes:[])if(p&&p.active!==false)add(mid,title,m.period,first(p.id,p.key),first(p.name,p.label),first(p.odd,p.price));
+ }
+ return [...all.values()].map(m=>({...m,outcomes:[...m.outcomes.values()]})).filter(m=>m.outcomes.length).slice(0,140);
+}
+const marketCategory=s=>{
+ const t=s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ if(/gol|goal|total|over|under|ambos marcam|handicap/.test(t))return "Gols e totais";
+ if(/cartao|card|booking/.test(t))return "Cartões";
+ if(/corner|escanteio|canto/.test(t))return "Escanteios";
+ if(/penalt|penalty/.test(t))return "Pênaltis";
+ if(/player|jogador|scorer|assist/.test(t))return "Jogadores";
+ return "Outros mercados";
+};
+const endedApi=g=>/^(finished|ended|completed|final|full_time|ft|aet|after_extra_time|after_penalties|pen|cancelled|canceled|postponed|abandoned|suspended)$/.test(asText(g.status).toLowerCase().replace(/[\s-]+/g,"_"));
+const canBetApi=g=>apiDataConfirmed&&!endedApi(g)&&!isLive(g)&&startTimestamp(g)>Date.now();
+const marketsOverlay=document.getElementById("cbMarketsModal");
+let activeModalId=null;
+function closeMarkets(){activeModalId=null;marketsOverlay?.classList.add("hidden")}
+document.getElementById("cbMarketsClose")?.addEventListener("click",closeMarkets);
+marketsOverlay?.addEventListener("click",e=>{if(e.target===marketsOverlay)closeMarkets()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&activeModalId!==null)closeMarkets()});
+function openMarkets(g){activeModalId=String(g.sportsApiId||g.id);marketsOverlay?.classList.remove("hidden");renderMarketsModal();marketsOverlay?.focus()}
+function renderMarketsModal(){
+ if(activeModalId===null)return;
+ const g=games.find(x=>String(x.sportsApiId||x.id)===activeModalId);
+ if(!g||endedApi(g)){closeMarkets();return}
+ const home=name(first(g.homeTeam,g.home_team,g.home,g.teamA,g.teams?.home))||"Mandante";
+ const away=name(first(g.awayTeam,g.away_team,g.away,g.teamB,g.teams?.away))||"Visitante";
+ document.getElementById("cbMarketsTitle").textContent=home+" × "+away;
+ document.getElementById("cbMarketsSubtitle").textContent=competitionOf(g)+" · Cotações da API";
+ const body=document.getElementById("cbMarketsBody");body.replaceChildren();
+ const markets=additionalMarkets(g);
+ if(!markets.length){body.append(node("p","A API não forneceu outras opções com cotações identificadas para esta partida.","small"));return}
+ if(!canBetApi(g))body.append(node("p","Apostas indisponíveis: partida iniciada ou conexão sem confirmação.","small"));
+ const grouped=new Map();
+ for(const m of markets){const category=marketCategory(m.name);if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push(m)}
+ for(const [category,items] of grouped){
+  const group=node("section","","cb-market-group");group.append(node("h3",category));
+  for(const m of items){
+   const card=node("div","","cb-market-card");card.append(node("h4",m.name));
+   const grid=node("div","","cb-market-picks");
+   for(const p of m.outcomes){
+    const btn=node("button",p.name),key=m.id+"|"+p.id,chosen=pickedSports.get(activeModalId)===key;
+    btn.type="button";btn.disabled=!canBetApi(g);btn.setAttribute("aria-pressed",String(chosen));
+    if(chosen)btn.classList.add("is-picked");
+    btn.append(node("strong",fmt(p.odd)));
+    btn.addEventListener("click",()=>{
+     if(!canBetApi(g)){alert("Apostas indisponíveis nesta partida.");return}
+     window.copabetSelectSportsOdd?.({gameId:activeModalId,odd:p.odd,marketId:m.id,outcomeId:p.id,market:m.name,selection:p.name,competition:competitionOf(g),home,away});
+    });
+    grid.append(btn);
+   }
+   card.append(grid);group.append(card);
+  }
+  body.append(group);
+ }
+}
+window.copabetValidateApiPicks=items=>{
+ if(!items.some(p=>String(p.id).startsWith("sportsapi:")))return "";
+ if(!apiDataConfirmed)return "Não foi possível validar as odds da API. Atualize a página.";
+ for(const p of items){
+  if(!String(p.id).startsWith("sportsapi:"))continue;
+  const g=games.find(x=>String(x.sportsApiId||x.id)===String(p.id).slice(10));
+  if(!g||!canBetApi(g))return "Apostas indisponíveis para "+p.a+" × "+p.b+". Remova esse jogo.";
+  let v=null;
+  if(!p.marketId||p.marketId==="1x2")v=Number(cachedOdds(g).values.get(["Casa","Empate","Fora"][p.side]));
+  else v=Number(additionalMarkets(g).find(m=>m.id===p.marketId)?.outcomes.find(o=>o.id===p.outcomeId)?.odd);
+  if(!Number.isFinite(v)||Math.abs(v-p.odd)>0.0001)return "Cotação alterada em "+p.a+" × "+p.b+". Selecione novamente.";
+ }
+ return "";
+};
+function apiScore(g){
+ const n=x=>{const v=Number(x);return x!==null&&x!==undefined&&String(x).trim()!==""&&Number.isInteger(v)&&v>=0&&v<=99?v:null};
+ const scores=g.score?.fullTime||g.score?.current||{};
+ const home=n(first(g.homeScore,g.scoreHome,g.home_score,g.score?.home,g.goals?.home,scores.home,g.scores?.home));
+ const away=n(first(g.awayScore,g.scoreAway,g.away_score,g.score?.away,g.goals?.away,scores.away,g.scores?.away));
+ return home!==null&&away!==null?home+" × "+away:null;
+}
+
 // Destaque editorial por reconhecimento dos clubes e rivalidades; nunca inventa partidas.
 const normalized=x=>asText(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const majorClubs=["flamengo","corinthians","palmeiras","sao paulo","santos","vasco","fluminense","botafogo","gremio","internacional","atletico mineiro","atletico-mg","cruzeiro","bahia","vitoria","sport recife","sport club","fortaleza","ceara","athletico paranaense","atletico-pr","coritiba","goias","america-mg","america pernambuco","america de pernambuco","america-pe","guarani"];
@@ -2986,7 +3140,7 @@ const startTimestamp=g=>{
 function isAvailableApiGame(g){
  if(isYouthApiGame(g))return false;
  const status=asText(g.status).toLowerCase().replace(/[\s-]+/g,"_");
- if(["finished","ended","completed","final","full_time","ft","cancelled","canceled","postponed","abandoned"].includes(status))return false;
+ if(endedApi(g))return false;
  const ts=startTimestamp(g);
  if(ts===Number.MAX_SAFE_INTEGER)return false; // Data desconhecida: não tratar jogo sem horário como futuro.
  const now=Date.now();
@@ -3048,7 +3202,7 @@ function render(){
   if(ts!==Number.MAX_SAFE_INTEGER && Number.isFinite(ts) && Math.abs(ts)<=8.64e15){
    try{card.append(node("p",new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(ts))+" (Brasília)","cb-match-time"))}catch(error){console.warn("Horário inválido ignorado:",error)}
   }
-  const beforeKickoff=startTimestamp(g)>Date.now()&&!isLive(g);
+  const beforeKickoff=canBetApi(g);
   if(!beforeKickoff){
     card.append(node("p","Jogo iniciado · apostas encerradas","small"));
   }
@@ -3057,7 +3211,7 @@ function render(){
   for(const [side,label] of [["Casa","Casa"],["Empate","Empate"],["Fora","Fora"]]){
     const box=node("div","","cb-odd");
     const gameKey=String(g.sportsApiId||g.id);
-    const selected=pickedSports.get(gameKey)===side;
+    const selected=pickedSports.get(gameKey)==="1x2|"+side;
     if(selected)box.classList.add("is-picked");
     const value=result.values.get(side);
     box.append(node("small",label));
@@ -3071,13 +3225,18 @@ function render(){
         if(!isAvailableApiGame(g)||startTimestamp(g)<=Date.now()||isLive(g)){render();alert("As apostas desta partida já foram encerradas.");return}
         if(typeof window.copabetSelectSportsOdd!=="function"){alert("Bilhete indisponível. Recarregue a página.");return}
         window.copabetSelectSportsOdd({gameId:g.sportsApiId||g.id,odd:value,house:result.house,
-          market:"Resultado final (1X2)",selection:side,
+          market:"Resultado final (1X2)",marketId:"1x2",outcomeId:side,selection:side,
           competition:name(first(g.competition,g.league,g.tournament,g.championship)),home:a,away:b});
       });box.append(btn);
     }
     grid.append(box);
   }
-  const timeRow=card.querySelector(".cb-match-time");
+  const moreMarkets=additionalMarkets(g);
+   const more=node("button",moreMarkets.length?"Mais opções · "+moreMarkets.length:"Mais opções de aposta","cb-more-market-btn");
+   more.type="button";more.addEventListener("click",()=>openMarkets(g));card.append(more);
+   const score=apiScore(g);
+   if(score&&(isLive(g)||startTimestamp(g)<=Date.now()))card.append(node("div","Placar: "+score,"cb-live-score"));
+   const timeRow=card.querySelector(".cb-match-time");
   if(timeRow)card.insertBefore(grid,timeRow);
   else card.append(grid);
 
@@ -3182,6 +3341,7 @@ function displayGamesFromSnapshot(snapshot,source){
  window.dispatchEvent(new Event("copabet:api-games-updated"));
  try{
   render(); // Prioridade absoluta: exibir os jogos antes de salvar cache ou montar o painel.
+   if(activeModalId!==null)renderMarketsModal();
   if(statusEl && filter!=="society"){
    const total=games.length;
    const footballGames=games.filter(football);
