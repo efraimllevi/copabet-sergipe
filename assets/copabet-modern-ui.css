@@ -357,6 +357,7 @@ header #siteLogo{
     backdrop-filter:blur(14px);
   }
   .cb-mobile-nav button{
+    position:relative;
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -381,6 +382,24 @@ header #siteLogo{
     background:rgba(255,131,29,.12)!important;
     border-color:rgba(255,131,29,.23)!important;
   }
+  .cb-mobile-nav .cb-nav-ticket-count{
+    position:absolute;
+    right:calc(50% - 24px);
+    top:0;
+    min-width:17px;
+    height:17px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    border:1px solid #12141a;
+    padding:1px 4px;
+    background:#ff962f;
+    color:#16100b;
+    font-size:10px;
+    font-weight:900;
+    line-height:1;
+  }
+  .cb-mobile-nav .cb-nav-ticket-count[hidden]{display:none!important}
   .cb-mobile-nav button:focus-visible{outline:2px solid #ffad65;outline-offset:-2px}
   .cb-mobile-scrim:not([hidden]){
     display:block;
