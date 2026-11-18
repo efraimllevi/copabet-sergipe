@@ -62,7 +62,7 @@
     ticketButton.append(ticketBadge);
     const slipCounter = document.getElementById("cbSlipCount");
     function updateTicketCount(){
-      const count = Math.max(0,Number((slipCounter?.textContent || "").match(/\\d+/)?.[0] || 0));
+      const count = Math.max(0,Number((slipCounter?.textContent || "").match(/\d+/)?.[0] || 0));
       ticketBadge.hidden = count === 0;
       ticketBadge.textContent = count > 99 ? "99+" : String(count);
       ticketButton.setAttribute("aria-label", count > 0
