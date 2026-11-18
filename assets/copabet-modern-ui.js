@@ -13,6 +13,7 @@
     if (document.getElementById("cbModernMobileNav")) return;
 
     const mobile = () => window.matchMedia("(max-width:699px)").matches;
+    const scrollMode = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     const visible = id => {
       const el = document.getElementById(id);
       return el && !el.classList.contains("hidden");
@@ -91,7 +92,7 @@
       const target = filters.querySelector('[data-filter="' + mode + '"]');
       target?.click();
       const panel = document.getElementById("sportsapiPanel");
-      if (panel) panel.scrollIntoView({behavior:"smooth",block:"start"});
+      if (panel) panel.scrollIntoView({behavior:scrollMode(),block:"start"});
       mark(mode === "live" ? "live" : "games");
     }
 
@@ -102,7 +103,7 @@
       if (action === "ticket"){openSlip();return;}
       if (action === "home"){
         closeSlip();
-        window.scrollTo({top:0,behavior:"smooth"});
+        window.scrollTo({top:0,behavior:scrollMode()});
         mark("home");
         return;
       }
