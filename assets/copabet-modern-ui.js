@@ -71,7 +71,7 @@
     }
     if (slipCounter) new MutationObserver(updateTicketCount).observe(slipCounter,{childList:true,characterData:true,subtree:true});
     updateTicketCount();
-    let activeSection = "games";
+    let activeSection = "games", priorSection = "games";
 
     function mark(section){
       activeSection = section;
@@ -87,7 +87,7 @@
       document.body.classList.remove("cb-modern-slip-open");
       scrim.hidden = true;
       toggle.setAttribute("aria-expanded", "false");
-      if (activeSection === "ticket") mark("games");
+      if (activeSection === "ticket") mark(priorSection);
       if (restoreFocus && mobile() && publicActive()) buttonFor("ticket")?.focus({preventScroll:true});
     }
 
@@ -98,6 +98,7 @@
       document.body.classList.add("cb-modern-slip-open");
       scrim.hidden = false;
       toggle.setAttribute("aria-expanded", "true");
+      if (activeSection !== "ticket") priorSection = activeSection;
       mark("ticket");
       slip.scrollTop = 0;
       toggle.focus({preventScroll:true});
