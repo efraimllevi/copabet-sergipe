@@ -1,0 +1,454 @@
+/* COPABET • modernização visual 2026
+ * Camada isolada: preserva lógicas de apostas, Firebase, painel e cambistas.
+ * Mantém legibilidade, confirmação de pagamentos e avisos de risco.
+ */
+:root{
+  --cb26-bg:#0a0c11;
+  --cb26-surface:#171b22;
+  --cb26-surface-2:#1e232b;
+  --cb26-stroke:#343a44;
+  --cb26-muted:#aab1be;
+  --cb26-white:#f8f7f5;
+  --cb26-accent:#ff831d;
+  --cb26-accent-soft:#ffbe7b;
+  --cb26-shadow:0 16px 40px rgba(0,0,0,.25);
+}
+html{scroll-behavior:smooth;scroll-padding-top:22px}
+body{background-color:var(--cb26-bg)!important}
+header{
+  padding:12px 18px!important;
+  border-bottom:1px solid rgba(255,137,41,.30)!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.26)!important;
+}
+header .header-content{
+  width:min(100%,1280px);
+  max-width:1280px!important;
+  min-height:58px;
+  gap:14px!important;
+}
+header #siteLogo{
+  width:clamp(164px,19vw,230px)!important;
+  max-width:60vw!important;
+  margin-bottom:0!important;
+}
+.banner-carousel{
+  width:calc(100% - 28px);
+  max-width:1248px!important;
+  margin:18px auto 18px!important;
+  border-radius:18px!important;
+}
+.banner-slide{
+  min-height:142px;
+  padding:26px clamp(18px,4vw,42px)!important;
+}
+.banner-slide h2{
+  font-size:clamp(21px,2.4vw,30px)!important;
+  line-height:1.2;
+  max-width:780px;
+  letter-spacing:-.025em;
+}
+.banner-slide p{
+  max-width:700px!important;
+  color:#d8d0c8!important;
+  line-height:1.55!important;
+}
+.site-layout{
+  max-width:1280px!important;
+  gap:20px!important;
+}
+.champ-main{min-width:0}
+.cb-page-intro{
+  margin:2px 0 18px;
+  padding:4px 0 0;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.cb-page-intro .cb-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#f9b67c;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.cb-page-intro .cb-eyebrow::before{
+  content:"";
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--cb26-accent);
+  box-shadow:0 0 0 4px rgba(255,131,29,.12);
+}
+.cb-page-intro h1{
+  margin:0!important;
+  color:var(--cb26-white)!important;
+  font-size:clamp(24px,3vw,35px)!important;
+  line-height:1.13;
+  letter-spacing:-.035em;
+  font-weight:840;
+}
+.cb-page-intro p{
+  margin:0;
+  max-width:710px;
+  line-height:1.5;
+  font-size:14px;
+  color:var(--cb26-muted);
+}
+#sportsapiPanel{
+  padding:clamp(13px,2vw,22px)!important;
+  border-radius:18px!important;
+  box-shadow:var(--cb26-shadow)!important;
+}
+#sportsapiPanel .cb-live-head{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+}
+#sportsapiPanel .cb-live-head h2{
+  flex:1 1 270px;
+  font-size:clamp(18px,2vw,23px)!important;
+  line-height:1.2;
+}
+#cbLiveStatus{font-size:12px!important}
+#cbRefreshGames{min-height:40px;border-radius:10px!important}
+#cbSportFilters{
+  gap:9px!important;
+  margin:14px 0 18px!important;
+}
+#cbSportFilters button{
+  min-height:42px;
+  border-radius:999px!important;
+  padding:10px 15px!important;
+  font-size:12px!important;
+  font-weight:700;
+  transition:background-color .15s ease,border-color .15s ease;
+}
+#sportsapiPanel .cb-live-game,
+#cbSocietyGames .match{
+  padding:16px!important;
+  margin:12px 0!important;
+  border-radius:16px!important;
+  box-shadow:0 5px 18px rgba(0,0,0,.18)!important;
+}
+#sportsapiPanel .cb-live-game-top{
+  align-items:center;
+  font-size:12px!important;
+  font-weight:600;
+  line-height:1.4;
+}
+#sportsapiPanel .cb-live-match{
+  margin:15px 0 10px!important;
+  line-height:1.45;
+}
+#sportsapiPanel .cb-team-name,
+#cbSocietyGames .cb-team-name{
+  line-height:1.35;
+}
+#sportsapiPanel .cb-odds-grid,
+#cbSocietyGames .grid.odds{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:9px!important;
+}
+#sportsapiPanel .cb-odd{
+  border-radius:12px!important;
+  padding:10px 8px!important;
+  min-width:0!important;
+  min-height:98px;
+  gap:2px;
+}
+#sportsapiPanel .cb-odd strong{
+  font-size:18px!important;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.015em;
+}
+#sportsapiPanel .cb-odd small{font-size:12px!important}
+#sportsapiPanel .cb-odd button{
+  min-height:35px;
+  margin-top:auto!important;
+  border-radius:8px!important;
+  font-size:12px!important;
+  padding:8px 4px!important;
+  font-weight:800;
+}
+#sportsapiPanel .cb-odd.is-picked{
+  border-color:#ffd078!important;
+  box-shadow:0 0 0 2px rgba(255,180,77,.20)!important;
+}
+#cbSocietyGames .grid.odds button{
+  min-height:54px;
+  border-radius:11px!important;
+  font-size:12px!important;
+  line-height:1.45;
+}
+#sportsapiPanel .cb-more-market-btn{
+  min-height:42px;
+  border-radius:10px!important;
+  font-size:12px!important;
+  font-weight:750;
+}
+#floatingBetSlip{
+  border-radius:19px!important;
+  box-shadow:0 24px 70px rgba(0,0,0,.55)!important;
+}
+#floatingBetSlip .cb-slip-title h2{
+  font-size:19px!important;
+  letter-spacing:-.025em;
+}
+#floatingBetSlip #amount{
+  min-height:44px;
+  font-size:17px;
+  font-variant-numeric:tabular-nums;
+}
+#floatingBetSlip #combined,
+#floatingBetSlip #payout{font-variant-numeric:tabular-nums}
+#floatingBetSlip #payBtn{
+  min-height:48px!important;
+  border-radius:11px!important;
+  font-weight:820;
+  letter-spacing:.015em;
+}
+#floatingBetSlip #selections{
+  max-height:32vh!important;
+  overscroll-behavior:contain;
+}
+#floatingBetSlip #cbSlipBody>.small:last-child{
+  color:#d5c5b6;
+  line-height:1.45;
+}
+#floatingBetSlip .cb-slip-pick{
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.09);
+}
+#floatingBetSlip .cb-slip-remove{min-height:35px}
+#cbEntryGate .cb-entry-panel{
+  max-width:440px;
+  padding:clamp(20px,5vw,34px)!important;
+  border-radius:22px!important;
+}
+#cbEntryGate h2{font-size:clamp(22px,4vw,27px)!important;letter-spacing:-.025em}
+#cbEntryGate .cb-entry-choice{min-height:54px;transition:filter .15s ease}
+#cbEntryGate .cb-entry-choice:hover{filter:brightness(1.07)}
+.cb-mobile-nav,
+.cb-mobile-scrim{display:none}
+@media (min-width:1100px){
+  #floatingBetSlip{
+    top:85px!important;
+    max-height:calc(100dvh - 103px)!important;
+    width:306px!important;
+  }
+  #publicView{padding-right:320px!important}
+}
+@media (max-width:1099px) and (min-width:700px){
+  #floatingBetSlip{
+    width:275px!important;
+    right:12px!important;
+    bottom:16px!important;
+    max-height:68dvh!important;
+  }
+  #publicView{padding-right:285px!important}
+}
+@media (max-width:699px){
+  html{scroll-padding-top:14px}
+  header{padding:10px 14px!important}
+  header .header-content{min-height:48px!important;gap:8px!important}
+  header #siteLogo{width:173px!important;max-width:64vw!important}
+  .banner-carousel{
+    width:calc(100% - 20px);
+    margin:11px auto 13px!important;
+    border-radius:14px!important;
+  }
+  .banner-slide{
+    padding:20px 20px 28px!important;
+    min-height:138px;
+  }
+  .banner-slide h2{font-size:21px!important;line-height:1.2}
+  .banner-slide p{
+    font-size:12px!important;
+    line-height:1.4!important;
+    padding-right:8px;
+  }
+  .banner-dots{bottom:9px!important;right:15px!important}
+  .site-layout{
+    padding-inline:10px!important;
+    gap:10px!important;
+  }
+  .champ-main{padding:0!important}
+  .cb-page-intro{
+    margin:3px 1px 13px;
+    gap:6px;
+  }
+  .cb-page-intro h1{font-size:25px!important}
+  .cb-page-intro p{font-size:12px;line-height:1.45}
+  #sportsapiPanel{padding:11px!important;border-radius:14px!important}
+  #sportsapiPanel .cb-live-head{gap:8px}
+  #sportsapiPanel .cb-live-head h2{font-size:18px!important;flex-basis:180px}
+  #cbRefreshGames{min-height:40px}
+  #cbSportFilters{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:7px!important;
+    margin:11px -3px 15px!important;
+    padding:4px 3px 10px!important;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scroll-snap-type:x proximity;
+    scrollbar-width:thin;
+    -webkit-overflow-scrolling:touch;
+  }
+  #cbSportFilters button{
+    flex:0 0 auto;
+    scroll-snap-align:start;
+    min-height:42px!important;
+    white-space:nowrap!important;
+    font-size:12px!important;
+    padding:9px 12px!important;
+  }
+  #sportsapiPanel .cb-live-game,
+  #cbSocietyGames .match{
+    padding:12px!important;
+    margin:10px 0!important;
+    border-radius:13px!important;
+  }
+  #sportsapiPanel .cb-live-game-top{
+    font-size:11px!important;
+    gap:5px!important;
+  }
+  #sportsapiPanel .cb-match-teams{gap:5px!important;margin:12px 0 7px!important}
+  #sportsapiPanel .cb-team-display{font-size:13px!important}
+  #sportsapiPanel .cb-odds-grid,
+  #cbSocietyGames .grid.odds{gap:6px!important}
+  #sportsapiPanel .cb-odd{
+    min-height:94px!important;
+    padding:8px 4px!important;
+    border-radius:10px!important;
+  }
+  #sportsapiPanel .cb-odd small{font-size:11px!important}
+  #sportsapiPanel .cb-odd strong{font-size:16px!important}
+  #sportsapiPanel .cb-odd button{
+    min-height:44px!important;
+    font-size:11px!important;
+    padding:7px 1px!important;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  #cbSocietyGames .grid.odds button{
+    min-height:52px!important;
+    font-size:11px!important;
+  }
+  #publicView{padding-bottom:92px!important}
+  body.cb-modern-ready #cbSlipReopen{display:none!important}
+  .cb-mobile-nav{
+    position:fixed;
+    z-index:180;
+    left:0;right:0;bottom:0;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:2px;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));
+    min-height:70px;
+    border-top:1px solid #4d3827;
+    background:rgba(17,19,24,.97);
+    box-shadow:0 -12px 36px rgba(0,0,0,.44);
+    -webkit-backdrop-filter:blur(14px);
+    backdrop-filter:blur(14px);
+  }
+  .cb-mobile-nav button{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    padding:6px 2px;
+    min-height:52px;
+    background:transparent!important;
+    border:1px solid transparent!important;
+    border-radius:10px;
+    color:#d1d4dc!important;
+    font:700 10px/1.2 Inter,system-ui,sans-serif;
+    cursor:pointer;
+  }
+  .cb-mobile-nav button svg{
+    width:22px;height:22px;
+    fill:none;stroke:currentColor;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round;
+  }
+  .cb-mobile-nav button.is-active{
+    color:#ffad65!important;
+    background:rgba(255,131,29,.12)!important;
+    border-color:rgba(255,131,29,.23)!important;
+  }
+  .cb-mobile-nav .cb-nav-ticket-count{
+    position:absolute;
+    right:calc(50% - 24px);
+    top:0;
+    min-width:17px;
+    height:17px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    border:1px solid #12141a;
+    padding:1px 4px;
+    background:#ff962f;
+    color:#16100b;
+    font-size:10px;
+    font-weight:900;
+    line-height:1;
+  }
+  .cb-mobile-nav .cb-nav-ticket-count[hidden]{display:none!important}
+  .cb-mobile-nav button:focus-visible{outline:2px solid #ffad65;outline-offset:-2px}
+  .cb-mobile-scrim:not([hidden]){
+    display:block;
+    position:fixed;
+    z-index:240;
+    inset:0;
+    border:0;
+    width:100%;
+    background:rgba(2,4,8,.73);
+    cursor:pointer;
+  }
+  body.cb-modern-ready #floatingBetSlip{
+    position:fixed!important;
+    top:auto!important;
+    left:10px!important;
+    right:10px!important;
+    bottom:calc(78px + env(safe-area-inset-bottom,0px))!important;
+    z-index:260!important;
+    width:auto!important;
+    max-height:calc(100dvh - 112px - env(safe-area-inset-bottom,0px))!important;
+    margin:0!important;
+    padding:14px!important;
+    overflow-y:auto!important;
+    border-radius:18px!important;
+    visibility:hidden!important;
+    opacity:0!important;
+    pointer-events:none!important;
+    transform:translateY(18px);
+    transition:opacity .18s ease,transform .18s ease,visibility .18s;
+  }
+  body.cb-modern-ready.cb-modern-slip-open #floatingBetSlip:not(.is-dismissed){
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+    transform:translateY(0);
+  }
+  body.cb-modern-ready #floatingBetSlip #selections{max-height:26dvh!important}
+  body.cb-modern-ready #floatingBetSlip #amount{max-width:100%!important;width:100%}
+  body.cb-modern-ready #floatingBetSlip .cb-slip-title h2{font-size:18px!important}
+  body.cb-modern-ready #floatingBetSlip #cbSlipBody>.row{margin:9px 0!important}
+  body.cb-modern-ready #floatingBetSlip #cbSlipBody>p.small{display:block}
+  body.cb-modern-ready.cb-modern-slip-open{overflow:hidden}
+  body:has(#cbEntryGate:not(.cb-entry-dismissed)) .cb-mobile-nav,
+  body:has(#publicView.hidden) .cb-mobile-nav,
+  body:has(#adminLogin:not(.hidden)) .cb-mobile-nav,
+  body:has(#paymentModal:not(.hidden)) .cb-mobile-nav{display:none!important}
+  body:has(#publicView.hidden) .cb-mobile-scrim{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  #floatingBetSlip,.banner-track,.cb-mobile-nav button{transition:none!important}
+}
