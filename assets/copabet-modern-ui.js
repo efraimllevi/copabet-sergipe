@@ -55,6 +55,22 @@
     scrim.setAttribute("aria-label", "Fechar o bilhete de apostas");
     document.body.append(scrim, nav);
     const buttonFor = section => nav.querySelector('[data-cb-section="' + section + '"]');
+    const ticketButton = buttonFor("ticket");
+    const ticketBadge = document.createElement("span");
+    ticketBadge.className = "cb-nav-ticket-count";
+    ticketBadge.hidden = true;
+    ticketButton.append(ticketBadge);
+    const slipCounter = document.getElementById("cbSlipCount");
+    function updateTicketCount(){
+      const count = Math.max(0,Number((slipCounter?.textContent || "").match(/\\d+/)?.[0] || 0));
+      ticketBadge.hidden = count === 0;
+      ticketBadge.textContent = count > 99 ? "99+" : String(count);
+      ticketButton.setAttribute("aria-label", count > 0
+        ? "Abrir meu bilhete com " + count + (count === 1 ? " jogo" : " jogos")
+        : "Abrir meu bilhete de apostas");
+    }
+    if (slipCounter) new MutationObserver(updateTicketCount).observe(slipCounter,{childList:true,characterData:true,subtree:true});
+    updateTicketCount();
     let activeSection = "games";
 
     function mark(section){
