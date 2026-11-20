@@ -4124,7 +4124,16 @@ window.addEventListener("copabet:cambista-opened",()=>{
 import{getApps,getApp,initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,getDocsFromServer,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import{summarizeCambistaBets}from"/assets/cambista-commission.mjs?v=2";
+// O cadastro de cambistas deve iniciar mesmo se o módulo financeiro falhar.
+const emptyCambistaSummary=()=>({issued:0,done:0,gross:0,pending:0,due:0,tiers:[],unclassified:0});
+let commissionCalculator=null;
+async function getCommissionCalculator(){
+ if(commissionCalculator)return commissionCalculator;
+ const module=await import("/assets/cambista-commission.mjs?v=2");
+ if(typeof module.summarizeCambistaBets!=="function")throw Error("Módulo de comissões indisponível.");
+ commissionCalculator=module.summarizeCambistaBets;
+ return commissionCalculator;
+}
 const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
 const app=getApps().length?getApp():initializeApp({
  apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",
@@ -4205,7 +4214,7 @@ async function loadAll(){
   // Exibe os cadastros antes de consultar bilhetes ou calcular comissões.
   rows=profiles.map(x=>({
    uid:String(x.uid||""),name:String(x.name||x.nome||"Sem nome"),email:String(x.email||"").toLowerCase(),
-   active:x.active===true,...summarizeCambistaBets([])
+   active:x.active===true,...emptyCambistaSummary()
   })).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
   ticketReadOk=false;
   ticketReadError="Calculando comissões...";
@@ -4215,6 +4224,7 @@ async function loadAll(){
   render();
   renderRanking();
   try{
+   const summarizeCambistaBets=await getCommissionCalculator();
    const tickets=await fetchFromServer(collection(db,"bets"));
    if(version!==sequence||!admin())return;
    const ownByIssuer=new Map();
@@ -4423,6 +4433,7 @@ async function loadPersonal(){
   const [p,bets]=await Promise.all([getDoc(doc(db,"cambistas",user.uid)),getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))]);
   if(!cambista()||auth.currentUser.uid!==user.uid)return;
   if(!p.exists()||p.data().active!==true){root.textContent="Cadastro desativado.";return;}
+  const summarizeCambistaBets=await getCommissionCalculator();
   const all=bets.docs.map(d=>d.data()).filter(b=>b.issuedByUid===user.uid),r=summarizeCambistaBets(all);root.replaceChildren();
   tile(root,"Bilhetes emitidos",r.issued);tile(root,"Bruto confirmado",money(r.gross));
   tile(root,"Comissão a receber",money(r.due));
@@ -4496,7 +4507,7 @@ async function csvExport(){
    rows=profiles.map(x=>({
     uid:String(x.uid||""),name:String(x.name||x.nome||"Sem nome"),
     email:String(x.email||"").toLowerCase(),active:x.active===true,
-    ...summarizeCambistaBets([])
+    ...emptyCambistaSummary()
    })).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
    ticketReadOk=false;
    ticketReadError="Dados financeiros não consultados nesta exportação.";
