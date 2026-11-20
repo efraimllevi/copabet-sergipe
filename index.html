@@ -4433,6 +4433,7 @@ async function loadPersonal(){
   const [p,bets]=await Promise.all([getDoc(doc(db,"cambistas",user.uid)),getDocs(query(collection(db,"bets"),where("uid","==",user.uid)))]);
   if(!cambista()||auth.currentUser.uid!==user.uid)return;
   if(!p.exists()||p.data().active!==true){root.textContent="Cadastro desativado.";return;}
+  const summarizeCambistaBets=await getCommissionCalculator();
   const all=bets.docs.map(d=>d.data()).filter(b=>b.issuedByUid===user.uid),r=summarizeCambistaBets(all);root.replaceChildren();
   tile(root,"Bilhetes emitidos",r.issued);tile(root,"Bruto confirmado",money(r.gross));
   tile(root,"Comissão a receber",money(r.due));
