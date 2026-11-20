@@ -58,3 +58,21 @@ test("bilhete confirmado sem seleções entra no bruto, sem inventar percentual"
   assert.equal(result.due,0);
   assert.equal(result.unclassified,1);
 });
+
+test("cancelamento de bilhete pago retira imediatamente a comissão", () => {
+  const active = ticket(5,100);
+  const previous = ticket(5,700);
+  const initially=summarizeCambistaBets([previous,active]);
+  assert.equal(initially.due,80);
+  const cancelled={...active,status:"cancelled",paymentStatus:"refund_pending"};
+  const final=summarizeCambistaBets([previous,cancelled]);
+  assert.equal(final.due,70);
+  assert.equal(final.gross,700);
+  assert.equal(final.done,1);
+});
+
+test("cancelamento tem precedência sobre pagamento confirmado legado", () => {
+  const r=summarizeCambistaBets([ticket(7,100,{status:"cancelled",paymentStatus:"confirmed"})]);
+  assert.equal(r.due,0);
+  assert.equal(r.gross,0);
+});

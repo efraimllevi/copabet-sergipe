@@ -161,6 +161,7 @@
     },{passive:true});
     mark("games");
     document.body.classList.add("cb-modern-ready");
+    import("/assets/copabet-daily-tickets.mjs?v=1").catch(error=>console.error("Painel diário COPABET indisponível:",error));
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",init,{once:true});

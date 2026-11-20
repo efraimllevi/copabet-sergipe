@@ -11,15 +11,17 @@ const amountCents = amount => {
   const n = Number(amount);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
 };
+const rejected = bet =>
+  ["rejected", "cancelled", "canceled"].includes(String(bet.status || "").toLowerCase()) ||
+  ["rejected", "cancelled", "canceled", "refund_pending", "refunded"].includes(String(bet.paymentStatus || "").toLowerCase());
 const paid = bet => {
+  // Cancelamento tem precedência sobre confirmação de pagamento antiga.
+  if (rejected(bet)) return false;
   const payment = String(bet.paymentStatus || "").toLowerCase();
   const status = String(bet.status || "").toLowerCase();
   return payment === "confirmed" ||
     (payment === "" && ["accepted", "won", "lost"].includes(status));
 };
-const rejected = bet =>
-  ["rejected", "cancelled"].includes(String(bet.status || "").toLowerCase()) ||
-  ["rejected", "cancelled", "refunded"].includes(String(bet.paymentStatus || "").toLowerCase());
 
 export function commissionTierForGames(count) {
   return Number.isInteger(count) && count > 0
