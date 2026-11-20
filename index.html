@@ -4588,13 +4588,25 @@ function render(){
 }
 async function api(body){
  if(!authorized())throw Error("Entre como administrador para acessar o caixa.");
- const token=await getAuth(getApp()).currentUser.getIdToken(true);
+ // Reutiliza o token válido da sessão; o SDK o renova quando necessário.
+ // Forçar renovação a cada clique pode bloquear o painel em caso de falha de rede.
+ const user=getAuth(getApp()).currentUser;
+ let token;
+ try{
+  token=await Promise.race([
+   user.getIdToken(),
+   new Promise((_,reject)=>setTimeout(()=>reject(new Error("Tempo esgotado ao validar a sessão Firebase.")),15000))
+  ]);
+ }catch(error){throw Error("Não foi possível validar sua sessão: "+String(error?.message||error));}
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),30000);
  let response;
  try{
-  response=await fetch("/.netlify/functions/fluxo-caixa",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
+  response=await fetch("/.netlify/functions/fluxo-caixa",{method:"POST",cache:"no-store",signal:controller.signal,headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
  }catch(error){
+  if(error?.name==="AbortError")throw Error("A consulta ao Fluxo de Caixa excedeu 30 segundos. O servidor não respondeu; nenhum lançamento foi alterado por esta consulta.");
   throw Error("Não foi possível comunicar com a função de caixa da Netlify. Verifique a conexão e a publicação: "+String(error?.message||"erro de rede"));
- }
+ }finally{clearTimeout(timeout);}
  const type=response.headers.get("content-type")||"";
  const data=type.includes("application/json")?await response.json().catch(()=>null):null;
  if(!response.ok||!data?.success){
