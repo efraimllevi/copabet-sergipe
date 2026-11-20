@@ -4243,7 +4243,10 @@ async function loadAll(){
   rows=[];ticketReadOk=false;ticketReadError=String(error?.code||error?.message||"erro desconhecido");
   console.error("Falha na consulta de cadastros de cambistas:",error);
   if(listingStatus)listingStatus.textContent="Falha ao consultar cambistas ("+ticketReadError+"). Isso não significa que não existam cadastros.";
-  root.textContent="Não foi possível carregar os cambistas. Verifique a conexão e as regras do Firestore. Código: "+ticketReadError;
+  root.textContent="Não foi possível carregar os cambistas. Código: "+ticketReadError;
+  const rankStatus=$("cbRankingStatus"),rankRows=$("cbRankingRows");
+  if(rankStatus)rankStatus.textContent="Falha na consulta de cadastros: "+ticketReadError;
+  if(rankRows)rankRows.textContent="A lista de cambistas não pôde ser carregada; nenhuma classificação foi calculada.";
  }
 }
 
@@ -4251,19 +4254,22 @@ function renderRanking(){
  const root=$("cbRankingRows"),status=$("cbRankingStatus");
  if(!root||!status||!admin())return;
  root.replaceChildren();
- if(!ticketReadOk){status.textContent="Não foi possível consultar os bilhetes; a classificação financeira está indisponível. "+ticketReadError;return;}
- const ordered=[...rows].sort((a,b)=>b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"));
- status.textContent=ordered.length+" cambista(s) na classificação. Classificado por valor bruto confirmado.";
- if(!ordered.length){append(root,"p","Nenhum cambista cadastrado.");return;}
+ const ordered=[...rows].sort((a,b)=>ticketReadOk
+  ?(b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"))
+  :a.name.localeCompare(b.name,"pt-BR"));
+ status.textContent=ticketReadOk
+  ?ordered.length+" cambista(s) na classificação por valor bruto confirmado."
+  :ordered.length+" cambista(s) cadastrado(s). Dados de bilhetes/comissões indisponíveis: "+ticketReadError;
+ if(!ordered.length){append(root,"p","Nenhum cadastro de cambista retornado pelo Firebase.");return;}
  for(const [index,r] of ordered.entries()){
   const card=append(root,"article","","cb-cambista-row");
-  append(card,"h4",(index+1)+"º — "+r.name+(r.active?"":" (inativo)"));
+  append(card,"h4",(ticketReadOk?(index+1)+"º — ":"")+r.name+(r.active?"":" (inativo)"));
   const details=append(card,"div","","cb-cambista-details");
-  tile(details,"Bruto confirmado",money(r.gross));
-  tile(details,"Bilhetes pagos",String(r.done));
-  tile(details,"Comissão",money(r.due));
-  tile(details,"Bilhetes emitidos",String(r.issued));
-  tile(details,"Pendente",money(r.pending));
+  tile(details,"Bruto confirmado",ticketReadOk?money(r.gross):"Indisponível");
+  tile(details,"Bilhetes pagos",ticketReadOk?String(r.done):"Indisponível");
+  tile(details,"Comissão",ticketReadOk?money(r.due):"Indisponível");
+  tile(details,"Bilhetes emitidos",ticketReadOk?String(r.issued):"Indisponível");
+  tile(details,"Pendente",ticketReadOk?money(r.pending):"Indisponível");
  }
 }
 $("cbRankingRefresh")?.addEventListener("click",()=>{const status=$("cbRankingStatus");if(status)status.textContent="Consultando cambistas e bilhetes...";loadAll();});
@@ -4475,11 +4481,31 @@ async function loadOwnPendingPayments(){
   }
  }catch(error){root.textContent="Não foi possível consultar seus bilhetes: "+String(error.code||error.message);}
 }
-function csvExport(){
- const csvStatus=$("cbCambistaListingStatus");
- if(csvStatus)csvStatus.textContent="Botão acionado · preparando exportação de cambistas...";
- if(!admin()){alert("Faça login como administrador para exportar os cambistas.");return;}
- if(!rows.length){alert("Nenhum cambista disponível para exportação. Clique em ATUALIZAR para consultar o Firebase.");return;}
+async function csvExport(){
+ const csvStatus=$("cbCambistaListingStatus"),button=$("cbCambistaCsv");
+ if(csvStatus)csvStatus.textContent="Consultando cadastros para preparar o CSV...";
+ if(auth?.authStateReady)await auth.authStateReady().catch(()=>{});
+ if(!admin()){if(csvStatus)csvStatus.textContent="Entre como administrador para exportar os cambistas.";return;}
+ if(button)button.disabled=true;
+ try{
+  // Exportar deve funcionar mesmo que o usuário não tenha carregado a lista
+  // ou que a consulta de bilhetes/comissões esteja indisponível.
+  if(!rows.length){
+   const profiles=await fetchCambistaProfiles();
+   if(!admin())throw Error("Sessão administrativa não está ativa.");
+   rows=profiles.map(x=>({
+    uid:String(x.uid||""),name:String(x.name||x.nome||"Sem nome"),
+    email:String(x.email||"").toLowerCase(),active:x.active===true,
+    ...summarizeCambistaBets([])
+   })).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+   ticketReadOk=false;
+   ticketReadError="Dados financeiros não consultados nesta exportação.";
+   render();
+  }
+  if(!rows.length){
+   if(csvStatus)csvStatus.textContent="Consulta concluída: nenhum cadastro encontrado na coleção cambistas. Nenhum arquivo vazio foi gerado.";
+   return;
+  }
  const search=$("cbCambistaFilter").value.trim();
  const filtered=search?rows.filter(r=>matchFirstNamePrefix(r.name,search)):rows;
  if(!filtered.length){alert("Nenhum cambista corresponde ao filtro informado.");return;}
@@ -4502,6 +4528,10 @@ function csvExport(){
  a.download="copabet-cambistas.csv";document.body.append(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),3000);
  if(csvStatus)csvStatus.textContent="CSV preparado para download · "+filtered.length+" cambista(s)."+(ticketReadOk?"":" Dados financeiros indisponíveis.");
+ }catch(error){
+  console.error("Erro ao preparar CSV de cambistas:",error);
+  if(csvStatus)csvStatus.textContent="Não foi possível baixar CSV: "+String(error?.message||error);
+ }finally{if(button)button.disabled=false;}
 }
 
 $("cbCambistaCreateForm")?.addEventListener("submit",createCambista);
