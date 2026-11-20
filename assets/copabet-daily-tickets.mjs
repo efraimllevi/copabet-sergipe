@@ -49,7 +49,7 @@ function style(){
   document.head.append(s);
 }
 function createPanel(role){
-  const host=role==="admin"?$("adminView"):$("cbCambistaPersonalReport");
+  const host=role==="admin"?$("adminView")?.querySelector(".card"):$("cbCambistaPersonalReport");
   if(!host)return null;
   const wrap=append(host,"section","cb-daily-wrap");
   wrap.id=role==="admin"?"cbDailyAdmin":"cbDailyCambista";
