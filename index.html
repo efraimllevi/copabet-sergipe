@@ -4243,7 +4243,10 @@ async function loadAll(){
   rows=[];ticketReadOk=false;ticketReadError=String(error?.code||error?.message||"erro desconhecido");
   console.error("Falha na consulta de cadastros de cambistas:",error);
   if(listingStatus)listingStatus.textContent="Falha ao consultar cambistas ("+ticketReadError+"). Isso não significa que não existam cadastros.";
-  root.textContent="Não foi possível carregar os cambistas. Verifique a conexão e as regras do Firestore. Código: "+ticketReadError;
+  root.textContent="Não foi possível carregar os cambistas. Código: "+ticketReadError;
+  const rankStatus=$("cbRankingStatus"),rankRows=$("cbRankingRows");
+  if(rankStatus)rankStatus.textContent="Falha na consulta de cadastros: "+ticketReadError;
+  if(rankRows)rankRows.textContent="A lista de cambistas não pôde ser carregada; nenhuma classificação foi calculada.";
  }
 }
 
@@ -4251,19 +4254,22 @@ function renderRanking(){
  const root=$("cbRankingRows"),status=$("cbRankingStatus");
  if(!root||!status||!admin())return;
  root.replaceChildren();
- if(!ticketReadOk){status.textContent="Não foi possível consultar os bilhetes; a classificação financeira está indisponível. "+ticketReadError;return;}
- const ordered=[...rows].sort((a,b)=>b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"));
- status.textContent=ordered.length+" cambista(s) na classificação. Classificado por valor bruto confirmado.";
- if(!ordered.length){append(root,"p","Nenhum cambista cadastrado.");return;}
+ const ordered=[...rows].sort((a,b)=>ticketReadOk
+  ?(b.gross-a.gross||b.done-a.done||a.name.localeCompare(b.name,"pt-BR"))
+  :a.name.localeCompare(b.name,"pt-BR"));
+ status.textContent=ticketReadOk
+  ?ordered.length+" cambista(s) na classificação por valor bruto confirmado."
+  :ordered.length+" cambista(s) cadastrado(s). Dados de bilhetes/comissões indisponíveis: "+ticketReadError;
+ if(!ordered.length){append(root,"p","Nenhum cadastro de cambista retornado pelo Firebase.");return;}
  for(const [index,r] of ordered.entries()){
   const card=append(root,"article","","cb-cambista-row");
-  append(card,"h4",(index+1)+"º — "+r.name+(r.active?"":" (inativo)"));
+  append(card,"h4",(ticketReadOk?(index+1)+"º — ":"")+r.name+(r.active?"":" (inativo)"));
   const details=append(card,"div","","cb-cambista-details");
-  tile(details,"Bruto confirmado",money(r.gross));
-  tile(details,"Bilhetes pagos",String(r.done));
-  tile(details,"Comissão",money(r.due));
-  tile(details,"Bilhetes emitidos",String(r.issued));
-  tile(details,"Pendente",money(r.pending));
+  tile(details,"Bruto confirmado",ticketReadOk?money(r.gross):"Indisponível");
+  tile(details,"Bilhetes pagos",ticketReadOk?String(r.done):"Indisponível");
+  tile(details,"Comissão",ticketReadOk?money(r.due):"Indisponível");
+  tile(details,"Bilhetes emitidos",ticketReadOk?String(r.issued):"Indisponível");
+  tile(details,"Pendente",ticketReadOk?money(r.pending):"Indisponível");
  }
 }
 $("cbRankingRefresh")?.addEventListener("click",()=>{const status=$("cbRankingStatus");if(status)status.textContent="Consultando cambistas e bilhetes...";loadAll();});
