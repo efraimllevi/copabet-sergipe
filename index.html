@@ -1096,6 +1096,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 </style>
 <link rel="stylesheet" href="/assets/copabet-modern-ui.css?v=1">
 <script src="/assets/copabet-modern-ui.js?v=2" defer></script>
+<script src="/assets/copabet-admin-click-health.js?v=1" defer></script>
 </head>
 <body>
 
@@ -4240,7 +4241,7 @@ function renderRanking(){
   tile(details,"Pendente",money(r.pending));
  }
 }
-$("cbRankingRefresh")?.addEventListener("click",loadAll);
+$("cbRankingRefresh")?.addEventListener("click",()=>{const status=$("cbRankingStatus");if(status)status.textContent="Consultando cambistas e bilhetes...";loadAll();});
 document.querySelector('[data-admin-tab="cbRankingPane"]')?.addEventListener("click",()=>{renderRanking();loadAll();});
 // Pesquisa de prefixo, sem procurar letras soltas no meio do nome.
 const normalizeSearchText=value=>String(value??"").normalize("NFD")
@@ -4644,6 +4645,7 @@ function reportElement(){
  return root;
 }
 function downloadCsv(){
+ if(!loaded){$("cbCashStatus").textContent="O caixa ainda não foi carregado. Clique em ATUALIZAR e aguarde a resposta do Firebase antes de exportar.";return;}
  const rows=filtered(),t=totals(rows),csv=[["Data","Tipo","Categoria","Descrição","Forma","Referência","Valor (R$)"],...rows.map(r=>[r.date,r.type,r.category,r.description,r.method,r.reference||"",(num(r.amountCents)/100).toFixed(2).replace(".",",")])];
  csv.push(["","TOTAL ENTRADAS","","","","",(t.incoming/100).toFixed(2).replace(".",",")]);
  csv.push(["","TOTAL SAÍDAS","","","","",(t.outgoing/100).toFixed(2).replace(".",",")]);
@@ -4652,6 +4654,7 @@ function downloadCsv(){
  const data="\uFEFF"+csv.map(row=>row.map(quote).join(";")).join("\r\n");
  const u=URL.createObjectURL(new Blob([data],{type:"text/csv;charset=utf-8"}));
  const link=document.createElement("a");link.href=u;link.download="copabet-fluxo-caixa.csv";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000);
+ $("cbCashStatus").textContent="CSV do fluxo de caixa preparado · "+rows.length+" lançamento(s).";
 }
 function init(){
  const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
