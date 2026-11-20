@@ -1096,6 +1096,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 </style>
 <link rel="stylesheet" href="/assets/copabet-modern-ui.css?v=1">
 <script src="/assets/copabet-modern-ui.js?v=2" defer></script>
+<script src="/assets/copabet-admin-click-health.js?v=1" defer></script>
 </head>
 <body>
 
@@ -4122,7 +4123,7 @@ window.addEventListener("copabet:cambista-opened",()=>{
 <script type="module" id="cb-cambista-management-module">
 import{getApps,getApp,initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,getDocsFromServer,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import{summarizeCambistaBets}from"/assets/cambista-commission.mjs?v=2";
 const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
 const app=getApps().length?getApp():initializeApp({
@@ -4149,8 +4150,21 @@ function renderTierTable(parent,tiers){
 }
 let rows=[],sequence=0;
 let ticketReadOk=true, ticketReadError="";
+const fetchFromServer=async reference=>{
+ let timeout;
+ try{
+  return await Promise.race([
+   getDocsFromServer(reference),
+   new Promise((_,reject)=>{
+    timeout=setTimeout(()=>reject(Object.assign(new Error("A consulta ao Firebase ultrapassou 20 segundos. Verifique a conexão e tente novamente."),{code:"timeout"})),20000);
+   })
+  ]);
+ }finally{clearTimeout(timeout);}
+};
 async function loadAll(){
  const root=$("cbCambistaRows"),listingStatus=$("cbCambistaListingStatus");
+ if(listingStatus)listingStatus.textContent="Botão acionado · verificando sua sessão no Firebase...";
+ if(auth?.authStateReady)await auth.authStateReady().catch(()=>{});
  if(!admin()){
   if(listingStatus)listingStatus.textContent="A consulta exige login de administrador. Saia e entre novamente com o perfil Administrador.";
   if(root)root.textContent="Acesso administrativo não confirmado.";
@@ -4160,7 +4174,7 @@ async function loadAll(){
  if(listingStatus)listingStatus.textContent="Carregando cadastros no Firebase...";
  root.textContent="Carregando lista de cambistas...";
  try{
-  const profiles=await getDocs(collection(db,"cambistas"));
+  const profiles=await fetchFromServer(collection(db,"cambistas"));
   if(version!==sequence||!admin())return;
   // Mostrar os cadastros imediatamente, sem aguardar a consulta de todos os bilhetes.
   rows=profiles.docs.map(d=>{
@@ -4176,7 +4190,7 @@ async function loadAll(){
   render();
   renderRanking();
   try{
-   const tickets=await getDocs(collection(db,"bets"));
+   const tickets=await fetchFromServer(collection(db,"bets"));
    if(version!==sequence||!admin())return;
    const ownByIssuer=new Map();
    for(const d of tickets.docs){
@@ -4227,7 +4241,7 @@ function renderRanking(){
   tile(details,"Pendente",money(r.pending));
  }
 }
-$("cbRankingRefresh")?.addEventListener("click",loadAll);
+$("cbRankingRefresh")?.addEventListener("click",()=>{const status=$("cbRankingStatus");if(status)status.textContent="Consultando cambistas e bilhetes...";loadAll();});
 document.querySelector('[data-admin-tab="cbRankingPane"]')?.addEventListener("click",()=>{renderRanking();loadAll();});
 // Pesquisa de prefixo, sem procurar letras soltas no meio do nome.
 const normalizeSearchText=value=>String(value??"").normalize("NFD")
@@ -4437,6 +4451,8 @@ async function loadOwnPendingPayments(){
  }catch(error){root.textContent="Não foi possível consultar seus bilhetes: "+String(error.code||error.message);}
 }
 function csvExport(){
+ const csvStatus=$("cbCambistaListingStatus");
+ if(csvStatus)csvStatus.textContent="Botão acionado · preparando exportação de cambistas...";
  if(!admin()){alert("Faça login como administrador para exportar os cambistas.");return;}
  if(!rows.length){alert("Nenhum cambista disponível para exportação. Clique em ATUALIZAR para consultar o Firebase.");return;}
  const search=$("cbCambistaFilter").value.trim();
@@ -4460,6 +4476,7 @@ function csvExport(){
  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;
  a.download="copabet-cambistas.csv";document.body.append(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),3000);
+ if(csvStatus)csvStatus.textContent="CSV preparado para download · "+filtered.length+" cambista(s)."+(ticketReadOk?"":" Dados financeiros indisponíveis.");
 }
 
 $("cbCambistaCreateForm")?.addEventListener("submit",createCambista);
@@ -4572,13 +4589,28 @@ function render(){
 async function api(body){
  if(!authorized())throw Error("Entre como administrador para acessar o caixa.");
  const token=await getAuth(getApp()).currentUser.getIdToken(true);
- const response=await fetch("/.netlify/functions/fluxo-caixa",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
- const data=await response.json().catch(()=>null);
- if(!response.ok||!data?.success)throw Error(data?.message||"Servidor indisponível (HTTP "+response.status+").");
+ let response;
+ try{
+  response=await fetch("/.netlify/functions/fluxo-caixa",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
+ }catch(error){
+  throw Error("Não foi possível comunicar com a função de caixa da Netlify. Verifique a conexão e a publicação: "+String(error?.message||"erro de rede"));
+ }
+ const type=response.headers.get("content-type")||"";
+ const data=type.includes("application/json")?await response.json().catch(()=>null):null;
+ if(!response.ok||!data?.success){
+  const fallback=response.status===404?"Função fluxo-caixa não encontrada neste deploy da Netlify."
+   :response.status===401?"Sessão administrativa expirada ou inválida. Entre novamente."
+   :response.status===403?"Firebase recusou acesso administrativo. Verifique o perfil."
+   :response.status===503?"Credenciais de serviço do Firebase ausentes ou inválidas na Netlify."
+   :response.status===500?"Falha ao ler o caixa no Firebase pela função da Netlify. Verifique o log da função."
+   :"A função não confirmou a consulta.";
+  throw Error((data?.message||fallback)+" (HTTP "+response.status+").");
+ }
  return data;
 }
 async function refresh(){
- if(loading)return;
+ if(loading){$("cbCashStatus").textContent="Já existe uma consulta em andamento.";return;}
+ $("cbCashStatus").textContent="Botão acionado · verificando autorização do Firebase...";
  if(!authorized()){$("cbCashStatus").textContent="Entre como administrador.";return;}
  loading=true;$("cbCashRefresh").disabled=true;$("cbCashStatus").textContent="Consultando registros do Firebase...";
  try{
@@ -4613,6 +4645,7 @@ function reportElement(){
  return root;
 }
 function downloadCsv(){
+ if(!loaded){$("cbCashStatus").textContent="O caixa ainda não foi carregado. Clique em ATUALIZAR e aguarde a resposta do Firebase antes de exportar.";return;}
  const rows=filtered(),t=totals(rows),csv=[["Data","Tipo","Categoria","Descrição","Forma","Referência","Valor (R$)"],...rows.map(r=>[r.date,r.type,r.category,r.description,r.method,r.reference||"",(num(r.amountCents)/100).toFixed(2).replace(".",",")])];
  csv.push(["","TOTAL ENTRADAS","","","","",(t.incoming/100).toFixed(2).replace(".",",")]);
  csv.push(["","TOTAL SAÍDAS","","","","",(t.outgoing/100).toFixed(2).replace(".",",")]);
@@ -4621,6 +4654,7 @@ function downloadCsv(){
  const data="\uFEFF"+csv.map(row=>row.map(quote).join(";")).join("\r\n");
  const u=URL.createObjectURL(new Blob([data],{type:"text/csv;charset=utf-8"}));
  const link=document.createElement("a");link.href=u;link.download="copabet-fluxo-caixa.csv";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000);
+ $("cbCashStatus").textContent="CSV do fluxo de caixa preparado · "+rows.length+" lançamento(s).";
 }
 function init(){
  const now=new Date(),first=new Date(now.getFullYear(),now.getMonth(),1);
