@@ -1210,15 +1210,15 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
   <div class="cb-live-head"><h2>JOGOS BRASILEIROS E INTERNACIONAIS</h2><span id="cbLiveStatus" class="small" role="status">Carregando partidas...</span><button id="cbRefreshGames" class="secondary" type="button" style="padding:8px 11px">Atualizar partidas</button></div>
   <p class="small">Escolha Casa, Empate ou Fora e adicione quantas partidas quiser ao mesmo bilhete.</p>
   <div class="cb-live-tools" id="cbSportFilters">
-    <button type="button" data-filter="all" aria-pressed="false">Futebol em Destaque</button>
+    <button type="button" data-filter="all" aria-pressed="true">Futebol em Destaque</button>
     <button type="button" data-filter="live" aria-pressed="false">Futebol ao vivo</button>
     <button type="button" data-filter="brazil" aria-pressed="false">Campeonatos brasileiros</button>
     <button type="button" data-filter="international" aria-pressed="false">Futebol internacional</button>
-    <button type="button" data-filter="society" aria-pressed="true">Jogos Estaduais</button>
+    <button type="button" data-filter="society" aria-pressed="false">Jogos Estaduais</button>
   </div>
   <div id="cbLiveGames" aria-live="polite"><p class="small">Carregando partidas...</p></div>
 </section>
-<section id="cbSocietyGames" aria-label="Jogos Estaduais">
+<section id="cbSocietyGames" aria-label="Jogos Estaduais" hidden>
   <h3>Jogos Estaduais</h3>
   <p class="small">Partidas estaduais organizadas por campeonato.</p>
   <div id="matches"></div>
@@ -3035,7 +3035,7 @@ const buttons = [...document.querySelectorAll("#cbSportFilters button")];
 const societyRoot=document.getElementById("cbSocietyGames");
 const societySidebar=document.getElementById("cbSocietySidebar");
 const gamesLayout=document.getElementById("cbGamesLayout");
-let games = [], filter="society", selectedApiCup=null, renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
+let games = [], filter="all", selectedApiCup=null, renderLimit=24, apiDataConfirmed=false, serverReadConfirmed=false;
 const oddsCache=new WeakMap();
 function cachedOdds(g){
  if(oddsCache.has(g))return oddsCache.get(g);
