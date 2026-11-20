@@ -4161,6 +4161,32 @@ const fetchFromServer=async reference=>{
   ]);
  }finally{clearTimeout(timeout);}
 };
+async function fetchCambistaProfiles(){
+ let serverError;
+ try{
+  const token=await auth.currentUser.getIdToken();
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),20000);
+  let response;
+  try{
+   response=await fetch("/.netlify/functions/listar-cambistas",{method:"POST",cache:"no-store",signal:controller.signal,headers:{"Authorization":"Bearer "+token}});
+  }finally{clearTimeout(timeout);}
+  const body=await response.json().catch(()=>null);
+  if(response.status===401||response.status===403)throw Object.assign(new Error(body?.message||"Sessão administrativa não autorizada."),{code:"auth/permission-denied"});
+  if(!response.ok||body?.success!==true||!Array.isArray(body.cambistas))throw Error(body?.message||"Consulta administrativa indisponível (HTTP "+response.status+").");
+  return body.cambistas;
+ }catch(error){
+  if(error?.code==="auth/permission-denied")throw error;
+  serverError=String(error?.message||error);
+ }
+ // Permite funcionar durante a publicação da nova função, sem ocultar falhas.
+ try{
+  const snapshot=await fetchFromServer(collection(db,"cambistas"));
+  return snapshot.docs.map(d=>({uid:d.id,...d.data()}));
+ }catch(error){
+  throw Error("Consulta pelo servidor: "+serverError+". Consulta direta ao Firestore: "+String(error?.code||error?.message||error));
+ }
+}
 async function loadAll(){
  const root=$("cbCambistaRows"),listingStatus=$("cbCambistaListingStatus");
  if(listingStatus)listingStatus.textContent="Botão acionado · verificando sua sessão no Firebase...";
@@ -4174,14 +4200,13 @@ async function loadAll(){
  if(listingStatus)listingStatus.textContent="Carregando cadastros no Firebase...";
  root.textContent="Carregando lista de cambistas...";
  try{
-  const profiles=await fetchFromServer(collection(db,"cambistas"));
+  const profiles=await fetchCambistaProfiles();
   if(version!==sequence||!admin())return;
-  // Mostrar os cadastros imediatamente, sem aguardar a consulta de todos os bilhetes.
-  rows=profiles.docs.map(d=>{
-   const x=d.data();
-   return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),
-     active:x.active===true,...summarizeCambistaBets([])};
-  }).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  // Exibe os cadastros antes de consultar bilhetes ou calcular comissões.
+  rows=profiles.map(x=>({
+   uid:String(x.uid||""),name:String(x.name||x.nome||"Sem nome"),email:String(x.email||"").toLowerCase(),
+   active:x.active===true,...summarizeCambistaBets([])
+  })).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
   ticketReadOk=false;
   ticketReadError="Calculando comissões...";
   if(listingStatus)listingStatus.textContent=rows.length
