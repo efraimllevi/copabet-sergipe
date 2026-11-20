@@ -1,3 +1,4 @@
+import {commissionTierForGames} from "./cambista-commission.mjs";
 // Métricas diárias por data de emissão. Não confundir bilhetes gerados com dinheiro recebido.
 export const CANCELLED_STATUSES = Object.freeze(["cancelled","canceled","rejected"]);
 const cents=x=>Number.isFinite(Number(x))&&Number(x)>0?Math.round(Number(x)*100):0;
@@ -22,7 +23,7 @@ export function dayKey(stamp,timeZone="America/Maceio"){
 }
 export function summarizeDay(rows,date,timeZone="America/Maceio"){
   const tickets=(Array.isArray(rows)?rows:[]).filter(b=>dayKey(b.createdAt,timeZone)===date);
-  let gross=0,validGross=0,received=0,cancelledGross=0,refundPending=0;
+  let gross=0,validGross=0,received=0,cancelledGross=0,refundPending=0,commission=0;
   let active=0,confirmed=0,cancelled=0,pending=0;
   for(const bet of tickets){
     const amount=cents(bet.amount);gross+=amount;
@@ -31,12 +32,18 @@ export function summarizeDay(rows,date,timeZone="America/Maceio"){
       if(bet.paymentStatus==="refund_pending")refundPending+=amount;
     } else{
       active++;validGross+=amount;
-      if(isConfirmed(bet)){confirmed++;received+=amount;} else pending++;
+      if(isConfirmed(bet)){
+        confirmed++;received+=amount;
+        if(bet.cambistaIssued===true || String(bet.source||"").startsWith("cambista_")){
+          const tier=commissionTierForGames(Array.isArray(bet.picks)?bet.picks.length:0);
+          if(tier)commission+=Math.round(amount*tier.basisPoints/10000);
+        }
+      } else pending++;
     }
   }
   const inReais=x=>x/100;
   return {issued:tickets.length,active,confirmed,pending,cancelled,
     gross:inReais(gross),validGross:inReais(validGross),received:inReais(received),
-    cancelledGross:inReais(cancelledGross),refundPending:inReais(refundPending),
+    cancelledGross:inReais(cancelledGross),refundPending:inReais(refundPending),commission:inReais(commission),
     tickets};
 }
