@@ -136,7 +136,9 @@ async function load(panel){
     tile(panel.stats,"Bilhetes cancelados",report.cancelled);
     tile(panel.stats,"Bruto emitido",money(report.gross));
     tile(panel.stats,"Bruto válido",money(report.validGross));
+    tile(panel.stats,"Bilhetes pagos",report.confirmed);
     tile(panel.stats,"Pagamento confirmado",money(report.received));
+    tile(panel.stats,"Comissões geradas",money(report.commission));
     tile(panel.stats,"Aguardando confirmação",report.pending);
     if(report.refundPending>0)tile(panel.stats,"Reembolso pendente",money(report.refundPending));
     const items=report.tickets.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
