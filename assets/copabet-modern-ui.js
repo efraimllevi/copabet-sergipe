@@ -4,6 +4,8 @@
 (() => {
   "use strict";
   function init(){
+    // O painel ADM e os bilhetes de cambista não dependem da navegação móvel.
+    import("/assets/copabet-daily-tickets.mjs?v=2").catch(error=>console.error("Painel diário COPABET indisponível:",error));
     const pub = document.getElementById("publicView");
     const slip = document.getElementById("floatingBetSlip");
     const toggle = document.getElementById("cbSlipToggle");
@@ -161,7 +163,7 @@
     },{passive:true});
     mark("games");
     document.body.classList.add("cb-modern-ready");
-    import("/assets/copabet-daily-tickets.mjs?v=1").catch(error=>console.error("Painel diário COPABET indisponível:",error));
+
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",init,{once:true});

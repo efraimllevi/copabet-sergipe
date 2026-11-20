@@ -1095,7 +1095,7 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 @media(prefers-reduced-motion:reduce){.card,.match,.promo-card,.cb-live-game{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="/assets/copabet-modern-ui.css?v=1">
-<script src="/assets/copabet-modern-ui.js?v=1" defer></script>
+<script src="/assets/copabet-modern-ui.js?v=2" defer></script>
 </head>
 <body>
 
@@ -1277,15 +1277,15 @@ input:focus,select:focus,textarea:focus{border-color:#ff973b!important;box-shado
 </section>
 <section id="cbCambistaAdminPane" class="admin-pane hidden">
 <h3>Pesquisar Cambistas</h3>
-<p class="small">Pesquise pelas primeiras letras do nome, na ordem em que aparecem. Ex.: O → OL → OLE encontra Olegário; digitar L não encontra Olegário. Nenhum cadastro aparece antes da pesquisa.</p>
+<p class="small">Pesquise pelas primeiras letras do nome, na ordem em que aparecem. Ex.: O → OL → OLE encontra Olegário; digitar L não encontra Olegário. Os cambistas cadastrados aparecem automaticamente. Use a pesquisa somente para filtrar por nome.</p>
 <div class="row" style="gap:8px;flex-wrap:wrap;margin:16px 0">
-<div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Pesquisar cambista pelo início do nome</label><input id="cbCambistaFilter" type="search" autocomplete="off" placeholder="Digite as primeiras letras: O, OL, OLE..." aria-label="Pesquisar cambistas pelo início do nome"></div>
-<button class="secondary" type="button" id="cbCambistaRefresh">ATUALIZAR</button><button class="secondary" type="button" id="cbCambistaCsv">BAIXAR CSV DO RESULTADO</button>
+<div style="flex:1;min-width:210px"><label for="cbCambistaFilter">Pesquisar cambista pelo início do nome</label><input id="cbCambistaFilter" type="search" autocomplete="off" placeholder="Filtrar por nome (opcional)" aria-label="Pesquisar cambistas pelo início do nome"></div>
+<button class="secondary" type="button" id="cbCambistaRefresh">ATUALIZAR</button><button class="secondary" type="button" id="cbCambistaCsv">BAIXAR CSV DOS CAMBISTAS</button>
 </div>
 <p class="small">A comissão é calculada por bilhete sobre o valor bruto efetivamente recebido pelo cambista, mesmo quando a aposta não é premiada.</p><div class="cb-commission-scroll"><table class="cb-commission-table" aria-label="Faixas de comissão"><thead><tr><th>Jogos no bilhete</th><th>Comissão</th></tr></thead><tbody><tr><td>1 jogo</td><td>2,5%</td></tr><tr><td>2 a 3 jogos</td><td>5,0%</td></tr><tr><td>4 a 6 jogos</td><td>10,0%</td></tr><tr><td>7 ou mais jogos</td><td>15,0%</td></tr></tbody></table></div>
 <div id="cbCambistaTotals" class="cb-cambista-totals" aria-live="polite"></div>
 <p id="cbCambistaListingStatus" class="small" role="status" aria-live="polite">O total de cambistas será confirmado ao consultar o Firebase.</p>
-<div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Digite as primeiras letras do nome para pesquisar.</p></div>
+<div id="cbCambistaRows" role="region" aria-label="Resultado da pesquisa"><p class="small">Abra esta aba para carregar os cambistas cadastrados.</p></div>
 </section>
 <section id="cbRankingPane" class="admin-pane hidden">
  <h3>Classificação de cambistas</h3>
@@ -4120,11 +4120,20 @@ window.addEventListener("copabet:cambista-opened",()=>{
 </script>
 
 <script type="module" id="cb-cambista-management-module">
-import{getApps,getApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import{getApps,getApp,initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import{getFirestore,collection,doc,setDoc,updateDoc,getDoc,getDocs,query,where,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import{summarizeCambistaBets}from"/assets/cambista-commission.mjs?v=1";
-const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2", app=getApps().length?getApp():null, auth=app?getAuth(app):null, db=app?getFirestore(app):null;
+import{summarizeCambistaBets}from"/assets/cambista-commission.mjs?v=2";
+const ADMIN_UID="rjWeKGZpkMVrW8UynAKCwjZXklM2";
+const app=getApps().length?getApp():initializeApp({
+ apiKey:"AIzaSyAQaa5HmBnHYpqz-4B8s7w2-DNlcpGOGDY",
+ authDomain:"indexxx-94ed1.firebaseapp.com",
+ projectId:"indexxx-94ed1",
+ storageBucket:"indexxx-94ed1.firebasestorage.app",
+ messagingSenderId:"134461084839",
+ appId:"1:134461084839:web:a8bfd4ba58edad3f043782"
+});
+const auth=getAuth(app), db=getFirestore(app);
 const $=id=>document.getElementById(id), money=x=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(x)||0);
 const admin=()=>auth?.currentUser?.uid===ADMIN_UID&&!auth.currentUser.isAnonymous&&!$("adminView").classList.contains("hidden");
 const cambista=()=>auth?.currentUser&&!auth.currentUser.isAnonymous&&window.copabetCambistaSession?.uid===auth.currentUser.uid&&!$("cambistaView").classList.contains("hidden");
@@ -4141,41 +4150,64 @@ function renderTierTable(parent,tiers){
 let rows=[],sequence=0;
 let ticketReadOk=true, ticketReadError="";
 async function loadAll(){
- if(!admin())return;
- const version=++sequence,root=$("cbCambistaRows"),needle=$("cbCambistaFilter").value.trim();
- const listingStatus=$("cbCambistaListingStatus");
- if(listingStatus)listingStatus.textContent="Consultando a coleção de cambistas no Firebase...";
- root.textContent=needle?"Consultando cadastro de cambistas...":"Digite as primeiras letras do nome para pesquisar.";
+ const root=$("cbCambistaRows"),listingStatus=$("cbCambistaListingStatus");
+ if(!admin()){
+  if(listingStatus)listingStatus.textContent="A consulta exige login de administrador. Saia e entre novamente com o perfil Administrador.";
+  if(root)root.textContent="Acesso administrativo não confirmado.";
+  return;
+ }
+ const version=++sequence;
+ if(listingStatus)listingStatus.textContent="Carregando cadastros no Firebase...";
+ root.textContent="Carregando lista de cambistas...";
  try{
-  // Os cadastros aparecem mesmo que o Firebase bloqueie uma consulta de bilhetes.
   const profiles=await getDocs(collection(db,"cambistas"));
   if(version!==sequence||!admin())return;
-  let all=[];ticketReadOk=true;ticketReadError="";
+  // Mostrar os cadastros imediatamente, sem aguardar a consulta de todos os bilhetes.
+  rows=profiles.docs.map(d=>{
+   const x=d.data();
+   return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),
+     active:x.active===true,...summarizeCambistaBets([])};
+  }).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  ticketReadOk=false;
+  ticketReadError="Calculando comissões...";
+  if(listingStatus)listingStatus.textContent=rows.length
+   ?rows.length+" cambista(s) cadastrado(s). Calculando as comissões..."
+   :"O Firebase retornou 0 cadastros de cambistas. Confira se foram registrados neste projeto.";
+  render();
+  renderRanking();
   try{
    const tickets=await getDocs(collection(db,"bets"));
    if(version!==sequence||!admin())return;
-   all=tickets.docs.map(d=>({id:d.id,...d.data()}));
+   const ownByIssuer=new Map();
+   for(const d of tickets.docs){
+    const b={id:d.id,...d.data()}, uid=String(b.issuedByUid||"");
+    if(!uid)continue;
+    if(!ownByIssuer.has(uid))ownByIssuer.set(uid,[]);
+    ownByIssuer.get(uid).push(b);
+   }
+   rows=rows.map(r=>({...r,...summarizeCambistaBets(ownByIssuer.get(r.uid)||[])}));
+   ticketReadOk=true;
+   ticketReadError="";
   }catch(error){
+   if(version!==sequence||!admin())return;
    ticketReadOk=false;
    ticketReadError=String(error?.code||error?.message||"erro desconhecido");
-   console.error("Bilhetes não disponíveis, mantendo os cadastros:",error);
+   console.error("Cadastros carregados, mas bilhetes indisponíveis:",error);
   }
-  rows=profiles.docs.map(d=>{
-   const x=d.data(),own=all.filter(b=>String(b.issuedByUid||"")===d.id);
-   return {uid:d.id,name:String(x.name||"Sem nome"),email:String(x.email||"").toLowerCase(),active:x.active===true,
-     ...summarizeCambistaBets(own)};
-  }).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
   if(listingStatus)listingStatus.textContent=rows.length
-   ?rows.length+" cambista(s) encontrado(s) no banco. Digite o início do nome para localizar um registro."
-   :"O Firebase retornou 0 cambistas. Nenhum cadastro foi localizado nesta coleção.";
-  render();renderRanking();
- }catch(e){
-  console.error("Falha na consulta de cambistas:",e);
-  const reason=String(e.code||e.message||"erro desconhecido");
-  if(listingStatus)listingStatus.textContent="Não foi possível consultar o Firestore ("+reason+"). Isso não significa que o cadastro esteja vazio.";
-  root.textContent="Não foi possível consultar os cambistas. Confira as regras de leitura do Firestore. Erro: "+reason;
+   ?rows.length+" cambista(s) encontrado(s). "+(ticketReadOk?"Comissões atualizadas.":"Cadastros disponíveis; consulta financeira falhou ("+ticketReadError+").")
+   :"O Firebase retornou 0 cambistas cadastrados nesta coleção.";
+  render();
+  renderRanking();
+ }catch(error){
+  if(version!==sequence||!admin())return;
+  rows=[];ticketReadOk=false;ticketReadError=String(error?.code||error?.message||"erro desconhecido");
+  console.error("Falha na consulta de cadastros de cambistas:",error);
+  if(listingStatus)listingStatus.textContent="Falha ao consultar cambistas ("+ticketReadError+"). Isso não significa que não existam cadastros.";
+  root.textContent="Não foi possível carregar os cambistas. Verifique a conexão e as regras do Firestore. Código: "+ticketReadError;
  }
 }
+
 function renderRanking(){
  const root=$("cbRankingRows"),status=$("cbRankingStatus");
  if(!root||!status||!admin())return;
@@ -4209,14 +4241,13 @@ function render(){
  if(!admin())return;
  const needle=$("cbCambistaFilter").value.trim();
  const root=$("cbCambistaRows"),totals=$("cbCambistaTotals");root.replaceChildren();totals.replaceChildren();
- if(!needle){root.textContent="Digite as primeiras letras do nome para pesquisar.";return;}
- const filtered=rows.filter(r=>matchFirstNamePrefix(r.name,needle));
+ const filtered=needle?rows.filter(r=>matchFirstNamePrefix(r.name,needle)):rows;
  if(!ticketReadOk){const warning=document.createElement("p");warning.className="small";warning.textContent="A consulta de bilhetes não está disponível ("+ticketReadError+"). Cadastro e porcentagem podem ser consultados, mas os valores financeiros estão temporariamente indisponíveis.";root.append(warning);}
  tile(totals,"Cambistas",filtered.length);
  tile(totals,"Vendas brutas confirmadas",ticketReadOk?money(round(filtered.reduce((n,r)=>n+r.gross,0))):"Indisponível");
  tile(totals,"Comissões calculadas",ticketReadOk?money(round(filtered.reduce((n,r)=>n+(r.due||0),0))):"Indisponível");
  tile(totals,"Apostas pendentes",ticketReadOk?money(round(filtered.reduce((n,r)=>n+r.pending,0))):"Indisponível");
- if(!filtered.length){append(root,"p","Nenhum cambista encontrado.");return;}
+ if(!filtered.length){append(root,"p",needle?"Nenhum cambista encontrado para essa pesquisa.":"Nenhum cambista cadastrado foi encontrado.");return;}
  for(const r of filtered){
   const card=append(root,"article","","cb-cambista-row");
   append(card,"h4",r.name+" — "+(r.active?"Ativo":"Inativo"));
@@ -4406,16 +4437,31 @@ async function loadOwnPendingPayments(){
  }catch(error){root.textContent="Não foi possível consultar seus bilhetes: "+String(error.code||error.message);}
 }
 function csvExport(){
- if(!admin())return;
- if(!ticketReadOk){alert("Não é possível exportar comissões sem acesso aos bilhetes. Verifique as permissões no Firestore.");return;}
+ if(!admin()){alert("Faça login como administrador para exportar os cambistas.");return;}
+ if(!rows.length){alert("Nenhum cambista disponível para exportação. Clique em ATUALIZAR para consultar o Firebase.");return;}
  const search=$("cbCambistaFilter").value.trim();
- if(!search){alert("Digite as primeiras letras do nome antes de exportar.");return;}
- const filtered=rows.filter(r=>matchFirstNamePrefix(r.name,search));
- const csvValue=v=>'"'+String(v??"").replaceAll('"','""')+'"';
- const data=[["Nome","Email","UID","Ativo","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)",...["1 jogo","2 a 3 jogos","4 a 6 jogos","7 ou mais jogos"].flatMap(label=>["Bruto "+label+" (R$)","Comissao "+label+" (R$)"])],...filtered.map(r=>[r.name,r.email,r.uid,r.active?"Sim":"Nao",r.issued,r.done,r.gross,r.due,r.pending,...r.tiers.flatMap(t=>[t.gross,t.commission])])];
+ const filtered=search?rows.filter(r=>matchFirstNamePrefix(r.name,search)):rows;
+ if(!filtered.length){alert("Nenhum cambista corresponde ao filtro informado.");return;}
+ if(!ticketReadOk)alert("A consulta de bilhetes não foi concluída. O CSV terá os cadastros, mas os campos financeiros estarão identificados como indisponíveis.");
+ const csvValue=v=>{
+  let value=String(v??"");
+  if(/^[\s]*[=+\-@\t\r]/.test(value))value="'"+value;
+  return '"'+value.replaceAll('"','""')+'"';
+ };
+ const notReady="Indisponível";
+ const data=[
+  ["Nome","Email","UID","Ativo","Bilhetes","Confirmados","Bruto confirmado (R$)","Comissao (R$)","Pendente (R$)",...["1 jogo","2 a 3 jogos","4 a 6 jogos","7 ou mais jogos"].flatMap(label=>["Bruto "+label+" (R$)","Comissao "+label+" (R$)"])],
+  ...filtered.map(r=>[
+   r.name,r.email,r.uid,r.active?"Sim":"Nao",
+   ...(ticketReadOk?[r.issued,r.done,r.gross,r.due,r.pending,...r.tiers.flatMap(t=>[t.gross,t.commission])]:Array(13).fill(notReady))
+  ])
+ ];
  const blob=new Blob(["\uFEFF"+data.map(a=>a.map(csvValue).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
- const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="copabet-comissoes-cambistas.csv";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;
+ a.download="copabet-cambistas.csv";document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
+
 $("cbCambistaCreateForm")?.addEventListener("submit",createCambista);
 $("cbCambistaRefresh")?.addEventListener("click",loadAll);
 $("cbCambistaFilter")?.addEventListener("input",render);
@@ -4426,14 +4472,17 @@ document.querySelector('[data-admin-tab="cbCambistaAdminPane"]')?.addEventListen
   $("cbCambistaFilter").value="";
   rows=[];
   $("cbCambistaTotals").replaceChildren();
-  $("cbCambistaRows").textContent="Digite as primeiras letras do nome para pesquisar.";
+  $("cbCambistaRows").textContent="Carregando cambistas cadastrados...";
   $("cbCambistaFilter").focus();
   loadAll();
 });
 window.addEventListener("copabet:cambista-opened",()=>{loadPersonal();loadOwnPendingPayments();});
 window.addEventListener("copabet:ticket-issued",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}});
 window.addEventListener("copabet:payment-confirmed",()=>{if(cambista()){loadPersonal();loadOwnPendingPayments();}if(admin())loadAll();});
-onAuthStateChanged(auth,user=>{if(!user){rows=[];sequence++;}});
+onAuthStateChanged(auth,user=>{
+ if(!user){rows=[];sequence++;return;}
+ if(admin()&&!$("cbCambistaAdminPane").classList.contains("hidden"))loadAll();
+});
 </script>
 <script type="module" id="cb-cash-module">
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
